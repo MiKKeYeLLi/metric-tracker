@@ -37,7 +37,7 @@ jobs:
           echo "Calling: ${COOLIFY_WEBHOOK_URL%%\?*}"
           AUTH=()
           if [[ -n "${COOLIFY_TOKEN:-}" ]]; then AUTH=(-H "Authorization: Bearer ${COOLIFY_TOKEN}"); fi
-          CODE=$(curl --silent --show-error --max-time 60 -o /tmp/resp.txt -w '%{http_code}'             "${AUTH[@]}" "${COOLIFY_WEBHOOK_URL}") || true
+          CODE=$(curl --silent --show-error --max-time 60 -X POST -o /tmp/resp.txt -w '%{http_code}'             "${AUTH[@]}" "${COOLIFY_WEBHOOK_URL}") || true
           echo "HTTP status: ${CODE}"
           cat /tmp/resp.txt; echo
           if [[ "${CODE}" != 2* ]]; then
