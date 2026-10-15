@@ -1,6 +1,7 @@
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import { SignOutButton } from "@/components/AuthButtons";
+import { ProductsNav } from "@/components/ProductsNav";
 import { RowMenu } from "@/components/RowMenu";
 import { authOptions } from "@/lib/auth";
 import { AddDirectoryModal } from "@/components/AddDirectoryModal";
@@ -275,6 +276,7 @@ export default async function DashboardPage() {
             Add product
           </button>
         </nav>
+        <ProductsNav initialProducts={products} />
 
         <div className="dash-account">
           <span
