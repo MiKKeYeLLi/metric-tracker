@@ -1,111 +1,34 @@
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import { SignOutButton } from "@/components/AuthButtons";
+import { DirectoriesNav } from "@/components/DirectoriesNav";
+import { NewSubmissionButton } from "@/components/NewSubmissionButton";
 import { ProductsNav } from "@/components/ProductsNav";
 import { RowMenu } from "@/components/RowMenu";
 import { authOptions } from "@/lib/auth";
-import { AddDirectoryModal } from "@/components/AddDirectoryModal";
-
-const stats = [
-  { label: "Directories", value: "8" },
-  { label: "Products", value: "3" },
-  { label: "Submissions", value: "24" },
-  { label: "Traffic", value: "14.2K", delta: "+18%", neg: false },
-];
-
-const directories = [
-  { name: "Product Hunt", count: 8, live: 5, pending: 2, rejected: 1 },
-  { name: "TechCrunch", count: 4, live: 2, pending: 1, rejected: 1 },
-  { name: "Hacker News", count: 6, live: 4, pending: 2, rejected: 0 },
-  { name: "Indie Hackers", count: 3, live: 2, pending: 1, rejected: 0 },
-  { name: "BetaList", count: 3, live: 1, pending: 1, rejected: 1 },
-];
-
-const products = ["Zeduchat", "Telex"];
-
-const submissions = [
-  {
-    id: "SUB-024",
-    product: "Zeduchat",
-    directory: "Product Hunt",
-    status: "live",
-    date: "Oct 12",
-    traffic: "4.2K",
-  },
-  {
-    id: "SUB-023",
-    product: "Telex",
-    directory: "TechCrunch",
-    status: "pending",
-    date: "Oct 10",
-    traffic: null,
-  },
-  {
-    id: "SUB-022",
-    product: "Zeduchat",
-    directory: "Hacker News",
-    status: "live",
-    date: "Oct 8",
-    traffic: "2.8K",
-  },
-  {
-    id: "SUB-021",
-    product: "Telex",
-    directory: "Product Hunt",
-    status: "live",
-    date: "Oct 5",
-    traffic: "3.1K",
-  },
-  {
-    id: "SUB-020",
-    product: "Zeduchat",
-    directory: "Indie Hackers",
-    status: "live",
-    date: "Oct 3",
-    traffic: "1.4K",
-  },
-  {
-    id: "SUB-019",
-    product: "Telex",
-    directory: "Hacker News",
-    status: "live",
-    date: "Sep 28",
-    traffic: "2.1K",
-  },
-  {
-    id: "SUB-018",
-    product: "Zeduchat",
-    directory: "BetaList",
-    status: "rejected",
-    date: "Sep 25",
-    traffic: null,
-  },
-  {
-    id: "SUB-017",
-    product: "Telex",
-    directory: "Indie Hackers",
-    status: "pending",
-    date: "Sep 20",
-    traffic: null,
-  },
-];
+import { prisma } from "@/lib/prisma";
 
 const statusLabel: Record<string, string> = {
-  live: "Live",
-  pending: "Pending",
-  review: "In review",
-  rejected: "Rejected",
+  planned:   "Planned",
+  submitted: "Submitted",
+  live:      "Live",
+  rejected:  "Rejected",
 };
+
+function formatDate(date: Date | null | undefined): string {
+  if (!date) return "—";
+  return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" }).format(date);
+}
+
+function formatTraffic(visits: number): string {
+  if (visits === 0) return "0";
+  if (visits >= 1000) return `${(visits / 1000).toFixed(1)}K`;
+  return visits.toString();
+}
 
 function IconGrid() {
   return (
-    <svg
-      width="14"
-      height="14"
-      viewBox="0 0 14 14"
-      fill="currentColor"
-      aria-hidden="true"
-    >
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor" aria-hidden="true">
       <rect x="1" y="1" width="5" height="5" rx="1.5" />
       <rect x="8" y="1" width="5" height="5" rx="1.5" />
       <rect x="1" y="8" width="5" height="5" rx="1.5" />
@@ -116,16 +39,7 @@ function IconGrid() {
 
 function IconList() {
   return (
-    <svg
-      width="14"
-      height="14"
-      viewBox="0 0 14 14"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      aria-hidden="true"
-    >
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden="true">
       <line x1="1" y1="3.5" x2="13" y2="3.5" />
       <line x1="1" y1="7" x2="13" y2="7" />
       <line x1="1" y1="10.5" x2="13" y2="10.5" />
@@ -133,55 +47,9 @@ function IconList() {
   );
 }
 
-function IconFolder() {
-  return (
-    <svg
-      width="14"
-      height="14"
-      viewBox="0 0 14 14"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinejoin="round"
-      strokeLinecap="round"
-      aria-hidden="true"
-    >
-      <path d="M1 4a1 1 0 0 1 1-1h3l1.5 2H12a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V4z" />
-    </svg>
-  );
-}
-
-function IconBox() {
-  return (
-    <svg
-      width="14"
-      height="14"
-      viewBox="0 0 14 14"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinejoin="round"
-      strokeLinecap="round"
-      aria-hidden="true"
-    >
-      <path d="M1.5 3.5 7 1.5l5.5 2v7L7 12.5l-5.5-2v-7z" />
-      <line x1="7" y1="1.5" x2="7" y2="12.5" />
-    </svg>
-  );
-}
-
 function IconPlus() {
   return (
-    <svg
-      width="12"
-      height="12"
-      viewBox="0 0 12 12"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      aria-hidden="true"
-    >
+    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden="true">
       <line x1="6" y1="1" x2="6" y2="11" />
       <line x1="1" y1="6" x2="11" y2="6" />
     </svg>
@@ -190,17 +58,7 @@ function IconPlus() {
 
 function IconFilter() {
   return (
-    <svg
-      width="13"
-      height="13"
-      viewBox="0 0 13 13"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
+    <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <line x1="1" y1="3" x2="12" y2="3" />
       <line x1="3" y1="6.5" x2="10" y2="6.5" />
       <line x1="5" y1="10" x2="8" y2="10" />
@@ -212,6 +70,39 @@ export default async function DashboardPage() {
   const session = await getServerSession(authOptions);
   if (!session?.user) redirect("/");
 
+  const [products, dbDirectories, dbSubmissions, trafficAgg] = await Promise.all([
+    prisma.product.findMany({
+      select: { id: true, name: true },
+      orderBy: { createdAt: "asc" },
+    }),
+    prisma.directory.findMany({
+      select: { id: true, name: true, _count: { select: { submissions: true } } },
+      orderBy: { createdAt: "asc" },
+    }),
+    prisma.submission.findMany({
+      select: {
+        id: true,
+        status: true,
+        submittedAt: true,
+        product:   { select: { name: true } },
+        directory: { select: { name: true } },
+        traffic:   { select: { visits: true } },
+      },
+      orderBy: { createdAt: "desc" },
+      take: 20,
+    }),
+    prisma.traffic.aggregate({ _sum: { visits: true } }),
+  ]);
+
+  const totalVisits = trafficAgg._sum.visits ?? 0;
+
+  const stats = [
+    { label: "Directories", value: String(dbDirectories.length) },
+    { label: "Products",    value: String(products.length) },
+    { label: "Submissions", value: String(dbSubmissions.length) },
+    { label: "Traffic",     value: formatTraffic(totalVisits) },
+  ];
+
   return (
     <main className="dash-page">
       {/* ── SIDEBAR ── */}
@@ -219,9 +110,7 @@ export default async function DashboardPage() {
         <div className="dash-sidebar-logo">
           <a className="wordmark" href="/dashboard">
             <span className="wordmark-mark" aria-hidden="true">
-              <i />
-              <i />
-              <i />
+              <i /><i /><i />
             </span>
             Metric Tracker
           </a>
@@ -238,51 +127,11 @@ export default async function DashboardPage() {
           </a>
         </nav>
 
-        <div className="dash-nav-section-label" aria-hidden="true">
-          Directories
-        </div>
-        <nav aria-label="Directories">
-          {directories.map((dir) => (
-            <a
-              className="dash-nav-link"
-              href={`/dashboard/directories/${dir.name.toLowerCase().replace(/ /g, "-")}`}
-              key={dir.name}
-            >
-              <IconFolder />
-              <span className="dash-nav-link-text">{dir.name}</span>
-              <span className="dash-nav-badge">{dir.count}</span>
-            </a>
-          ))}
-
-          <AddDirectoryModal />
-        </nav>
-
-        <div className="dash-nav-section-label" aria-hidden="true">
-          Products
-        </div>
-        <nav aria-label="Products">
-          {products.map((p) => (
-            <a
-              className="dash-nav-link"
-              href={`/dashboard/products/${p.toLowerCase()}`}
-              key={p}
-            >
-              <IconBox />
-              <span className="dash-nav-link-text">{p}</span>
-            </a>
-          ))}
-          <button className="dash-nav-add" type="button">
-            <IconPlus />
-            Add product
-          </button>
-        </nav>
+        <DirectoriesNav initialDirectories={dbDirectories} />
         <ProductsNav initialProducts={products} />
 
         <div className="dash-account">
-          <span
-            className="dash-account-email"
-            title={session.user.email ?? undefined}
-          >
+          <span className="dash-account-email" title={session.user.email ?? undefined}>
             {session.user.email}
           </span>
           <SignOutButton />
@@ -295,19 +144,13 @@ export default async function DashboardPage() {
         <header className="dash-header">
           <div className="dash-header-left">
             <h1 className="dash-page-title">Submissions</h1>
-            <span className="dash-page-label">
-              Illustrative data · Oct 2026
-            </span>
           </div>
           <div className="dash-header-actions">
             <button className="btn-ghost" type="button">
               <IconFilter />
               Filter
             </button>
-            <button className="btn-primary" type="button">
-              <IconPlus />
-              New submission
-            </button>
+            <NewSubmissionButton products={products} directories={dbDirectories} />
           </div>
         </header>
 
@@ -318,11 +161,6 @@ export default async function DashboardPage() {
               <p className="dash-stat-label">{s.label}</p>
               <div className="dash-stat-row">
                 <span className="dash-stat-value">{s.value}</span>
-                {s.delta && (
-                  <span className={`dash-stat-delta${s.neg ? " neg" : ""}`}>
-                    {s.delta}
-                  </span>
-                )}
               </div>
             </div>
           ))}
@@ -334,79 +172,80 @@ export default async function DashboardPage() {
           <section className="dash-section" aria-label="Recent submissions">
             <div className="dash-section-header">
               <h2 className="dash-section-title">Recent submissions</h2>
-              <span className="dash-section-meta">24 total</span>
+              <span className="dash-section-meta">{dbSubmissions.length} total</span>
             </div>
-            <table className="sub-table">
-              <thead>
-                <tr>
-                  <th scope="col">Product</th>
-                  <th scope="col">Directory</th>
-                  <th scope="col">Status</th>
-                  <th scope="col">Submitted</th>
-                  <th scope="col" className="col-r">
-                    Traffic
-                  </th>
-                  <th scope="col" className="col-actions">
-                    <span className="sr-only">Actions</span>
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {submissions.map((sub) => (
-                  <tr key={sub.id}>
-                    <td className="td-product">{sub.product}</td>
-                    <td className="td-dir">{sub.directory}</td>
-                    <td>
-                      <span className={`status-badge s-${sub.status}`}>
-                        {statusLabel[sub.status]}
-                      </span>
-                    </td>
-                    <td className="td-date">{sub.date}</td>
-                    <td
-                      className={`td-traffic${!sub.traffic ? " td-traffic-em" : ""}`}
-                    >
-                      {sub.traffic ?? "—"}
-                    </td>
-                    <td className="td-actions">
-                      <RowMenu
-                        label={`More options for ${sub.product} on ${sub.directory}`}
-                      />
-                    </td>
+
+            {dbSubmissions.length === 0 ? (
+              <div className="empty-state">
+                <p className="empty-state-text">No submissions yet — add your first one.</p>
+              </div>
+            ) : (
+              <table className="sub-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Product</th>
+                    <th scope="col">Directory</th>
+                    <th scope="col">Status</th>
+                    <th scope="col">Submitted</th>
+                    <th scope="col" className="col-r">Traffic</th>
+                    <th scope="col" className="col-actions">
+                      <span className="sr-only">Actions</span>
+                    </th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {dbSubmissions.map((sub) => {
+                    const visits = sub.traffic.reduce((acc, t) => acc + t.visits, 0);
+                    const trafficStr = visits > 0 ? formatTraffic(visits) : null;
+                    return (
+                      <tr key={sub.id}>
+                        <td className="td-product">{sub.product.name}</td>
+                        <td className="td-dir">{sub.directory.name}</td>
+                        <td>
+                          <span className={`status-badge s-${sub.status}`}>
+                            {statusLabel[sub.status] ?? sub.status}
+                          </span>
+                        </td>
+                        <td className="td-date">{formatDate(sub.submittedAt)}</td>
+                        <td className={`td-traffic${!trafficStr ? " td-traffic-em" : ""}`}>
+                          {trafficStr ?? "—"}
+                        </td>
+                        <td className="td-actions">
+                          <RowMenu
+                            label={`More options for ${sub.product.name} on ${sub.directory.name}`}
+                            submissionId={sub.id}
+                          />
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )}
           </section>
 
           {/* DIRECTORIES PANEL */}
           <section className="dash-section" aria-label="Directory breakdown">
             <div className="dash-section-header">
               <h2 className="dash-section-title">By directory</h2>
-              <span className="dash-section-meta">
-                {directories.length} dirs
-              </span>
+              <span className="dash-section-meta">{dbDirectories.length} dirs</span>
             </div>
             <div className="dir-list">
-              {directories.map((dir) => (
-                <div className="dir-row" key={dir.name}>
-                  <span className="dir-row-name">{dir.name}</span>
-                  <div
-                    className="dir-row-dots"
-                    aria-label={`${dir.live} live, ${dir.pending} pending, ${dir.rejected} rejected`}
-                  >
-                    {Array.from({ length: dir.live }).map((_, i) => (
-                      <span key={`l${i}`} className="d-dot d-live" />
-                    ))}
-                    {Array.from({ length: dir.pending }).map((_, i) => (
-                      <span key={`p${i}`} className="d-dot d-pending" />
-                    ))}
-                    {Array.from({ length: dir.rejected }).map((_, i) => (
-                      <span key={`r${i}`} className="d-dot d-rejected" />
-                    ))}
+              {dbDirectories.length === 0 ? (
+                <p className="empty-state-text">No directories yet.</p>
+              ) : (
+                dbDirectories.map((dir) => (
+                  <div className="dir-row" key={dir.id}>
+                    <span className="dir-row-name">{dir.name}</span>
+                    <div className="dir-row-dots" aria-label={`${dir._count.submissions} submissions`}>
+                      {Array.from({ length: Math.min(dir._count.submissions, 12) }).map((_, i) => (
+                        <span key={i} className="d-dot d-live" />
+                      ))}
+                    </div>
+                    <span className="dir-row-count">{dir._count.submissions}</span>
                   </div>
-                  <span className="dir-row-count">{dir.count}</span>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </section>
         </div>

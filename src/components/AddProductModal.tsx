@@ -1,99 +1,148 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+
+interface Product {
+  id: string;
+  name: string;
+}
 
 interface AddProductModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onSuccess: (product: Product) => void;
 }
 
-export function AddProductModal({ isOpen, onClose }: AddProductModalProps) {
-  const [siteName, setSiteName] = useState("");
-  const [siteUrl, setSiteUrl] = useState("");
+export function AddProductModal({ isOpen, onClose, onSuccess }: AddProductModalProps) {
+  const [name, setName] = useState("");
+  const [url, setUrl] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<{ name?: string[]; url?: string[] }>({});
+  const [serverError, setServerError] = useState<string | null>(null);
+  const nameRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (!isOpen) {
-      setSiteName("");
-      setSiteUrl("");
+    if (isOpen) {
+      setName("");
+      setUrl("");
+      setFieldErrors({});
+      setServerError(null);
+      setTimeout(() => nameRef.current?.focus(), 50);
     }
   }, [isOpen]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && isOpen) {
-        onClose();
-      }
+      if (e.key === "Escape" && isOpen && !loading) onClose();
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, loading]);
 
   if (!isOpen) return null;
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setFieldErrors({});
+    setServerError(null);
+    setLoading(true);
+
+    try {
+      const res = await fetch("/api/products", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, url }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        if (data.details) {
+          setFieldErrors(data.details);
+        } else {
+          setServerError(data.error ?? "Something went wrong");
+        }
+        return;
+      }
+
+      onSuccess({ id: data.id, name: data.name });
+      onClose();
+    } catch {
+      setServerError("Network error — please try again");
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
     <div
       className="modal-backdrop"
-      onClick={onClose}
+      onClick={() => !loading && onClose()}
       role="dialog"
       aria-modal="true"
       aria-labelledby="modal-title"
     >
-      <div
-        className="modal-sheet"
-        onClick={(e) => e.stopPropagation()}
-      >
+      <div className="modal-sheet" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <div className="modal-header-left">
-            <span className="modal-step-badge" aria-hidden="true">2</span>
-            <h2 id="modal-title" className="modal-title">Add a site to track</h2>
+            <h2 id="modal-title" className="modal-title">Add product</h2>
           </div>
           <button
             type="button"
             className="modal-done-btn"
             onClick={onClose}
+            disabled={loading}
             aria-label="Close modal"
           >
-            DONE
+            CANCEL
           </button>
         </div>
 
         <p className="modal-description">
-          A site is the product or website whose listings and traffic you follow.
+          A product is the site or app whose directory listings and traffic you want to track.
         </p>
 
-        <form onSubmit={(e) => e.preventDefault()} className="modal-form">
+        <form onSubmit={handleSubmit} className="modal-form" noValidate>
           <div className="modal-field">
-            <label htmlFor="site-name" className="modal-label">
-              Site name
-            </label>
+            <label htmlFor="product-name" className="modal-label">Name</label>
             <input
-              id="site-name"
+              ref={nameRef}
+              id="product-name"
               type="text"
-              className="modal-input"
-              placeholder="Lumen Budget"
-              value={siteName}
-              onChange={(e) => setSiteName(e.target.value)}
-              autoFocus
+              className={`modal-input${fieldErrors.name ? " modal-input--error" : ""}`}
+              placeholder="e.g. Zeduchat"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required
             />
+            {fieldErrors.name && (
+              <span className="modal-field-error">{fieldErrors.name[0]}</span>
+            )}
           </div>
 
           <div className="modal-field">
-            <label htmlFor="site-url" className="modal-label">
-              Site URL
-            </label>
+            <label htmlFor="product-url" className="modal-label">URL</label>
             <input
-              id="site-url"
+              id="product-url"
               type="url"
-              className="modal-input"
-              placeholder="https://lumenbudget.app"
-              value={siteUrl}
-              onChange={(e) => setSiteUrl(e.target.value)}
+              className={`modal-input${fieldErrors.url ? " modal-input--error" : ""}`}
+              placeholder="https://..."
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              required
             />
+            {fieldErrors.url && (
+              <span className="modal-field-error">{fieldErrors.url[0]}</span>
+            )}
           </div>
+
+          {serverError && (
+            <p className="modal-server-error">{serverError}</p>
+          )}
 
           <div className="modal-actions">
-            <button type="button" className="modal-btn-primary">
-              Save site
+            <button type="submit" className="modal-btn-primary" disabled={loading}>
+              {loading ? "Saving…" : "Save product"}
             </button>
           </div>
         </form>
@@ -101,4 +150,3 @@ export function AddProductModal({ isOpen, onClose }: AddProductModalProps) {
     </div>
   );
 }
-
