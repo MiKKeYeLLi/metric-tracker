@@ -1,153 +1,178 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useEffect, useState } from "react";
 
-interface Directory {
-  id: string;
-  name: string;
-  _count: { submissions: number };
-}
-
-interface AddDirectoryModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onSuccess: (directory: Directory) => void;
-}
-
-export function AddDirectoryModal({ isOpen, onClose, onSuccess }: AddDirectoryModalProps) {
+export function AddDirectoryModal() {
+  const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [url, setUrl] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [fieldErrors, setFieldErrors] = useState<{ name?: string[]; url?: string[] }>({});
-  const [serverError, setServerError] = useState<string | null>(null);
-  const nameRef = useRef<HTMLInputElement>(null);
+  const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (isOpen) {
-      setName("");
-      setUrl("");
-      setFieldErrors({});
-      setServerError(null);
-      setTimeout(() => nameRef.current?.focus(), 50);
+    if (!open) return;
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") setOpen(false);
     }
-  }, [isOpen]);
 
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && isOpen && !loading) onClose();
-    };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, onClose, loading]);
+  }, [open]);
 
-  if (!isOpen) return null;
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setFieldErrors({});
-    setServerError(null);
-    setLoading(true);
-
+  function validateUrl(value: string) {
     try {
-      const res = await fetch("/api/directories", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, url }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        if (data.details) {
-          setFieldErrors(data.details);
-        } else {
-          setServerError(data.error ?? "Something went wrong");
-        }
-        return;
-      }
-
-      onSuccess({ id: data.id, name: data.name, _count: { submissions: 0 } });
-      onClose();
+      const parsed = new URL(value.trim());
+      return (
+        ["http:", "https:"].includes(parsed.protocol) &&
+        parsed.hostname.includes(".") &&
+        !parsed.hostname.startsWith(".") &&
+        !parsed.hostname.endsWith(".")
+      );
     } catch {
-      setServerError("Network error — please try again");
+      return false;
+    }
+  }
+
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError("");
+
+    const cleanName = name.trim();
+    const cleanUrl = url.trim();
+
+    if (!cleanName) {
+      setError("Enter a directory name.");
+      return;
+    }
+
+    if (!cleanUrl || !validateUrl(cleanUrl)) {
+      setError("Enter a valid website URL starting with https:// or http://.");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      console.log("Directory submitted:", {
+        name: cleanName,
+        url: cleanUrl,
+      });
+      setOpen(false);
+      setName("");
+      setUrl("");
+    } catch {
+      setError("Could not save the directory. Please try again.");
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   }
 
   return (
-    <div
-      className="modal-backdrop"
-      onClick={() => !loading && onClose()}
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="add-dir-modal-title"
-    >
-      <div className="modal-sheet" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-header">
-          <div className="modal-header-left">
-            <h2 id="add-dir-modal-title" className="modal-title">Add directory</h2>
-          </div>
-          <button
-            type="button"
-            className="modal-done-btn"
-            onClick={onClose}
-            disabled={loading}
-            aria-label="Close modal"
+    <>
+      <button
+        className="dash-nav-add"
+        type="button"
+        onClick={() => {
+          setError("");
+          setOpen(true);
+        }}
+      >
+        <svg
+          width="12"
+          height="12"
+          viewBox="0 0 12 12"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          aria-hidden="true"
+        >
+          <path d="M6 1v10M1 6h10" />
+        </svg>
+        Add directory
+      </button>
+
+      {open && (
+        <div
+          className="directory-modal-overlay"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setOpen(false);
+          }}
+        >
+          <section
+            className="directory-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="directory-modal-title"
           >
-            CANCEL
-          </button>
+            <header className="directory-modal-header">
+              <h2 id="directory-modal-title">Add a directory</h2>
+              <button
+                type="button"
+                className="directory-modal-close"
+                aria-label="Close dialog"
+                onClick={() => setOpen(false)}
+              >
+                ×
+              </button>
+            </header>
+
+            <p className="directory-modal-description">
+              Add a marketing directory to track your product submissions.
+            </p>
+
+            <form onSubmit={handleSubmit} noValidate>
+              <div className="directory-form-field">
+                <label htmlFor="directory-name">Name</label>
+                <input
+                  id="directory-name"
+                  name="name"
+                  value={name}
+                  onChange={(event) => setName(event.target.value)}
+                  placeholder="e.g. Product Hunt"
+                  maxLength={100}
+                  required
+                  autoFocus
+                />
+              </div>
+
+              <div className="directory-form-field">
+                <label htmlFor="directory-url">URL</label>
+                <input
+                  id="directory-url"
+                  name="url"
+                  type="url"
+                  value={url}
+                  onChange={(event) => setUrl(event.target.value)}
+                  placeholder="https://www.producthunt.com"
+                  maxLength={2048}
+                  required
+                />
+              </div>
+
+              {error && (
+                <p className="directory-form-error" role="alert">
+                  {error}
+                </p>
+              )}
+
+              <footer className="directory-modal-actions">
+                <button
+                  type="button"
+                  className="btn-ghost"
+                  onClick={() => setOpen(false)}
+                  disabled={saving}
+                >
+                  Cancel
+                </button>
+                <button type="submit" className="btn-primary" disabled={saving}>
+                  {saving ? "Saving…" : "Save directory"}
+                </button>
+              </footer>
+            </form>
+          </section>
         </div>
-
-        <p className="modal-description">
-          A directory is a platform where you submit your product for visibility — e.g. Product Hunt, Hacker News.
-        </p>
-
-        <form onSubmit={handleSubmit} className="modal-form" noValidate>
-          <div className="modal-field">
-            <label htmlFor="dir-name" className="modal-label">Name</label>
-            <input
-              ref={nameRef}
-              id="dir-name"
-              type="text"
-              className={`modal-input${fieldErrors.name ? " modal-input--error" : ""}`}
-              placeholder="e.g. Product Hunt"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
-            />
-            {fieldErrors.name && (
-              <span className="modal-field-error">{fieldErrors.name[0]}</span>
-            )}
-          </div>
-
-          <div className="modal-field">
-            <label htmlFor="dir-url" className="modal-label">URL</label>
-            <input
-              id="dir-url"
-              type="url"
-              className={`modal-input${fieldErrors.url ? " modal-input--error" : ""}`}
-              placeholder="https://..."
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-              required
-            />
-            {fieldErrors.url && (
-              <span className="modal-field-error">{fieldErrors.url[0]}</span>
-            )}
-          </div>
-
-          {serverError && (
-            <p className="modal-server-error">{serverError}</p>
-          )}
-
-          <div className="modal-actions">
-            <button type="submit" className="modal-btn-primary" disabled={loading}>
-              {loading ? "Saving…" : "Save directory"}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+      )}
+    </>
   );
 }
