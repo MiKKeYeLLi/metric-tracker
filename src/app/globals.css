@@ -884,6 +884,17 @@ button {
   color: var(--muted);
   opacity: 0.7;
 }
+.modal-input--error { border-color: var(--rejected); }
+.modal-input--error:focus { box-shadow: 0 0 0 3px rgba(220, 38, 38, .12); }
+.modal-field-error { font-size: 12px; color: var(--rejected); margin-top: 2px; }
+.modal-server-error {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--rejected-bg);
+  color: var(--rejected);
+  font-size: 13px;
+}
 
 .modal-actions {
   display: flex;

@@ -1,9 +1,11 @@
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import { SignOutButton } from "@/components/AuthButtons";
+import { DirectoriesNav } from "@/components/DirectoriesNav";
 import { ProductsNav } from "@/components/ProductsNav";
 import { RowMenu } from "@/components/RowMenu";
 import { authOptions } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
 
 const stats = [
   { label: "Directories", value: "8" },
@@ -18,9 +20,8 @@ const directories = [
   { name: "Hacker News", count: 6, live: 4, pending: 2, rejected: 0 },
   { name: "Indie Hackers", count: 3, live: 2, pending: 1, rejected: 0 },
   { name: "BetaList", count: 3, live: 1, pending: 1, rejected: 1 },
-];
+]; // illustrative — used only for the breakdown panel
 
-const products = ["Zeduchat", "Telex"];
 
 const submissions = [
   { id: "SUB-024", product: "Zeduchat", directory: "Product Hunt",  status: "live",     date: "Oct 12", traffic: "4.2K" },
@@ -102,6 +103,17 @@ export default async function DashboardPage() {
   const session = await getServerSession(authOptions);
   if (!session?.user) redirect("/");
 
+  const [products, dbDirectories] = await Promise.all([
+    prisma.product.findMany({
+      select: { id: true, name: true },
+      orderBy: { createdAt: "asc" },
+    }),
+    prisma.directory.findMany({
+      select: { id: true, name: true, _count: { select: { submissions: true } } },
+      orderBy: { createdAt: "asc" },
+    }),
+  ]);
+
   return (
     <main className="dash-page">
 
@@ -127,20 +139,7 @@ export default async function DashboardPage() {
           </a>
         </nav>
 
-        <div className="dash-nav-section-label" aria-hidden="true">Directories</div>
-        <nav aria-label="Directories">
-          {directories.map((dir) => (
-            <a className="dash-nav-link" href={`/dashboard/directories/${dir.name.toLowerCase().replace(/ /g, "-")}`} key={dir.name}>
-              <IconFolder />
-              <span className="dash-nav-link-text">{dir.name}</span>
-              <span className="dash-nav-badge">{dir.count}</span>
-            </a>
-          ))}
-          <button className="dash-nav-add" type="button">
-            <IconPlus />
-            Add directory
-          </button>
-        </nav>
+        <DirectoriesNav initialDirectories={dbDirectories} />
 
         <ProductsNav initialProducts={products} />
 

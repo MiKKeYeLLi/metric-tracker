@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { AddProductModal } from "@/components/AddProductModal";
 
 function IconBox() {
@@ -21,22 +22,33 @@ function IconPlus() {
   );
 }
 
+interface Product {
+  id: string;
+  name: string;
+}
+
 interface ProductsNavProps {
-  initialProducts: string[];
+  initialProducts: Product[];
 }
 
 export function ProductsNav({ initialProducts }: ProductsNavProps) {
-  const [products] = useState<string[]>(initialProducts);
+  const [products, setProducts] = useState<Product[]>(initialProducts);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const router = useRouter();
+
+  function handleSuccess(product: Product) {
+    setProducts((prev) => [...prev, product]);
+    router.refresh();
+  }
 
   return (
     <>
       <div className="dash-nav-section-label" aria-hidden="true">Products</div>
       <nav aria-label="Products">
         {products.map((p) => (
-          <a className="dash-nav-link" href={`/dashboard/products/${p.toLowerCase()}`} key={p}>
+          <a className="dash-nav-link" href={`/dashboard/products/${p.id}`} key={p.id}>
             <IconBox />
-            <span className="dash-nav-link-text">{p}</span>
+            <span className="dash-nav-link-text">{p.name}</span>
           </a>
         ))}
         <button
@@ -52,8 +64,8 @@ export function ProductsNav({ initialProducts }: ProductsNavProps) {
       <AddProductModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
+        onSuccess={handleSuccess}
       />
     </>
   );
 }
-
