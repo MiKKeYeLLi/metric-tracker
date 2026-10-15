@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 
 interface Product { id: string; name: string; }
@@ -20,6 +21,7 @@ const STATUSES = [
 
 export function NewSubmissionButton({ products, directories }: NewSubmissionButtonProps) {
   const [open, setOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const [productId, setProductId] = useState("");
   const [directoryId, setDirectoryId] = useState("");
   const [status, setStatus] = useState("planned");
@@ -30,6 +32,8 @@ export function NewSubmissionButton({ products, directories }: NewSubmissionButt
   const [serverError, setServerError] = useState<string | null>(null);
   const firstFieldRef = useRef<HTMLSelectElement>(null);
   const router = useRouter();
+
+  useEffect(() => { setMounted(true); }, []);
 
   function openModal() {
     setProductId(products[0]?.id ?? "");
@@ -104,24 +108,14 @@ export function NewSubmissionButton({ products, directories }: NewSubmissionButt
   const noDirectories  = directories.length === 0;
   const cannotSubmit   = noProducts || noDirectories;
 
-  return (
-    <>
-      <button className="btn-primary" type="button" onClick={openModal}>
-        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden="true">
-          <line x1="6" y1="1" x2="6" y2="11" />
-          <line x1="1" y1="6" x2="11" y2="6" />
-        </svg>
-        New submission
-      </button>
-
-      {open && (
-        <div
-          className="modal-overlay"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="new-sub-title"
-          onClick={(e) => { if (e.target === e.currentTarget) closeModal(); }}
-        >
+  const modal = open && (
+    <div
+      className="modal-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="new-sub-title"
+      onClick={(e) => { if (e.target === e.currentTarget) closeModal(); }}
+    >
           <div className="modal-sheet" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <div className="modal-header-left">
@@ -249,7 +243,19 @@ export function NewSubmissionButton({ products, directories }: NewSubmissionButt
             </form>
           </div>
         </div>
-      )}
+  );
+
+  return (
+    <>
+      <button className="btn-primary" type="button" onClick={openModal}>
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden="true">
+          <line x1="6" y1="1" x2="6" y2="11" />
+          <line x1="1" y1="6" x2="11" y2="6" />
+        </svg>
+        New submission
+      </button>
+
+      {mounted && modal && createPortal(modal, document.body)}
     </>
   );
 }
