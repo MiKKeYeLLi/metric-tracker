@@ -1,6 +1,7 @@
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import { SignOutButton } from "@/components/AuthButtons";
+import { ProductsNav } from "@/components/ProductsNav";
 import { RowMenu } from "@/components/RowMenu";
 import { authOptions } from "@/lib/auth";
 
@@ -141,19 +142,7 @@ export default async function DashboardPage() {
           </button>
         </nav>
 
-        <div className="dash-nav-section-label" aria-hidden="true">Products</div>
-        <nav aria-label="Products">
-          {products.map((p) => (
-            <a className="dash-nav-link" href={`/dashboard/products/${p.toLowerCase()}`} key={p}>
-              <IconBox />
-              <span className="dash-nav-link-text">{p}</span>
-            </a>
-          ))}
-          <button className="dash-nav-add" type="button">
-            <IconPlus />
-            Add product
-          </button>
-        </nav>
+        <ProductsNav initialProducts={products} />
 
         <div className="dash-account">
           <span className="dash-account-email" title={session.user.email ?? undefined}>
