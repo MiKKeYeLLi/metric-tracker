@@ -3,9 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "prisma generate && next build",
-    "start": "next start -p ${PORT:-3000}",
+    "dev": "node api.js && next dev",
+    "build": "node api.js && prisma generate && next build",
+    "start": "node api.js && next start -p ${PORT:-3000}",
     "lint": "next lint",
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy"

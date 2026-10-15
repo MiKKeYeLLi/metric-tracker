@@ -2,12 +2,15 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useRouter } from "next/navigation";
 
-export function RowMenu({ label }: { label: string }) {
+export function RowMenu({ label, submissionId }: { label: string; submissionId: string }) {
   const [open, setOpen] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const router = useRouter();
 
   useEffect(() => {
     setMounted(true);
@@ -35,6 +38,17 @@ export function RowMenu({ label }: { label: string }) {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [modalOpen]);
 
+  async function handleDelete() {
+    setOpen(false);
+    setDeleting(true);
+    try {
+      await fetch(`/api/submissions/${submissionId}`, { method: "DELETE" });
+      router.refresh();
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   return (
     <div className="row-menu-wrap" ref={ref}>
       <button
@@ -43,13 +57,21 @@ export function RowMenu({ label }: { label: string }) {
         aria-label={label}
         aria-haspopup="true"
         aria-expanded={open}
+        disabled={deleting}
         onClick={() => setOpen((v) => !v)}
       >
-        <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor" aria-hidden="true">
-          <circle cx="3" cy="7" r="1.2" />
-          <circle cx="7" cy="7" r="1.2" />
-          <circle cx="11" cy="7" r="1.2" />
-        </svg>
+        {deleting ? (
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden="true">
+            <circle cx="7" cy="7" r="5" strokeOpacity="0.3" />
+            <path d="M7 2a5 5 0 0 1 5 5" />
+          </svg>
+        ) : (
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor" aria-hidden="true">
+            <circle cx="3" cy="7" r="1.2" />
+            <circle cx="7" cy="7" r="1.2" />
+            <circle cx="11" cy="7" r="1.2" />
+          </svg>
+        )}
       </button>
 
       {open && (
@@ -76,7 +98,12 @@ export function RowMenu({ label }: { label: string }) {
             Add traffic
           </button>
           <div className="row-dropdown-divider" role="separator" />
-          <button className="row-dropdown-item row-dropdown-item--danger" role="menuitem" type="button" onClick={() => setOpen(false)}>
+          <button
+            className="row-dropdown-item row-dropdown-item--danger"
+            role="menuitem"
+            type="button"
+            onClick={handleDelete}
+          >
             <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <polyline points="1,3 12,3" />
               <path d="M5 3V2h3v1" />
@@ -141,7 +168,7 @@ export function RowMenu({ label }: { label: string }) {
             </div>
 
             <div className="modal-footer">
-              <button className="btn-ghost" type="button">
+              <button className="btn-ghost" type="button" onClick={() => setModalOpen(false)}>
                 Cancel
               </button>
               <button className="btn-primary" type="button">

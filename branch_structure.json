@@ -1,0 +1,33 @@
+{
+  "default_branch": "main",
+  "branches": [
+    "feat/5-db-models-and-endpoints",
+    "feat/add-directory-modal",
+    "feat/add-lists-directories",
+    "feat/dashboard-sidebar",
+    "feat/vulcan-26-add-update-status-modal",
+    "main",
+    "origin",
+    "refactor/tailwind-css"
+  ],
+  "parent": {
+    "feat/5-db-models-and-endpoints": "main",
+    "feat/add-directory-modal": "main",
+    "feat/add-lists-directories": "main",
+    "feat/dashboard-sidebar": "main",
+    "feat/vulcan-26-add-update-status-modal": "main",
+    "main": null,
+    "origin": "main",
+    "refactor/tailwind-css": "main"
+  },
+  "order": [
+    "main",
+    "feat/5-db-models-and-endpoints",
+    "feat/add-directory-modal",
+    "feat/add-lists-directories",
+    "feat/dashboard-sidebar",
+    "feat/vulcan-26-add-update-status-modal",
+    "origin",
+    "refactor/tailwind-css"
+  ]
+}
