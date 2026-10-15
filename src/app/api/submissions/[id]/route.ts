@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/api";
-import { SubmissionStatus } from "@prisma/client";
-
-const VALID_STATUSES = new Set<string>(["planned", "submitted", "live", "rejected"]);
+import { UpdateSubmissionBodySchema } from "@/lib/schemas";
 
 export async function PATCH(
   req: NextRequest,
@@ -12,28 +10,33 @@ export async function PATCH(
   const { error } = await requireAuth();
   if (error) return error;
 
-  const body = await req.json();
-  const data: { status?: SubmissionStatus; listingUrl?: string | null; submittedAt?: Date | null } = {};
+  const result = UpdateSubmissionBodySchema.safeParse(await req.json());
+  if (!result.success) {
+    return NextResponse.json(
+      { error: "Validation failed", details: result.error.flatten().fieldErrors },
+      { status: 400 },
+    );
+  }
 
-  if (body.status !== undefined) {
-    if (!VALID_STATUSES.has(body.status)) {
-      return NextResponse.json({ error: "Invalid status" }, { status: 400 });
-    }
-    data.status = body.status;
-    if (body.status === "submitted" && !body.submittedAt) {
+  const { status, listingUrl, submittedAt } = result.data;
+  const data: Parameters<typeof prisma.submission.update>[0]["data"] = {};
+
+  if (status !== undefined) {
+    data.status = status;
+    if (status === "submitted" && submittedAt === undefined) {
       data.submittedAt = new Date();
     }
   }
-
-  if (body.listingUrl !== undefined) data.listingUrl = body.listingUrl;
-  if (body.submittedAt !== undefined) data.submittedAt = body.submittedAt ? new Date(body.submittedAt) : null;
+  if (listingUrl !== undefined) data.listingUrl = listingUrl;
+  if (submittedAt !== undefined) data.submittedAt = submittedAt ? new Date(submittedAt) : null;
 
   const submission = await prisma.submission.update({
     where: { id: params.id },
     data,
     include: {
-      product: { select: { id: true, name: true } },
-      directory: { select: { id: true, name: true } },
+      product: { select: { id: true, name: true, url: true } },
+      directory: { select: { id: true, name: true, url: true } },
+      _count: { select: { traffic: true } },
     },
   });
 
