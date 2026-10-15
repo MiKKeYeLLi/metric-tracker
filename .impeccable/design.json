@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "world": "Research Desk",
+  "tokens": {
+    "signal": "#8E6AFA",
+    "paper": "#F7F6F3",
+    "sheet": "#FFFFFF",
+    "ink": "#1E1D22",
+    "muted": "#6C6A72",
+    "line": "#DEDCE4",
+    "radius": "12px"
+  }
+}

@@ -3,9 +3,20 @@
 import { signIn, signOut } from "next-auth/react";
 
 export function SignInButton() {
-  return <button onClick={() => signIn("google")}>Sign in with Google</button>;
+  return (
+    <button
+      className="google-sign-in"
+      onClick={() => signIn("google", { callbackUrl: "/dashboard" })}
+    >
+      Sign in with Google
+    </button>
+  );
 }
 
 export function SignOutButton() {
-  return <button onClick={() => signOut()}>Sign out</button>;
+  return (
+    <button className="sign-out" onClick={() => signOut()}>
+      Sign out
+    </button>
+  );
 }
