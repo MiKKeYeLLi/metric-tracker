@@ -5,7 +5,7 @@ import { DirectoriesNav } from "@/components/DirectoriesNav";
 import { ProductsNav } from "@/components/ProductsNav";
 import { RowMenu } from "@/components/RowMenu";
 import { authOptions } from "@/lib/auth";
-import { AddDirectoryModal } from "@/components/AddDirectoryModal";
+import { prisma } from "@/lib/prisma";
 
 const stats = [
   { label: "Directories", value: "8" },
@@ -14,13 +14,6 @@ const stats = [
   { label: "Traffic", value: "14.2K", delta: "+18%", neg: false },
 ];
 
-const directories = [
-  { name: "Product Hunt", count: 8, live: 5, pending: 2, rejected: 1 },
-  { name: "TechCrunch", count: 4, live: 2, pending: 1, rejected: 1 },
-  { name: "Hacker News", count: 6, live: 4, pending: 2, rejected: 0 },
-  { name: "Indie Hackers", count: 3, live: 2, pending: 1, rejected: 0 },
-  { name: "BetaList", count: 3, live: 1, pending: 1, rejected: 1 },
-]; // illustrative — used only for the breakdown panel
 
 
 const submissions = [
@@ -133,43 +126,6 @@ function IconList() {
   );
 }
 
-function IconFolder() {
-  return (
-    <svg
-      width="14"
-      height="14"
-      viewBox="0 0 14 14"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinejoin="round"
-      strokeLinecap="round"
-      aria-hidden="true"
-    >
-      <path d="M1 4a1 1 0 0 1 1-1h3l1.5 2H12a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V4z" />
-    </svg>
-  );
-}
-
-function IconBox() {
-  return (
-    <svg
-      width="14"
-      height="14"
-      viewBox="0 0 14 14"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinejoin="round"
-      strokeLinecap="round"
-      aria-hidden="true"
-    >
-      <path d="M1.5 3.5 7 1.5l5.5 2v7L7 12.5l-5.5-2v-7z" />
-      <line x1="7" y1="1.5" x2="7" y2="12.5" />
-    </svg>
-  );
-}
-
 function IconPlus() {
   return (
     <svg
@@ -249,44 +205,7 @@ export default async function DashboardPage() {
           </a>
         </nav>
 
-        <div className="dash-nav-section-label" aria-hidden="true">
-          Directories
-        </div>
-        <nav aria-label="Directories">
-          {directories.map((dir) => (
-            <a
-              className="dash-nav-link"
-              href={`/dashboard/directories/${dir.name.toLowerCase().replace(/ /g, "-")}`}
-              key={dir.name}
-            >
-              <IconFolder />
-              <span className="dash-nav-link-text">{dir.name}</span>
-              <span className="dash-nav-badge">{dir.count}</span>
-            </a>
-          ))}
-
-          <AddDirectoryModal />
-        </nav>
-
-        <div className="dash-nav-section-label" aria-hidden="true">
-          Products
-        </div>
-        <nav aria-label="Products">
-          {products.map((p) => (
-            <a
-              className="dash-nav-link"
-              href={`/dashboard/products/${p.toLowerCase()}`}
-              key={p}
-            >
-              <IconBox />
-              <span className="dash-nav-link-text">{p}</span>
-            </a>
-          ))}
-          <button className="dash-nav-add" type="button">
-            <IconPlus />
-            Add product
-          </button>
-        </nav>
+        <DirectoriesNav initialDirectories={dbDirectories} />
         <ProductsNav initialProducts={products} />
 
         <div className="dash-account">
@@ -394,28 +313,22 @@ export default async function DashboardPage() {
             <div className="dash-section-header">
               <h2 className="dash-section-title">By directory</h2>
               <span className="dash-section-meta">
-                {directories.length} dirs
+                {dbDirectories.length} dirs
               </span>
             </div>
             <div className="dir-list">
-              {directories.map((dir) => (
-                <div className="dir-row" key={dir.name}>
+              {dbDirectories.map((dir) => (
+                <div className="dir-row" key={dir.id}>
                   <span className="dir-row-name">{dir.name}</span>
                   <div
                     className="dir-row-dots"
-                    aria-label={`${dir.live} live, ${dir.pending} pending, ${dir.rejected} rejected`}
+                    aria-label={`${dir._count.submissions} submissions`}
                   >
-                    {Array.from({ length: dir.live }).map((_, i) => (
-                      <span key={`l${i}`} className="d-dot d-live" />
-                    ))}
-                    {Array.from({ length: dir.pending }).map((_, i) => (
-                      <span key={`p${i}`} className="d-dot d-pending" />
-                    ))}
-                    {Array.from({ length: dir.rejected }).map((_, i) => (
-                      <span key={`r${i}`} className="d-dot d-rejected" />
+                    {Array.from({ length: dir._count.submissions }).map((_, i) => (
+                      <span key={i} className="d-dot d-live" />
                     ))}
                   </div>
-                  <span className="dir-row-count">{dir.count}</span>
+                  <span className="dir-row-count">{dir._count.submissions}</span>
                 </div>
               ))}
             </div>

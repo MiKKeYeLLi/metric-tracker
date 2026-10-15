@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 
 export function AddDirectoryModal() {
   const [open, setOpen] = useState(false);
@@ -8,6 +9,7 @@ export function AddDirectoryModal() {
   const [url, setUrl] = useState("");
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
+  const router = useRouter();
 
   useEffect(() => {
     if (!open) return;
@@ -53,13 +55,23 @@ export function AddDirectoryModal() {
 
     setSaving(true);
     try {
-      console.log("Directory submitted:", {
-        name: cleanName,
-        url: cleanUrl,
+      const res = await fetch("/api/directories", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: cleanName, url: cleanUrl }),
       });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error ?? "Could not save the directory. Please try again.");
+        return;
+      }
+
       setOpen(false);
       setName("");
       setUrl("");
+      router.refresh();
     } catch {
       setError("Could not save the directory. Please try again.");
     } finally {
