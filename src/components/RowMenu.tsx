@@ -1,10 +1,17 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 export function RowMenu({ label }: { label: string }) {
   const [open, setOpen] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -16,6 +23,17 @@ export function RowMenu({ label }: { label: string }) {
     document.addEventListener("pointerdown", onPointerDown);
     return () => document.removeEventListener("pointerdown", onPointerDown);
   }, [open]);
+
+  useEffect(() => {
+    if (!modalOpen) return;
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        setModalOpen(false);
+      }
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [modalOpen]);
 
   return (
     <div className="row-menu-wrap" ref={ref}>
@@ -43,7 +61,15 @@ export function RowMenu({ label }: { label: string }) {
             </svg>
             Update status
           </button>
-          <button className="row-dropdown-item" role="menuitem" type="button" onClick={() => setOpen(false)}>
+          <button
+            className="row-dropdown-item"
+            role="menuitem"
+            type="button"
+            onClick={() => {
+              setOpen(false);
+              setModalOpen(true);
+            }}
+          >
             <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <polyline points="1,9 4,5 7,7 10,3 12,4" />
             </svg>
@@ -61,6 +87,70 @@ export function RowMenu({ label }: { label: string }) {
             Delete
           </button>
         </div>
+      )}
+
+      {modalOpen && mounted && createPortal(
+        <div
+          className="modal-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="add-traffic-title"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setModalOpen(false);
+          }}
+        >
+          <div className="modal-sheet">
+            <div className="modal-header">
+              <div>
+                <h2 id="add-traffic-title" className="modal-title">Add traffic</h2>
+                <p className="modal-desc">Record submission date and latest visit count.</p>
+              </div>
+              <button
+                className="modal-close"
+                type="button"
+                aria-label="Close modal"
+                onClick={() => setModalOpen(false)}
+              >
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <line x1="2" y1="2" x2="12" y2="12" />
+                  <line x1="12" y1="2" x2="2" y2="12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="modal-body">
+              <div className="modal-field">
+                <label htmlFor="traffic-date" className="modal-label">Date</label>
+                <input
+                  id="traffic-date"
+                  type="date"
+                  className="modal-input"
+                  defaultValue={new Date().toISOString().split("T")[0]}
+                />
+              </div>
+
+              <div className="modal-field">
+                <label htmlFor="traffic-visits" className="modal-label">Visits</label>
+                <input
+                  id="traffic-visits"
+                  type="text"
+                  className="modal-input"
+                  placeholder="e.g. 3.1K or 1,200"
+                />
+              </div>
+            </div>
+
+            <div className="modal-footer">
+              <button className="btn-ghost" type="button">
+                Cancel
+              </button>
+              <button className="btn-primary" type="button">
+                Save
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
       )}
     </div>
   );
