@@ -50,3 +50,53 @@ model VerificationToken {
 
   @@unique([identifier, token])
 }
+
+model Directory {
+  id          String       @id @default(cuid())
+  name        String
+  url         String
+  submissions Submission[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+}
+
+model Product {
+  id          String       @id @default(cuid())
+  name        String
+  url         String
+  submissions Submission[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+}
+
+enum SubmissionStatus {
+  planned
+  submitted
+  live
+  rejected
+}
+
+model Submission {
+  id          String           @id @default(cuid())
+  productId   String
+  directoryId String
+  status      SubmissionStatus @default(planned)
+  submittedAt DateTime?
+  listingUrl  String?
+  product     Product          @relation(fields: [productId], references: [id], onDelete: Cascade)
+  directory   Directory        @relation(fields: [directoryId], references: [id], onDelete: Cascade)
+  traffic     Traffic[]
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@unique([productId, directoryId])
+}
+
+model Traffic {
+  id           String     @id @default(cuid())
+  submissionId String
+  date         DateTime   @db.Date
+  visits       Int
+  submission   Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  createdAt    DateTime   @default(now())
+}
