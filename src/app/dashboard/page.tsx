@@ -211,7 +211,10 @@ export default async function DashboardPage() {
                           {trafficStr ?? "—"}
                         </td>
                         <td className="td-actions">
-                          <RowMenu label={`More options for ${sub.product.name} on ${sub.directory.name}`} />
+                          <RowMenu
+                            label={`More options for ${sub.product.name} on ${sub.directory.name}`}
+                            submissionId={sub.id}
+                          />
                         </td>
                       </tr>
                     );
