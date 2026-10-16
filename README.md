@@ -4,6 +4,8 @@ A marketing metrics dashboard built by several teams on one shared codebase. The
 
 **Live:** https://metrics.zedu.chat
 
+> Using an AI coding agent? It must follow [`AGENTS.md`](AGENTS.md). Claude Code loads it through `CLAUDE.md`, and Codex, Cursor and others read `AGENTS.md` directly.
+
 ---
 
 ## Contents
