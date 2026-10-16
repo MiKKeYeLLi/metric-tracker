@@ -15,7 +15,10 @@ export function SignInButton() {
 
 export function SignOutButton() {
   return (
-    <button className="sign-out" onClick={() => signOut()}>
+    <button
+      className="w-full min-h-[36px] px-5 border border-line rounded-[10px] text-[13px] font-medium cursor-pointer text-muted bg-transparent transition-[color,background-color,border-color] duration-[120ms] hover:text-ink hover:bg-surface hover:border-line-strong"
+      onClick={() => signOut()}
+    >
       Sign out
     </button>
   );
