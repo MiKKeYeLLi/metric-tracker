@@ -1,11 +1,13 @@
 import { getServerSession } from "next-auth";
+import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
-import { SignInButton, SignOutButton } from "@/components/AuthButtons";
+import { SignInButton } from "@/components/AuthButtons";
 
 export const dynamic = "force-dynamic";
 
 export default async function Home() {
   const session = await getServerSession(authOptions);
+  if (session?.user) redirect("/dashboard");
 
   return (
     <main className="min-h-screen p-3 md:p-[clamp(12px,2vw,28px)]">
@@ -27,10 +29,8 @@ export default async function Home() {
         </section>
         <section className="grid items-center bg-card px-7 py-13.5 md:p-[clamp(36px,6vw,100px)]">
           <div className="m-auto w-full max-w-90">
-            <p className="mb-7 text-[15px]/relaxed text-muted-foreground">
-              {session?.user ? `Signed in as ${session.user.email}` : "Sign in to continue."}
-            </p>
-            {session?.user ? <SignOutButton /> : <SignInButton />}
+            <p className="mb-7 text-[15px]/relaxed text-muted-foreground">Sign in to continue.</p>
+            <SignInButton />
           </div>
         </section>
       </div>
