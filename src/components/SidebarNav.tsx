@@ -1,17 +1,4 @@
-import { forwardRef } from "react";
-import { PlusIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-export function SidebarSectionLabel({ children }: { children: React.ReactNode }) {
-  return (
-    <div
-      className="mt-4.5 mb-0.5 hidden px-2.5 text-2xs font-bold tracking-[0.08em] text-muted-foreground uppercase lg:block"
-      aria-hidden="true"
-    >
-      {children}
-    </div>
-  );
-}
 
 export function SidebarNavList({
   className,
@@ -46,19 +33,3 @@ export function SidebarNavLink({ icon, badge, children, className, ...props }: S
     </a>
   );
 }
-
-export const SidebarAddButton = forwardRef<HTMLButtonElement, React.ComponentPropsWithoutRef<"button">>(
-  function SidebarAddButton({ children, ...props }, ref) {
-    return (
-      <button
-        ref={ref}
-        type="button"
-        className="hidden w-full cursor-pointer items-center gap-1.75 rounded-md px-2.5 py-1.5 text-left text-xs font-medium text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground lg:flex [&_svg]:size-3"
-        {...props}
-      >
-        <PlusIcon aria-hidden="true" />
-        {children}
-      </button>
-    );
-  }
-);
