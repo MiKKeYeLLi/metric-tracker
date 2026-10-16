@@ -1,12 +1,16 @@
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
-import { LayoutGridIcon } from "lucide-react";
+import { LayoutGridIcon, FolderGit2Icon } from "lucide-react";
 import { SignOutButton } from "@/components/AuthButtons";
 import { SidebarNavLink, SidebarNavList } from "@/components/SidebarNav";
 import { Wordmark } from "@/components/Wordmark";
 import { authOptions } from "@/lib/auth";
 
-export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
+export default async function DashboardLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const session = await getServerSession(authOptions);
   if (!session?.user) redirect("/");
 
@@ -18,13 +22,25 @@ export default async function DashboardLayout({ children }: { children: React.Re
         </div>
 
         <SidebarNavList aria-label="Main navigation">
-          <SidebarNavLink aria-current="page" href="/dashboard" icon={<LayoutGridIcon aria-hidden="true" />}>
+          <SidebarNavLink
+            href="/dashboard"
+            icon={<LayoutGridIcon aria-hidden="true" />}
+          >
             Overview
+          </SidebarNavLink>
+          <SidebarNavLink
+            href="/dashboard/directories"
+            icon={<FolderGit2Icon aria-hidden="true" />}
+          >
+            Directories
           </SidebarNavLink>
         </SidebarNavList>
 
         <div className="mt-auto hidden shrink-0 gap-1.5 border-t border-sidebar-border px-2.5 pt-3.5 lg:grid">
-          <span className="truncate text-[11px] font-medium text-muted-foreground" title={session.user.email ?? undefined}>
+          <span
+            className="truncate text-[11px] font-medium text-muted-foreground"
+            title={session.user.email ?? undefined}
+          >
             {session.user.email}
           </span>
           <SignOutButton />
