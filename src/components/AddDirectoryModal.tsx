@@ -82,7 +82,7 @@ export function AddDirectoryModal() {
   return (
     <>
       <button
-        className="dash-nav-add"
+        className="flex items-center gap-[7px] w-full px-[10px] py-[6px] text-muted text-[12px] font-medium cursor-pointer bg-transparent border-none rounded-[6px] text-left transition-[color,background-color] duration-[120ms] hover:text-ink hover:bg-white/[0.64] max-[980px]:hidden"
         type="button"
         onClick={() => {
           setError("");
@@ -106,22 +106,27 @@ export function AddDirectoryModal() {
 
       {open && (
         <div
-          className="directory-modal-overlay"
+          className="fixed inset-0 z-[100] grid place-items-center p-5 bg-[rgba(30,29,34,0.38)] animate-overlay-in"
           onMouseDown={(event) => {
             if (event.target === event.currentTarget) setOpen(false);
           }}
         >
           <section
-            className="directory-modal"
+            className="w-[min(100%,440px)] max-h-[calc(100vh-40px)] overflow-y-auto p-6 border border-line rounded-[12px] bg-sheet animate-sheet-in max-[480px]:p-5"
             role="dialog"
             aria-modal="true"
             aria-labelledby="directory-modal-title"
           >
-            <header className="directory-modal-header">
-              <h2 id="directory-modal-title">Add a directory</h2>
+            <header className="flex items-center justify-between gap-3 mb-[10px]">
+              <h2
+                id="directory-modal-title"
+                className="m-0 text-ink [font-family:Georgia,serif] text-[25px] font-medium tracking-[-0.04em]"
+              >
+                Add a directory
+              </h2>
               <button
                 type="button"
-                className="directory-modal-close"
+                className="w-9 min-h-[36px] p-0 border border-line rounded-[8px] bg-transparent text-muted text-[23px] cursor-pointer hover:bg-surface hover:text-ink"
                 aria-label="Close dialog"
                 onClick={() => setOpen(false)}
               >
@@ -129,13 +134,15 @@ export function AddDirectoryModal() {
               </button>
             </header>
 
-            <p className="directory-modal-description">
+            <p className="mt-0 mb-6 text-muted text-[13px] leading-[1.6]">
               Add a marketing directory to track your product submissions.
             </p>
 
             <form onSubmit={handleSubmit} noValidate>
-              <div className="directory-form-field">
-                <label htmlFor="directory-name">Name</label>
+              <div className="grid gap-[7px] mb-[18px]">
+                <label htmlFor="directory-name" className="text-ink text-[12px] font-semibold">
+                  Name
+                </label>
                 <input
                   id="directory-name"
                   name="name"
@@ -145,11 +152,14 @@ export function AddDirectoryModal() {
                   maxLength={100}
                   required
                   autoFocus
+                  className="w-full min-h-[44px] px-3 py-[10px] border border-line-strong rounded-[8px] bg-sheet text-ink text-[13px] focus:outline-[2px] focus:outline-[rgba(142,106,250,0.25)] focus:border-violet"
                 />
               </div>
 
-              <div className="directory-form-field">
-                <label htmlFor="directory-url">URL</label>
+              <div className="grid gap-[7px] mb-[18px]">
+                <label htmlFor="directory-url" className="text-ink text-[12px] font-semibold">
+                  URL
+                </label>
                 <input
                   id="directory-url"
                   name="url"
@@ -159,25 +169,30 @@ export function AddDirectoryModal() {
                   placeholder="https://www.producthunt.com"
                   maxLength={2048}
                   required
+                  className="w-full min-h-[44px] px-3 py-[10px] border border-line-strong rounded-[8px] bg-sheet text-ink text-[13px] focus:outline-[2px] focus:outline-[rgba(142,106,250,0.25)] focus:border-violet"
                 />
               </div>
 
               {error && (
-                <p className="directory-form-error" role="alert">
+                <p className="m-0 text-rejected text-[12px]" role="alert">
                   {error}
                 </p>
               )}
 
-              <footer className="directory-modal-actions">
+              <footer className="flex justify-end gap-[10px] mt-6 pt-[18px] border-t border-line max-[480px]:flex-wrap">
                 <button
                   type="button"
-                  className="btn-ghost"
+                  className="inline-flex items-center justify-center gap-[6px] px-[13px] min-h-[44px] rounded-[8px] bg-transparent text-muted border border-line text-[13px] font-medium cursor-pointer w-auto whitespace-nowrap transition-[color,background-color,border-color] duration-[120ms] hover:text-ink hover:bg-sheet hover:border-line-strong"
                   onClick={() => setOpen(false)}
                   disabled={saving}
                 >
                   Cancel
                 </button>
-                <button type="submit" className="btn-primary" disabled={saving}>
+                <button
+                  type="submit"
+                  className="inline-flex items-center justify-center gap-[6px] px-[15px] min-h-[44px] rounded-[8px] bg-violet text-white border-none text-[13px] font-semibold cursor-pointer w-auto whitespace-nowrap shadow-[0_1px_2px_rgba(118,81,232,0.25),0_4px_12px_rgba(118,81,232,0.14)] transition-[background-color,transform,box-shadow] duration-[140ms] hover:bg-violet-deep hover:-translate-y-px active:translate-y-0 disabled:opacity-60 disabled:cursor-not-allowed"
+                  disabled={saving}
+                >
                   {saving ? "Saving…" : "Save directory"}
                 </button>
               </footer>

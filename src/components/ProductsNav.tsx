@@ -43,16 +43,22 @@ export function ProductsNav({ initialProducts }: ProductsNavProps) {
 
   return (
     <>
-      <div className="dash-nav-section-label" aria-hidden="true">Products</div>
+      <div className="px-[10px] mt-[18px] mb-[2px] text-muted text-[10px] font-bold tracking-[0.08em] uppercase max-[980px]:hidden" aria-hidden="true">
+        Products
+      </div>
       <nav aria-label="Products">
         {products.map((p) => (
-          <a className="dash-nav-link" href={`/dashboard/products/${p.id}`} key={p.id}>
+          <a
+            className="group flex items-center gap-2 px-[10px] py-[7px] rounded-[7px] text-muted text-[13px] font-medium no-underline transition-[color,background-color] duration-[120ms] whitespace-nowrap overflow-hidden hover:text-ink hover:bg-white/[0.64] aria-[current=page]:text-violet-deep aria-[current=page]:bg-white/[0.64] aria-[current=page]:font-semibold aria-[current=page]:rounded-l-none aria-[current=page]:shadow-[inset_2px_0_0_#8e6afa] aria-[current=page]:pl-2 max-[980px]:flex-shrink-0 max-[980px]:aria-[current=page]:rounded-[7px] max-[980px]:aria-[current=page]:shadow-none max-[980px]:aria-[current=page]:pl-[10px] max-[980px]:aria-[current=page]:bg-violet-tint"
+            href={`/dashboard/products/${p.id}`}
+            key={p.id}
+          >
             <IconBox />
-            <span className="dash-nav-link-text">{p.name}</span>
+            <span className="flex-1 min-w-0 overflow-hidden text-ellipsis">{p.name}</span>
           </a>
         ))}
         <button
-          className="dash-nav-add"
+          className="flex items-center gap-[7px] w-full px-[10px] py-[6px] text-muted text-[12px] font-medium cursor-pointer bg-transparent border-none rounded-[6px] text-left transition-[color,background-color] duration-[120ms] hover:text-ink hover:bg-white/[0.64] max-[980px]:hidden"
           type="button"
           onClick={() => setIsModalOpen(true)}
         >
