@@ -1,8 +1,22 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
-import { createPortal } from "react-dom";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { PlusIcon } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
+import { Spinner } from "@/components/ui/spinner";
 
 interface Product { id: string; name: string; }
 interface Directory { id: string; name: string; }
@@ -19,9 +33,16 @@ const STATUSES = [
   { value: "rejected",  label: "Rejected" },
 ];
 
+function OptionalHint() {
+  return (
+    <span className="text-2xs font-normal tracking-[0.02em] text-muted-foreground uppercase">
+      optional
+    </span>
+  );
+}
+
 export function NewSubmissionButton({ products, directories }: NewSubmissionButtonProps) {
   const [open, setOpen] = useState(false);
-  const [mounted, setMounted] = useState(false);
   const [productId, setProductId] = useState("");
   const [directoryId, setDirectoryId] = useState("");
   const [status, setStatus] = useState("planned");
@@ -30,10 +51,7 @@ export function NewSubmissionButton({ products, directories }: NewSubmissionButt
   const [loading, setLoading] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
   const [serverError, setServerError] = useState<string | null>(null);
-  const firstFieldRef = useRef<HTMLSelectElement>(null);
   const router = useRouter();
-
-  useEffect(() => { setMounted(true); }, []);
 
   function openModal() {
     setProductId(products[0]?.id ?? "");
@@ -50,17 +68,6 @@ export function NewSubmissionButton({ products, directories }: NewSubmissionButt
     if (loading) return;
     setOpen(false);
   }
-
-  useEffect(() => {
-    if (open) setTimeout(() => firstFieldRef.current?.focus(), 50);
-  }, [open]);
-
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") closeModal(); };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open, loading]);
 
   // Auto-fill today's date when status flips to "submitted"
   function handleStatusChange(val: string) {
@@ -108,154 +115,138 @@ export function NewSubmissionButton({ products, directories }: NewSubmissionButt
   const noDirectories  = directories.length === 0;
   const cannotSubmit   = noProducts || noDirectories;
 
-  const modal = open && (
-    <div
-      className="modal-overlay"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="new-sub-title"
-      onClick={(e) => { if (e.target === e.currentTarget) closeModal(); }}
-    >
-          <div className="modal-sheet" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <div className="modal-header-left">
-                <h2 id="new-sub-title" className="modal-title">New submission</h2>
-              </div>
-              <button
-                type="button"
-                className="modal-done-btn"
-                onClick={closeModal}
-                disabled={loading}
-                aria-label="Close"
-              >
-                CANCEL
-              </button>
-            </div>
+  return (
+    <>
+      <Button type="button" onClick={openModal}>
+        <PlusIcon data-icon="inline-start" />
+        New submission
+      </Button>
 
-            <p className="modal-description">
+      <Dialog open={open} onOpenChange={(next) => !next && closeModal()}>
+        <DialogContent className="sm:max-w-130">
+          <DialogHeader>
+            <DialogTitle>New submission</DialogTitle>
+            <DialogDescription>
               Record a product submission to a directory and track its status over time.
-            </p>
+            </DialogDescription>
+          </DialogHeader>
 
-            <form onSubmit={handleSubmit} className="modal-form" noValidate>
-
+          <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-6">
+            <FieldGroup>
               {cannotSubmit && (
-                <p className="modal-server-error">
-                  {noProducts ? "Add at least one product before creating a submission." : "Add at least one directory before creating a submission."}
-                </p>
+                <Alert variant="destructive">
+                  <AlertDescription>
+                    {noProducts
+                      ? "Add at least one product before creating a submission."
+                      : "Add at least one directory before creating a submission."}
+                  </AlertDescription>
+                </Alert>
               )}
 
-              <div className="modal-row">
-                <div className="modal-field">
-                  <label htmlFor="sub-product" className="modal-label">Product</label>
-                  <select
-                    ref={firstFieldRef}
+              <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
+                <Field data-invalid={!!fieldErrors.productId} data-disabled={noProducts}>
+                  <FieldLabel htmlFor="sub-product">Product</FieldLabel>
+                  <NativeSelect
                     id="sub-product"
-                    className={`modal-input modal-select${fieldErrors.productId ? " modal-input--error" : ""}`}
+                    className="w-full"
                     value={productId}
                     onChange={(e) => setProductId(e.target.value)}
+                    aria-invalid={!!fieldErrors.productId}
                     required
                     disabled={noProducts}
                   >
                     {noProducts
-                      ? <option>No products yet</option>
-                      : products.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)
+                      ? <NativeSelectOption>No products yet</NativeSelectOption>
+                      : products.map((p) => <NativeSelectOption key={p.id} value={p.id}>{p.name}</NativeSelectOption>)
                     }
-                  </select>
-                  {fieldErrors.productId && <span className="modal-field-error">{fieldErrors.productId[0]}</span>}
-                </div>
+                  </NativeSelect>
+                  {fieldErrors.productId && <FieldError>{fieldErrors.productId[0]}</FieldError>}
+                </Field>
 
-                <div className="modal-field">
-                  <label htmlFor="sub-directory" className="modal-label">Directory</label>
-                  <select
+                <Field data-invalid={!!fieldErrors.directoryId} data-disabled={noDirectories}>
+                  <FieldLabel htmlFor="sub-directory">Directory</FieldLabel>
+                  <NativeSelect
                     id="sub-directory"
-                    className={`modal-input modal-select${fieldErrors.directoryId ? " modal-input--error" : ""}`}
+                    className="w-full"
                     value={directoryId}
                     onChange={(e) => setDirectoryId(e.target.value)}
+                    aria-invalid={!!fieldErrors.directoryId}
                     required
                     disabled={noDirectories}
                   >
                     {noDirectories
-                      ? <option>No directories yet</option>
-                      : directories.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)
+                      ? <NativeSelectOption>No directories yet</NativeSelectOption>
+                      : directories.map((d) => <NativeSelectOption key={d.id} value={d.id}>{d.name}</NativeSelectOption>)
                     }
-                  </select>
-                  {fieldErrors.directoryId && <span className="modal-field-error">{fieldErrors.directoryId[0]}</span>}
-                </div>
+                  </NativeSelect>
+                  {fieldErrors.directoryId && <FieldError>{fieldErrors.directoryId[0]}</FieldError>}
+                </Field>
               </div>
 
-              <div className="modal-row">
-                <div className="modal-field">
-                  <label htmlFor="sub-status" className="modal-label">Status</label>
-                  <select
+              <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
+                <Field>
+                  <FieldLabel htmlFor="sub-status">Status</FieldLabel>
+                  <NativeSelect
                     id="sub-status"
-                    className="modal-input modal-select"
+                    className="w-full"
                     value={status}
                     onChange={(e) => handleStatusChange(e.target.value)}
                   >
                     {STATUSES.map((s) => (
-                      <option key={s.value} value={s.value}>{s.label}</option>
+                      <NativeSelectOption key={s.value} value={s.value}>{s.label}</NativeSelectOption>
                     ))}
-                  </select>
-                </div>
+                  </NativeSelect>
+                </Field>
 
-                <div className="modal-field">
-                  <label htmlFor="sub-date" className="modal-label">
+                <Field>
+                  <FieldLabel htmlFor="sub-date">
                     Submitted date
-                    <span className="modal-label-hint">optional</span>
-                  </label>
-                  <input
+                    <OptionalHint />
+                  </FieldLabel>
+                  <Input
                     id="sub-date"
                     type="date"
-                    className="modal-input"
                     value={submittedAt}
                     onChange={(e) => setSubmittedAt(e.target.value)}
                   />
-                </div>
+                </Field>
               </div>
 
-              <div className="modal-field">
-                <label htmlFor="sub-listing" className="modal-label">
+              <Field data-invalid={!!fieldErrors.listingUrl}>
+                <FieldLabel htmlFor="sub-listing">
                   Listing URL
-                  <span className="modal-label-hint">optional</span>
-                </label>
-                <input
+                  <OptionalHint />
+                </FieldLabel>
+                <Input
                   id="sub-listing"
                   type="url"
-                  className={`modal-input${fieldErrors.listingUrl ? " modal-input--error" : ""}`}
                   placeholder="https://www.producthunt.com/posts/..."
                   value={listingUrl}
                   onChange={(e) => setListingUrl(e.target.value)}
+                  aria-invalid={!!fieldErrors.listingUrl}
                 />
-                {fieldErrors.listingUrl && <span className="modal-field-error">{fieldErrors.listingUrl[0]}</span>}
-              </div>
+                {fieldErrors.listingUrl && <FieldError>{fieldErrors.listingUrl[0]}</FieldError>}
+              </Field>
 
-              {serverError && <p className="modal-server-error">{serverError}</p>}
+              {serverError && (
+                <Alert variant="destructive">
+                  <AlertDescription>{serverError}</AlertDescription>
+                </Alert>
+              )}
+            </FieldGroup>
 
-              <div className="modal-actions">
-                <button
-                  type="submit"
-                  className="modal-btn-primary"
-                  disabled={loading || cannotSubmit}
-                >
-                  {loading ? "Saving…" : "Save submission"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-  );
-
-  return (
-    <>
-      <button className="btn-primary" type="button" onClick={openModal}>
-        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden="true">
-          <line x1="6" y1="1" x2="6" y2="11" />
-          <line x1="1" y1="6" x2="11" y2="6" />
-        </svg>
-        New submission
-      </button>
-
-      {mounted && modal && createPortal(modal, document.body)}
+            <DialogFooter>
+              <Button type="button" variant="outline" size="lg" onClick={closeModal} disabled={loading}>
+                Cancel
+              </Button>
+              <Button type="submit" size="lg" disabled={loading || cannotSubmit}>
+                {loading && <Spinner data-icon="inline-start" />}
+                {loading ? "Saving…" : "Save submission"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

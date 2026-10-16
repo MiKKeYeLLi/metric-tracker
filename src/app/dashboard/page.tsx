@@ -1,12 +1,29 @@
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
+import { LayoutGridIcon, ListFilterIcon, ListIcon } from "lucide-react";
 import { SignOutButton } from "@/components/AuthButtons";
 import { DirectoriesNav } from "@/components/DirectoriesNav";
 import { NewSubmissionButton } from "@/components/NewSubmissionButton";
 import { ProductsNav } from "@/components/ProductsNav";
 import { RowMenu } from "@/components/RowMenu";
+import { SidebarNavLink, SidebarNavList } from "@/components/SidebarNav";
+import { Wordmark } from "@/components/Wordmark";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { cn } from "@/lib/utils";
+
+type BadgeVariant = NonNullable<React.ComponentProps<typeof Badge>["variant"]>;
 
 const statusLabel: Record<string, string> = {
   planned:   "Planned",
@@ -26,45 +43,33 @@ function formatTraffic(visits: number): string {
   return visits.toString();
 }
 
-function IconGrid() {
+const statusVariant: Record<string, BadgeVariant> = {
+  planned:   "secondary",
+  submitted: "warning",
+  live:      "success",
+  rejected:  "destructive",
+};
+
+function StatusBadge({ status }: { status: string }) {
   return (
-    <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor" aria-hidden="true">
-      <rect x="1" y="1" width="5" height="5" rx="1.5" />
-      <rect x="8" y="1" width="5" height="5" rx="1.5" />
-      <rect x="1" y="8" width="5" height="5" rx="1.5" />
-      <rect x="8" y="8" width="5" height="5" rx="1.5" />
-    </svg>
+    <Badge variant={statusVariant[status] ?? "secondary"} className="gap-1.25 font-semibold">
+      <span className="size-1.25 shrink-0 rounded-full bg-current" aria-hidden="true" />
+      {statusLabel[status] ?? status}
+    </Badge>
   );
 }
 
-function IconList() {
+function SectionHeader({ title, meta }: { title: string; meta: string }) {
   return (
-    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden="true">
-      <line x1="1" y1="3.5" x2="13" y2="3.5" />
-      <line x1="1" y1="7" x2="13" y2="7" />
-      <line x1="1" y1="10.5" x2="13" y2="10.5" />
-    </svg>
+    <div className="mb-4 flex items-center justify-between gap-2">
+      <h2 className="m-0 text-[13px] leading-none font-bold tracking-[-0.02em] text-foreground">{title}</h2>
+      <span className="font-mono text-[11px] text-muted-foreground">{meta}</span>
+    </div>
   );
 }
 
-function IconPlus() {
-  return (
-    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden="true">
-      <line x1="6" y1="1" x2="6" y2="11" />
-      <line x1="1" y1="6" x2="11" y2="6" />
-    </svg>
-  );
-}
-
-function IconFilter() {
-  return (
-    <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <line x1="1" y1="3" x2="12" y2="3" />
-      <line x1="3" y1="6.5" x2="10" y2="6.5" />
-      <line x1="5" y1="10" x2="8" y2="10" />
-    </svg>
-  );
-}
+const headClass = "h-auto px-0 pt-0 pr-3.5 pb-2.5 text-2xs font-bold tracking-[0.07em] text-muted-foreground uppercase";
+const cellClass = "py-3 pr-3.5 pl-0 text-[13px]";
 
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions);
@@ -104,34 +109,27 @@ export default async function DashboardPage() {
   ];
 
   return (
-    <main className="dash-page">
+    <main className="grid min-h-screen lg:grid-cols-[224px_minmax(0,1fr)]">
       {/* ── SIDEBAR ── */}
-      <aside className="dash-sidebar">
-        <div className="dash-sidebar-logo">
-          <a className="wordmark" href="/dashboard">
-            <span className="wordmark-mark" aria-hidden="true">
-              <i /><i /><i />
-            </span>
-            Metric Tracker
-          </a>
+      <aside className="flex items-center gap-1 overflow-x-auto border-b border-sidebar-border bg-sidebar px-4 py-3.5 lg:sticky lg:top-0 lg:h-screen lg:flex-col lg:items-stretch lg:gap-0 lg:overflow-x-hidden lg:overflow-y-auto lg:border-r lg:border-b-0 lg:px-2.5 lg:pt-5 lg:pb-4">
+        <div className="mr-5 shrink-0 px-2 py-0.5 lg:mr-0 lg:mb-6">
+          <Wordmark href="/dashboard" />
         </div>
 
-        <nav aria-label="Main navigation">
-          <a className="dash-nav-link" aria-current="page" href="/dashboard">
-            <IconGrid />
-            <span className="dash-nav-link-text">Overview</span>
-          </a>
-          <a className="dash-nav-link" href="/dashboard/submissions">
-            <IconList />
-            <span className="dash-nav-link-text">Submissions</span>
-          </a>
-        </nav>
+        <SidebarNavList aria-label="Main navigation">
+          <SidebarNavLink aria-current="page" href="/dashboard" icon={<LayoutGridIcon aria-hidden="true" />}>
+            Overview
+          </SidebarNavLink>
+          <SidebarNavLink href="/dashboard/submissions" icon={<ListIcon aria-hidden="true" />}>
+            Submissions
+          </SidebarNavLink>
+        </SidebarNavList>
 
         <DirectoriesNav initialDirectories={dbDirectories} />
         <ProductsNav initialProducts={products} />
 
-        <div className="dash-account">
-          <span className="dash-account-email" title={session.user.email ?? undefined}>
+        <div className="mt-auto hidden shrink-0 gap-1.5 border-t border-sidebar-border px-2.5 pt-3.5 lg:grid">
+          <span className="truncate text-[11px] font-medium text-muted-foreground" title={session.user.email ?? undefined}>
             {session.user.email}
           </span>
           <SignOutButton />
@@ -139,110 +137,114 @@ export default async function DashboardPage() {
       </aside>
 
       {/* ── MAIN ── */}
-      <div className="dash-main">
+      <div className="flex min-h-screen min-w-0 flex-col">
         {/* HEADER */}
-        <header className="dash-header">
-          <div className="dash-header-left">
-            <h1 className="dash-page-title">Submissions</h1>
-          </div>
-          <div className="dash-header-actions">
-            <button className="btn-ghost" type="button">
-              <IconFilter />
+        <header className="sticky top-0 z-10 flex h-14 shrink-0 items-center justify-between gap-4 border-b bg-background/90 px-4 backdrop-blur-sm sm:px-[clamp(20px,4vw,48px)]">
+          <h1 className="m-0 text-base leading-none font-bold tracking-[-0.03em] text-foreground">Submissions</h1>
+          <div className="flex shrink-0 items-center gap-2">
+            <Button variant="outline" type="button">
+              <ListFilterIcon data-icon="inline-start" />
               Filter
-            </button>
+            </Button>
             <NewSubmissionButton products={products} directories={dbDirectories} />
           </div>
         </header>
 
         {/* STATS STRIP */}
-        <div className="dash-stats" role="region" aria-label="Key metrics">
+        <div className="grid shrink-0 grid-cols-2 gap-px border-b bg-border sm:grid-cols-4" role="region" aria-label="Key metrics">
           {stats.map((s) => (
-            <div className="dash-stat" key={s.label}>
-              <p className="dash-stat-label">{s.label}</p>
-              <div className="dash-stat-row">
-                <span className="dash-stat-value">{s.value}</span>
-              </div>
+            <div className="bg-background px-[clamp(16px,3vw,36px)] py-4" key={s.label}>
+              <p className="mb-1.25 text-2xs font-bold tracking-[0.07em] text-muted-foreground uppercase">{s.label}</p>
+              <span className="font-mono text-2xl leading-none font-medium tracking-[-0.04em] text-foreground">
+                {s.value}
+              </span>
             </div>
           ))}
         </div>
 
         {/* BODY */}
-        <div className="dash-body">
+        <div className="grid flex-1 lg:grid-cols-[minmax(0,1fr)_minmax(230px,300px)]">
           {/* SUBMISSIONS TABLE */}
-          <section className="dash-section" aria-label="Recent submissions">
-            <div className="dash-section-header">
-              <h2 className="dash-section-title">Recent submissions</h2>
-              <span className="dash-section-meta">{dbSubmissions.length} total</span>
-            </div>
+          <section className="px-[clamp(20px,4vw,36px)] py-[clamp(18px,3vw,30px)]" aria-label="Recent submissions">
+            <SectionHeader title="Recent submissions" meta={`${dbSubmissions.length} total`} />
 
             {dbSubmissions.length === 0 ? (
-              <div className="empty-state">
-                <p className="empty-state-text">No submissions yet — add your first one.</p>
-              </div>
+              <Empty className="border">
+                <EmptyHeader>
+                  <EmptyTitle>No submissions yet</EmptyTitle>
+                  <EmptyDescription>Add your first one to start tracking.</EmptyDescription>
+                </EmptyHeader>
+              </Empty>
             ) : (
-              <table className="sub-table">
-                <thead>
-                  <tr>
-                    <th scope="col">Product</th>
-                    <th scope="col">Directory</th>
-                    <th scope="col">Status</th>
-                    <th scope="col">Submitted</th>
-                    <th scope="col" className="col-r">Traffic</th>
-                    <th scope="col" className="col-actions">
+              <Table>
+                <TableHeader>
+                  <TableRow className="hover:bg-transparent">
+                    <TableHead scope="col" className={headClass}>Product</TableHead>
+                    <TableHead scope="col" className={headClass}>Directory</TableHead>
+                    <TableHead scope="col" className={headClass}>Status</TableHead>
+                    <TableHead scope="col" className={cn(headClass, "hidden sm:table-cell")}>Submitted</TableHead>
+                    <TableHead scope="col" className={cn(headClass, "text-right")}>Traffic</TableHead>
+                    <TableHead scope="col" className={cn(headClass, "w-10 pr-0")}>
                       <span className="sr-only">Actions</span>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {dbSubmissions.map((sub) => {
                     const visits = sub.traffic.reduce((acc, t) => acc + t.visits, 0);
                     const trafficStr = visits > 0 ? formatTraffic(visits) : null;
                     return (
-                      <tr key={sub.id}>
-                        <td className="td-product">{sub.product.name}</td>
-                        <td className="td-dir">{sub.directory.name}</td>
-                        <td>
-                          <span className={`status-badge s-${sub.status}`}>
-                            {statusLabel[sub.status] ?? sub.status}
-                          </span>
-                        </td>
-                        <td className="td-date">{formatDate(sub.submittedAt)}</td>
-                        <td className={`td-traffic${!trafficStr ? " td-traffic-em" : ""}`}>
+                      <TableRow key={sub.id} className="group/row hover:bg-primary/4 has-aria-expanded:bg-primary/4">
+                        <TableCell className={cn(cellClass, "font-semibold tracking-[-0.02em]")}>{sub.product.name}</TableCell>
+                        <TableCell className={cn(cellClass, "text-muted-foreground")}>{sub.directory.name}</TableCell>
+                        <TableCell className={cellClass}>
+                          <StatusBadge status={sub.status} />
+                        </TableCell>
+                        <TableCell className={cn(cellClass, "hidden text-xs text-muted-foreground sm:table-cell")}>
+                          {formatDate(sub.submittedAt)}
+                        </TableCell>
+                        <TableCell
+                          className={cn(cellClass, "text-right font-mono text-xs font-medium", !trafficStr && "text-muted-foreground")}
+                        >
                           {trafficStr ?? "—"}
-                        </td>
-                        <td className="td-actions">
+                        </TableCell>
+                        <TableCell className={cn(cellClass, "w-10 pr-0 text-right")}>
                           <RowMenu
                             label={`More options for ${sub.product.name} on ${sub.directory.name}`}
                             submissionId={sub.id}
                           />
-                        </td>
-                      </tr>
+                        </TableCell>
+                      </TableRow>
                     );
                   })}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
             )}
           </section>
 
           {/* DIRECTORIES PANEL */}
-          <section className="dash-section" aria-label="Directory breakdown">
-            <div className="dash-section-header">
-              <h2 className="dash-section-title">By directory</h2>
-              <span className="dash-section-meta">{dbDirectories.length} dirs</span>
-            </div>
-            <div className="dir-list">
+          <section
+            className="border-t px-[clamp(20px,4vw,36px)] py-[clamp(18px,3vw,30px)] lg:border-t-0 lg:border-l"
+            aria-label="Directory breakdown"
+          >
+            <SectionHeader title="By directory" meta={`${dbDirectories.length} dirs`} />
+            <div className="grid">
               {dbDirectories.length === 0 ? (
-                <p className="empty-state-text">No directories yet.</p>
+                <p className="text-[13px] text-muted-foreground">No directories yet.</p>
               ) : (
                 dbDirectories.map((dir) => (
-                  <div className="dir-row" key={dir.id}>
-                    <span className="dir-row-name">{dir.name}</span>
-                    <div className="dir-row-dots" aria-label={`${dir._count.submissions} submissions`}>
+                  <div className="flex items-center gap-2.5 border-b py-2.5 transition-colors last:border-b-0 hover:bg-primary/3" key={dir.id}>
+                    <span className="min-w-0 flex-1 truncate text-[13px] font-semibold tracking-[-0.02em] text-foreground">
+                      {dir.name}
+                    </span>
+                    <div className="flex shrink-0 items-center gap-0.75" aria-label={`${dir._count.submissions} submissions`}>
                       {Array.from({ length: Math.min(dir._count.submissions, 12) }).map((_, i) => (
-                        <span key={i} className="d-dot d-live" />
+                        <span key={i} className="size-1.75 shrink-0 rounded-full bg-success" />
                       ))}
                     </div>
-                    <span className="dir-row-count">{dir._count.submissions}</span>
+                    <span className="min-w-5 shrink-0 text-right font-mono text-xs font-medium text-muted-foreground">
+                      {dir._count.submissions}
+                    </span>
                   </div>
                 ))
               )}

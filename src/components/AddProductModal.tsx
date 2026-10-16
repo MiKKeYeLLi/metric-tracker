@@ -1,6 +1,19 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useEffect, useState } from "react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { Spinner } from "@/components/ui/spinner";
 
 interface Product {
   id: string;
@@ -19,7 +32,6 @@ export function AddProductModal({ isOpen, onClose, onSuccess }: AddProductModalP
   const [loading, setLoading] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<{ name?: string[]; url?: string[] }>({});
   const [serverError, setServerError] = useState<string | null>(null);
-  const nameRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -27,19 +39,8 @@ export function AddProductModal({ isOpen, onClose, onSuccess }: AddProductModalP
       setUrl("");
       setFieldErrors({});
       setServerError(null);
-      setTimeout(() => nameRef.current?.focus(), 50);
     }
   }, [isOpen]);
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && isOpen && !loading) onClose();
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, onClose, loading]);
-
-  if (!isOpen) return null;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -75,78 +76,63 @@ export function AddProductModal({ isOpen, onClose, onSuccess }: AddProductModalP
   }
 
   return (
-    <div
-      className="modal-backdrop"
-      onClick={() => !loading && onClose()}
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="modal-title"
-    >
-      <div className="modal-sheet" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-header">
-          <div className="modal-header-left">
-            <h2 id="modal-title" className="modal-title">Add product</h2>
-          </div>
-          <button
-            type="button"
-            className="modal-done-btn"
-            onClick={onClose}
-            disabled={loading}
-            aria-label="Close modal"
-          >
-            CANCEL
-          </button>
-        </div>
+    <Dialog open={isOpen} onOpenChange={(open) => !open && !loading && onClose()}>
+      <DialogContent className="sm:max-w-130">
+        <DialogHeader>
+          <DialogTitle>Add product</DialogTitle>
+          <DialogDescription>
+            A product is the site or app whose directory listings and traffic you want to track.
+          </DialogDescription>
+        </DialogHeader>
 
-        <p className="modal-description">
-          A product is the site or app whose directory listings and traffic you want to track.
-        </p>
+        <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-6">
+          <FieldGroup>
+            <Field data-invalid={!!fieldErrors.name}>
+              <FieldLabel htmlFor="product-name">Name</FieldLabel>
+              <Input
+                id="product-name"
+                type="text"
+                placeholder="e.g. Zeduchat"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                aria-invalid={!!fieldErrors.name}
+                required
+              />
+              {fieldErrors.name && <FieldError>{fieldErrors.name[0]}</FieldError>}
+            </Field>
 
-        <form onSubmit={handleSubmit} className="modal-form" noValidate>
-          <div className="modal-field">
-            <label htmlFor="product-name" className="modal-label">Name</label>
-            <input
-              ref={nameRef}
-              id="product-name"
-              type="text"
-              className={`modal-input${fieldErrors.name ? " modal-input--error" : ""}`}
-              placeholder="e.g. Zeduchat"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
-            />
-            {fieldErrors.name && (
-              <span className="modal-field-error">{fieldErrors.name[0]}</span>
+            <Field data-invalid={!!fieldErrors.url}>
+              <FieldLabel htmlFor="product-url">URL</FieldLabel>
+              <Input
+                id="product-url"
+                type="url"
+                placeholder="https://..."
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+                aria-invalid={!!fieldErrors.url}
+                required
+              />
+              {fieldErrors.url && <FieldError>{fieldErrors.url[0]}</FieldError>}
+            </Field>
+
+            {serverError && (
+              <Alert variant="destructive">
+                <AlertDescription>{serverError}</AlertDescription>
+              </Alert>
             )}
-          </div>
+          </FieldGroup>
 
-          <div className="modal-field">
-            <label htmlFor="product-url" className="modal-label">URL</label>
-            <input
-              id="product-url"
-              type="url"
-              className={`modal-input${fieldErrors.url ? " modal-input--error" : ""}`}
-              placeholder="https://..."
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-              required
-            />
-            {fieldErrors.url && (
-              <span className="modal-field-error">{fieldErrors.url[0]}</span>
-            )}
-          </div>
-
-          {serverError && (
-            <p className="modal-server-error">{serverError}</p>
-          )}
-
-          <div className="modal-actions">
-            <button type="submit" className="modal-btn-primary" disabled={loading}>
+          <DialogFooter>
+            <Button type="button" variant="outline" size="lg" onClick={onClose} disabled={loading}>
+              Cancel
+            </Button>
+            <Button type="submit" size="lg" disabled={loading}>
+              {loading && <Spinner data-icon="inline-start" />}
               {loading ? "Saving…" : "Save product"}
-            </button>
-          </div>
+            </Button>
+          </DialogFooter>
         </form>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

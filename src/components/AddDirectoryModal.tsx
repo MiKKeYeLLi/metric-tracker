@@ -1,7 +1,22 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { SidebarAddButton } from "@/components/SidebarNav";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { Spinner } from "@/components/ui/spinner";
 
 export function AddDirectoryModal() {
   const [open, setOpen] = useState(false);
@@ -10,17 +25,6 @@ export function AddDirectoryModal() {
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
   const router = useRouter();
-
-  useEffect(() => {
-    if (!open) return;
-
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") setOpen(false);
-    }
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [open]);
 
   function validateUrl(value: string) {
     try {
@@ -80,111 +84,71 @@ export function AddDirectoryModal() {
   }
 
   return (
-    <>
-      <button
-        className="dash-nav-add"
-        type="button"
-        onClick={() => {
-          setError("");
-          setOpen(true);
-        }}
-      >
-        <svg
-          width="12"
-          height="12"
-          viewBox="0 0 12 12"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          aria-hidden="true"
-        >
-          <path d="M6 1v10M1 6h10" />
-        </svg>
-        Add directory
-      </button>
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        if (saving) return;
+        if (next) setError("");
+        setOpen(next);
+      }}
+    >
+      <DialogTrigger asChild>
+        <SidebarAddButton>Add directory</SidebarAddButton>
+      </DialogTrigger>
 
-      {open && (
-        <div
-          className="directory-modal-overlay"
-          onMouseDown={(event) => {
-            if (event.target === event.currentTarget) setOpen(false);
-          }}
-        >
-          <section
-            className="directory-modal"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="directory-modal-title"
-          >
-            <header className="directory-modal-header">
-              <h2 id="directory-modal-title">Add a directory</h2>
-              <button
-                type="button"
-                className="directory-modal-close"
-                aria-label="Close dialog"
-                onClick={() => setOpen(false)}
-              >
-                ×
-              </button>
-            </header>
+      <DialogContent className="sm:max-w-110">
+        <DialogHeader>
+          <DialogTitle>Add a directory</DialogTitle>
+          <DialogDescription>
+            Add a marketing directory to track your product submissions.
+          </DialogDescription>
+        </DialogHeader>
 
-            <p className="directory-modal-description">
-              Add a marketing directory to track your product submissions.
-            </p>
+        <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-6">
+          <FieldGroup>
+            <Field>
+              <FieldLabel htmlFor="directory-name">Name</FieldLabel>
+              <Input
+                id="directory-name"
+                name="name"
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                placeholder="e.g. Product Hunt"
+                maxLength={100}
+                required
+              />
+            </Field>
 
-            <form onSubmit={handleSubmit} noValidate>
-              <div className="directory-form-field">
-                <label htmlFor="directory-name">Name</label>
-                <input
-                  id="directory-name"
-                  name="name"
-                  value={name}
-                  onChange={(event) => setName(event.target.value)}
-                  placeholder="e.g. Product Hunt"
-                  maxLength={100}
-                  required
-                  autoFocus
-                />
-              </div>
+            <Field>
+              <FieldLabel htmlFor="directory-url">URL</FieldLabel>
+              <Input
+                id="directory-url"
+                name="url"
+                type="url"
+                value={url}
+                onChange={(event) => setUrl(event.target.value)}
+                placeholder="https://www.producthunt.com"
+                maxLength={2048}
+                required
+              />
+            </Field>
 
-              <div className="directory-form-field">
-                <label htmlFor="directory-url">URL</label>
-                <input
-                  id="directory-url"
-                  name="url"
-                  type="url"
-                  value={url}
-                  onChange={(event) => setUrl(event.target.value)}
-                  placeholder="https://www.producthunt.com"
-                  maxLength={2048}
-                  required
-                />
-              </div>
+            {error && <FieldError>{error}</FieldError>}
+          </FieldGroup>
 
-              {error && (
-                <p className="directory-form-error" role="alert">
-                  {error}
-                </p>
-              )}
-
-              <footer className="directory-modal-actions">
-                <button
-                  type="button"
-                  className="btn-ghost"
-                  onClick={() => setOpen(false)}
-                  disabled={saving}
-                >
-                  Cancel
-                </button>
-                <button type="submit" className="btn-primary" disabled={saving}>
-                  {saving ? "Saving…" : "Save directory"}
-                </button>
-              </footer>
-            </form>
-          </section>
-        </div>
-      )}
-    </>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button type="button" variant="outline" size="lg" disabled={saving}>
+                Cancel
+              </Button>
+            </DialogClose>
+            <Button type="submit" size="lg" disabled={saving}>
+              {saving && <Spinner data-icon="inline-start" />}
+              {saving ? "Saving…" : "Save directory"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
