@@ -1,17 +1,18 @@
 "use client";
 
-import { MOCK_DIRECTORIES } from "@/data/mockDirectories";
+import { DirectoryProvider, useDirectories } from "@/context/DirectoryContext";
 
-export function DirectoriesView() {
-  const totalCount = MOCK_DIRECTORIES.length;
-  const liveCount = MOCK_DIRECTORIES.filter((d) => d.status === "Live").length;
-  const pendingCount = MOCK_DIRECTORIES.filter(
+function DirectoryDashboard() {
+  const { directories } = useDirectories();
+
+  const totalCount = directories.length;
+  const liveCount = directories.filter((d) => d.status === "Live").length;
+  const pendingCount = directories.filter(
     (d) => d.status === "Pending review",
   ).length;
 
   return (
     <div className="space-y-6">
-      {/* Page Title Header */}
       <div>
         <h2 className="text-2xl font-bold tracking-tight">Directories</h2>
         <p className="text-sm text-muted-foreground mt-1">
@@ -20,7 +21,7 @@ export function DirectoriesView() {
         </p>
       </div>
 
-      {/* Top Metric Cards Preview */}
+      {/* Dynamic Metric Cards using your state */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <div className="rounded-xl border bg-card p-4 shadow-sm">
           <p className="text-xs font-medium text-muted-foreground">
@@ -43,36 +44,14 @@ export function DirectoriesView() {
           </p>
         </div>
       </div>
-
-      {/* Mock Data List Test */}
-      <div className="rounded-xl border bg-card p-6 shadow-sm">
-        <h3 className="font-semibold text-base mb-4">
-          Mock Directories List ({totalCount})
-        </h3>
-        <div className="divide-y border-t text-sm">
-          {MOCK_DIRECTORIES.map((directory) => (
-            <div
-              key={directory.id}
-              className="py-3 flex justify-between items-center"
-            >
-              <div>
-                <p className="font-medium text-foreground">{directory.name}</p>
-                <p className="text-xs text-muted-foreground">
-                  {directory.website}
-                </p>
-              </div>
-              <div className="flex items-center gap-3">
-                <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-muted">
-                  {directory.status}
-                </span>
-                <span className="text-xs text-muted-foreground">
-                  {directory.priority}
-                </span>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
     </div>
+  );
+}
+
+export function DirectoriesView() {
+  return (
+    <DirectoryProvider>
+      <DirectoryDashboard />
+    </DirectoryProvider>
   );
 }
