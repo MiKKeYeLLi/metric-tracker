@@ -7,6 +7,7 @@ import { MOCK_DIRECTORIES } from "@/data/mockDirectories";
 interface DirectoryContextType {
   directories: DirectoryItem[];
   addDirectory: (directory: DirectoryItem) => void;
+  updateDirectory: (directory: DirectoryItem) => void;
 }
 
 const DirectoryContext = createContext<DirectoryContextType | undefined>(
@@ -21,8 +22,18 @@ export function DirectoryProvider({ children }: { children: React.ReactNode }) {
     setDirectories((prev) => [newDir, ...prev]);
   };
 
+  const updateDirectory = (updatedDirectory: DirectoryItem) => {
+    setDirectories((prev) =>
+      prev.map((directory) =>
+        directory.id === updatedDirectory.id ? updatedDirectory : directory,
+      ),
+    );
+  };
+
   return (
-    <DirectoryContext.Provider value={{ directories, addDirectory }}>
+    <DirectoryContext.Provider
+      value={{ directories, addDirectory, updateDirectory }}
+    >
       {children}
     </DirectoryContext.Provider>
   );
