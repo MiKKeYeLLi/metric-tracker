@@ -1,8 +1,7 @@
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
-import { LayoutGridIcon } from "lucide-react";
 import { SignOutButton } from "@/components/AuthButtons";
-import { SidebarNavLink, SidebarNavList } from "@/components/SidebarNav";
+import { DashboardSidebarNav } from "@/components/SidebarNav";
 import { Wordmark } from "@/components/Wordmark";
 import { authOptions } from "@/lib/auth";
 
@@ -17,11 +16,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
           <Wordmark href="/dashboard" />
         </div>
 
-        <SidebarNavList aria-label="Main navigation">
-          <SidebarNavLink aria-current="page" href="/dashboard" icon={<LayoutGridIcon aria-hidden="true" />}>
-            Overview
-          </SidebarNavLink>
-        </SidebarNavList>
+        <DashboardSidebarNav />
 
         <div className="mt-auto hidden shrink-0 gap-1.5 border-t border-sidebar-border px-2.5 pt-3.5 lg:grid">
           <span className="truncate text-[11px] font-medium text-muted-foreground" title={session.user.email ?? undefined}>
