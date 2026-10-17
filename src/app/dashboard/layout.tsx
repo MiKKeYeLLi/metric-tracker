@@ -1,6 +1,6 @@
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
-import { LayoutGridIcon, FolderGit2Icon } from "lucide-react";
+import { LayoutGridIcon, FolderGit2Icon, TrendingUpIcon } from "lucide-react";
 import { SignOutButton } from "@/components/AuthButtons";
 import { SidebarNavLink, SidebarNavList } from "@/components/SidebarNav";
 import { Wordmark } from "@/components/Wordmark";
@@ -33,6 +33,12 @@ export default async function DashboardLayout({
             icon={<FolderGit2Icon aria-hidden="true" />}
           >
             Directories
+          </SidebarNavLink>
+          <SidebarNavLink
+            href="/dashboard/seo"
+            icon={<TrendingUpIcon aria-hidden="true" />}
+          >
+            SEO Analytics
           </SidebarNavLink>
         </SidebarNavList>
 

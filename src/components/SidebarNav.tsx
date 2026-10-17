@@ -1,3 +1,6 @@
+"use client";
+
+import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 
 export function SidebarNavList({
@@ -12,9 +15,19 @@ interface SidebarNavLinkProps extends React.ComponentProps<"a"> {
   badge?: React.ReactNode;
 }
 
-export function SidebarNavLink({ icon, badge, children, className, ...props }: SidebarNavLinkProps) {
+/** `/dashboard` matches only itself; other links also match their sub-pages. */
+function isCurrent(pathname: string, href: string | undefined): boolean {
+  if (!href) return false;
+  if (href === "/dashboard") return pathname === href;
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
+export function SidebarNavLink({ icon, badge, children, className, href, ...props }: SidebarNavLinkProps) {
+  const pathname = usePathname();
   return (
     <a
+      href={href}
+      aria-current={isCurrent(pathname, href) ? "page" : undefined}
       className={cn(
         "group/nav flex shrink-0 items-center gap-2 overflow-hidden rounded-[7px] px-2.5 py-1.75 text-[13px] font-medium whitespace-nowrap text-muted-foreground no-underline transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground [&_svg]:size-3.5 [&_svg]:shrink-0",
         "aria-[current=page]:bg-accent aria-[current=page]:font-semibold aria-[current=page]:text-primary-deep",
