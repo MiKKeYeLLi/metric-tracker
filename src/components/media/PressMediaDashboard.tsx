@@ -879,21 +879,33 @@ export function PressMediaDashboard() {
           </div>
 
           <div className="space-y-5 px-6 pb-6 pt-4">
-            <FieldGroup>
-              <Field>
-                <FieldLabel>Record type</FieldLabel>
-                <NativeSelect
-                  value={formValues.recordType}
-                  onChange={(event) => updateFormValue("recordType", event.target.value as RecordType)}
-                  aria-invalid={Boolean(formErrors.recordType)}
-                >
-                  <NativeSelectOption value="">Select</NativeSelectOption>
-                  <NativeSelectOption value="Press Coverage">Press Coverage</NativeSelectOption>
-                  <NativeSelectOption value="Press Submission">Press Submission</NativeSelectOption>
-                </NativeSelect>
-                {formErrors.recordType ? <FieldError>{formErrors.recordType}</FieldError> : null}
-              </Field>
-            </FieldGroup>
+            
+<FieldGroup>
+  <div className="space-y-2">
+    <FieldLabel>Record type</FieldLabel>
+
+    <Tabs
+      value={formValues.recordType}
+      onValueChange={(value) => {
+        updateFormValue("recordType", value as RecordType);
+      }}
+    >
+      <TabsList className="grid w-full grid-cols-2">
+        <TabsTrigger value="Press Coverage">
+          Press Coverage
+        </TabsTrigger>
+        <TabsTrigger value="Press Submission">
+          Press Submission
+        </TabsTrigger>
+      </TabsList>
+    </Tabs>
+
+    {formErrors.recordType ? (
+      <FieldError>{formErrors.recordType}</FieldError>
+    ) : null}
+  </div>
+</FieldGroup>
+
 
             <div className="grid gap-4 md:grid-cols-2">
               <Field data-invalid={Boolean(formErrors.title)}>
