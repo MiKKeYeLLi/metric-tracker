@@ -18,7 +18,7 @@ export const MOCK_DIRECTORIES: DirectoryItem[] = [
     website: "betalist.com",
     status: "Pending review",
     priority: "Medium",
-    submittedBy: "Teammate A",
+    submittedBy: "Denise",
     dateSubmitted: "08 Oct 2026",
   },
   {
@@ -27,7 +27,7 @@ export const MOCK_DIRECTORIES: DirectoryItem[] = [
     website: "indiehackers.com",
     status: "Live",
     priority: "Medium",
-    submittedBy: "Teammate B",
+    submittedBy: "Kanyisola",
     dateSubmitted: "05 Oct 2026",
     listingUrl: "https://indiehackers.com/...",
   },
@@ -47,7 +47,7 @@ export const MOCK_DIRECTORIES: DirectoryItem[] = [
     website: "alternativeto.net",
     status: "Live",
     priority: "Low",
-    submittedBy: "Teammate A",
+    submittedBy: "Denise",
     dateSubmitted: "06 Oct 2026",
   },
   {
@@ -56,7 +56,7 @@ export const MOCK_DIRECTORIES: DirectoryItem[] = [
     website: "saashub.com",
     status: "Pending review",
     priority: "Medium",
-    submittedBy: "Teammate B",
+    submittedBy: "Kanyisola",
     dateSubmitted: "12 Oct 2026",
   },
   {
@@ -65,7 +65,7 @@ export const MOCK_DIRECTORIES: DirectoryItem[] = [
     website: "capterra.com",
     status: "Rejected",
     priority: "High",
-    submittedBy: "Teammate A",
+    submittedBy: "Roy",
     dateSubmitted: "07 Oct 2026",
   },
   {
