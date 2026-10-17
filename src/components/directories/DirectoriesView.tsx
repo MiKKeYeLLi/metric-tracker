@@ -7,6 +7,7 @@ import {
   ImportCsvButton,
 } from "@/components/directories/AddDirectoryModal";
 import { DirectoryStatusBadge } from "@/components/directories/DirectoryStatusBadge";
+import { DirectoryTable } from "@/components/directories/DirectoryTable";
 import { PlusIcon, FileSpreadsheetIcon } from "lucide-react";
 
 function DirectoryDashboard() {
@@ -131,25 +132,10 @@ function DirectoryDashboard() {
       ) : (
         /* --- POPULATED DATA VIEW (Image 2) --- */
         <div className="space-y-6">
-          {/* Quick Badge Preview Verification */}
-          <div className="rounded-xl border bg-card p-4 shadow-sm flex flex-wrap items-center gap-3">
-            <span className="text-xs font-medium text-muted-foreground mr-2">
-              Status Badges Ready:
-            </span>
-            <DirectoryStatusBadge status="Live" />
-            <DirectoryStatusBadge status="Pending review" />
-            <DirectoryStatusBadge status="Needs changes" />
-            <DirectoryStatusBadge status="Rejected" />
-            <DirectoryStatusBadge status="Not submitted" />
-          </div>
-
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Main Table Slot (Teammate A) */}
+            {/* Main table slot */}
             <div className="lg:col-span-2 space-y-4">
-              <div className="rounded-xl border border-dashed p-8 text-center text-muted-foreground bg-card">
-                Directory Table & Filters Component (Teammate A) will mount
-                here[cite: 2].
-              </div>
+              <DirectoryTable />
             </div>
 
             {/* Sidebar Widgets Slot (Teammate B & New Teammate) */}
