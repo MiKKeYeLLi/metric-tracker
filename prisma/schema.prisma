@@ -15,6 +15,7 @@ model User {
   image         String?
   accounts      Account[]
   sessions      Session[]
+  seoChecks     SeoCheck[]
 }
 
 model Account {
@@ -49,4 +50,20 @@ model VerificationToken {
   expires    DateTime
 
   @@unique([identifier, token])
+}
+
+model SeoCheck {
+  id             String   @id @default(cuid())
+  url            String
+  normalizedUrl  String
+  score          Int
+  categoryScores Json
+  snapshot       Json
+  results        Json
+  errorCount     Int
+  createdById    String
+  createdBy      User     @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  createdAt      DateTime @default(now())
+
+  @@index([normalizedUrl, createdAt])
 }
