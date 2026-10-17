@@ -65,9 +65,8 @@ export function DirectoryProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <DirectoryContext.Provider value={{ directories, activityLog, addDirectory }}>
     <DirectoryContext.Provider
-      value={{ directories, addDirectory, updateDirectory }}
+      value={{ directories, activityLog, addDirectory, updateDirectory }}
     >
       {children}
     </DirectoryContext.Provider>
