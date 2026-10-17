@@ -18,8 +18,18 @@ interface SidebarNavLinkProps extends React.ComponentProps<"a"> {
 export function SidebarNavLink({ icon, badge, children, className, href, ...props }: SidebarNavLinkProps) {
   const pathname = usePathname();
   const isCurrent =
-    typeof href === "string" &&
-    (pathname === href || pathname.startsWith(`${href}/`));
+    typeof href === "string" && (() => {
+      const normalizedPath = pathname.replace(/\/+$/, "") || "/";
+      const normalizedHref = href.toString().replace(/\/+$/, "") || "/";
+      const nestedHref = `/dashboard${normalizedHref === "/" ? "" : normalizedHref}`;
+
+      return (
+        normalizedPath === normalizedHref ||
+        normalizedPath === nestedHref ||
+        normalizedPath.startsWith(`${normalizedHref}/`) ||
+        normalizedPath.startsWith(`${nestedHref}/`)
+      );
+    })();
 
   return (
     <a
