@@ -1,6 +1,12 @@
 "use client";
 
 import { DirectoryProvider, useDirectories } from "@/context/DirectoryContext";
+import { ActivityFeed } from "@/components/directories/ActivityFeed";
+import {
+  AddDirectoryModal,
+  ImportCsvButton,
+} from "@/components/directories/AddDirectoryModal";
+import { DirectoryStatusBadge } from "@/components/directories/DirectoryStatusBadge";
 import { DirectoryTable } from "@/components/directories/DirectoryTable";
 import { PlusIcon, FileSpreadsheetIcon } from "lucide-react";
 
@@ -33,10 +39,7 @@ function DirectoryDashboard() {
             in one place.
           </p>
         </div>
-        <button className="inline-flex items-center justify-center rounded-md bg-primary text-primary-foreground px-4 py-2 text-sm font-medium shadow hover:bg-primary/90 transition-colors">
-          <PlusIcon className="w-4 h-4 mr-2" />
-          Add directory
-        </button>
+        <AddDirectoryModal triggerLabel="Add directory" />
       </div>
 
       {/* Top Metric Summary Cards */}
@@ -95,13 +98,11 @@ function DirectoryDashboard() {
             the team knows where to go next[cite: 1].
           </p>
           <div className="flex flex-wrap items-center justify-center gap-3 mb-8">
-            <button className="inline-flex items-center rounded-md bg-primary text-primary-foreground px-4 py-2 text-sm font-medium shadow hover:bg-primary/90">
-              <PlusIcon className="w-4 h-4 mr-2" />
-              Add your first directory
-            </button>
-            <button className="inline-flex items-center rounded-md border border-border bg-background px-4 py-2 text-sm font-medium shadow-sm hover:bg-accent hover:text-accent-foreground">
-              Import from CSV
-            </button>
+            <AddDirectoryModal triggerLabel="Add your first directory" />
+            <ImportCsvButton
+              label="Import from CSV"
+              className="inline-flex items-center rounded-md border border-border bg-background px-4 py-2 text-sm font-medium shadow-sm hover:bg-accent hover:text-accent-foreground"
+            />
           </div>
 
           <div className="border-t border-border pt-6 w-full">
@@ -139,9 +140,9 @@ function DirectoryDashboard() {
 
             {/* Sidebar Widgets Slot (Teammate B & New Teammate) */}
             <div className="space-y-6">
+              <ActivityFeed />
               <div className="rounded-xl border border-dashed p-6 text-center text-muted-foreground bg-card">
-                Checklist, Copy Blocks & Activity Feed Widgets will mount
-                here[cite: 2].
+                Checklist, Copy Blocks & other widgets will mount here[cite: 2].
               </div>
             </div>
           </div>
