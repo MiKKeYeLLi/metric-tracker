@@ -2,6 +2,8 @@
 
 import { DirectoryProvider, useDirectories } from "@/context/DirectoryContext";
 import { DirectoryStatusBadge } from "@/components/directories/DirectoryStatusBadge";
+import { SubmissionChecklist } from "@/components/directories/SubmissionChecklist";
+import { SavedCopyWidget } from "@/components/directories/SavedCopyWidget";
 import { PlusIcon, FileSpreadsheetIcon } from "lucide-react";
 
 function DirectoryDashboard() {
@@ -152,12 +154,10 @@ function DirectoryDashboard() {
               </div>
             </div>
 
-            {/* Sidebar Widgets Slot (Teammate B & New Teammate) */}
+            {/* Sidebar Widgets Slot (Teammate B: Checklist & Copy; Activity Feed pending) */}
             <div className="space-y-6">
-              <div className="rounded-xl border border-dashed p-6 text-center text-muted-foreground bg-card">
-                Checklist, Copy Blocks & Activity Feed Widgets will mount
-                here[cite: 2].
-              </div>
+              <SubmissionChecklist />
+              <SavedCopyWidget />
             </div>
           </div>
         </div>
