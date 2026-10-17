@@ -8,7 +8,7 @@ export function SignInButton() {
   return (
     <Button
       size="xl"
-      className="relative w-full shadow-[0_8px_24px_rgb(118_81_232/0.22)] hover:-translate-y-0.5"
+      className="relative w-full"
       onClick={() => signIn("google", { callbackUrl: "/dashboard" })}
     >
       Sign in with Google

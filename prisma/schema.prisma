@@ -15,6 +15,28 @@ model User {
   image         String?
   accounts      Account[]
   sessions      Session[]
+  contentItems  ContentItem[]
+}
+
+model ContentItem {
+  id          String   @id @default(cuid())
+  userId      String
+  title       String
+  url         String
+  type        String
+  platform    String
+  topics      String[] @default([])
+  status      String
+  createdDate DateTime @db.Date
+  publishDate DateTime? @db.Date
+  updatedDate DateTime? @db.Date
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdDate])
+  @@index([userId, status])
 }
 
 model Account {

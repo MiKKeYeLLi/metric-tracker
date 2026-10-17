@@ -1,7 +1,13 @@
 "use client";
 
 import { DirectoryProvider, useDirectories } from "@/context/DirectoryContext";
+import { ActivityFeed } from "@/components/directories/ActivityFeed";
+import {
+  AddDirectoryModal,
+  ImportCsvButton,
+} from "@/components/directories/AddDirectoryModal";
 import { DirectoryStatusBadge } from "@/components/directories/DirectoryStatusBadge";
+import { DirectoryTable } from "@/components/directories/DirectoryTable";
 import { SubmissionChecklist } from "@/components/directories/SubmissionChecklist";
 import { SavedCopyWidget } from "@/components/directories/SavedCopyWidget";
 import { PlusIcon, FileSpreadsheetIcon } from "lucide-react";
@@ -35,10 +41,7 @@ function DirectoryDashboard() {
             in one place.
           </p>
         </div>
-        <button className="inline-flex items-center justify-center rounded-md bg-primary text-primary-foreground px-4 py-2 text-sm font-medium shadow hover:bg-primary/90 transition-colors">
-          <PlusIcon className="w-4 h-4 mr-2" />
-          Add directory
-        </button>
+        <AddDirectoryModal triggerLabel="Add directory" />
       </div>
 
       {/* Top Metric Summary Cards */}
@@ -97,13 +100,11 @@ function DirectoryDashboard() {
             the team knows where to go next[cite: 1].
           </p>
           <div className="flex flex-wrap items-center justify-center gap-3 mb-8">
-            <button className="inline-flex items-center rounded-md bg-primary text-primary-foreground px-4 py-2 text-sm font-medium shadow hover:bg-primary/90">
-              <PlusIcon className="w-4 h-4 mr-2" />
-              Add your first directory
-            </button>
-            <button className="inline-flex items-center rounded-md border border-border bg-background px-4 py-2 text-sm font-medium shadow-sm hover:bg-accent hover:text-accent-foreground">
-              Import from CSV
-            </button>
+            <AddDirectoryModal triggerLabel="Add your first directory" />
+            <ImportCsvButton
+              label="Import from CSV"
+              className="inline-flex items-center rounded-md border border-border bg-background px-4 py-2 text-sm font-medium shadow-sm hover:bg-accent hover:text-accent-foreground"
+            />
           </div>
 
           <div className="border-t border-border pt-6 w-full">
@@ -133,29 +134,15 @@ function DirectoryDashboard() {
       ) : (
         /* --- POPULATED DATA VIEW (Image 2) --- */
         <div className="space-y-6">
-          {/* Quick Badge Preview Verification */}
-          <div className="rounded-xl border bg-card p-4 shadow-sm flex flex-wrap items-center gap-3">
-            <span className="text-xs font-medium text-muted-foreground mr-2">
-              Status Badges Ready:
-            </span>
-            <DirectoryStatusBadge status="Live" />
-            <DirectoryStatusBadge status="Pending review" />
-            <DirectoryStatusBadge status="Needs changes" />
-            <DirectoryStatusBadge status="Rejected" />
-            <DirectoryStatusBadge status="Not submitted" />
-          </div>
-
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Main Table Slot (Teammate A) */}
+            {/* Main table slot */}
             <div className="lg:col-span-2 space-y-4">
-              <div className="rounded-xl border border-dashed p-8 text-center text-muted-foreground bg-card">
-                Directory Table & Filters Component (Teammate A) will mount
-                here[cite: 2].
-              </div>
+              <DirectoryTable />
             </div>
 
-            {/* Sidebar Widgets Slot (Teammate B: Checklist & Copy; Activity Feed pending) */}
+            {/* Sidebar widgets slot */}
             <div className="space-y-6">
+              <ActivityFeed />
               <SubmissionChecklist />
               <SavedCopyWidget />
             </div>
