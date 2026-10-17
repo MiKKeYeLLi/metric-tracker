@@ -2,7 +2,7 @@ import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import { LayoutGridIcon, FolderGit2Icon, TrendingUpIcon } from "lucide-react";
 import { SignOutButton } from "@/components/AuthButtons";
-import { SidebarNavLink, SidebarNavList } from "@/components/SidebarNav";
+import { DashboardSidebarNav } from "@/components/SidebarNav";
 import { Wordmark } from "@/components/Wordmark";
 import { authOptions } from "@/lib/auth";
 
@@ -21,6 +21,7 @@ export default async function DashboardLayout({
           <Wordmark href="/dashboard" />
         </div>
 
+        <DashboardSidebarNav />
         <SidebarNavList aria-label="Main navigation">
           <SidebarNavLink
             href="/dashboard"
