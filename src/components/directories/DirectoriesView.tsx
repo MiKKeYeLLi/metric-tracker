@@ -8,6 +8,8 @@ import {
 } from "@/components/directories/AddDirectoryModal";
 import { DirectoryStatusBadge } from "@/components/directories/DirectoryStatusBadge";
 import { DirectoryTable } from "@/components/directories/DirectoryTable";
+import { SubmissionChecklist } from "@/components/directories/SubmissionChecklist";
+import { SavedCopyWidget } from "@/components/directories/SavedCopyWidget";
 import { PlusIcon, FileSpreadsheetIcon } from "lucide-react";
 
 function DirectoryDashboard() {
@@ -138,12 +140,11 @@ function DirectoryDashboard() {
               <DirectoryTable />
             </div>
 
-            {/* Sidebar Widgets Slot (Teammate B & New Teammate) */}
+            {/* Sidebar widgets slot */}
             <div className="space-y-6">
               <ActivityFeed />
-              <div className="rounded-xl border border-dashed p-6 text-center text-muted-foreground bg-card">
-                Checklist, Copy Blocks & other widgets will mount here[cite: 2].
-              </div>
+              <SubmissionChecklist />
+              <SavedCopyWidget />
             </div>
           </div>
         </div>

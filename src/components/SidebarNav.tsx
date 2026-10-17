@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { FolderGit2Icon } from "lucide-react";
+import { FolderGit2Icon, SearchIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function SidebarNavList({
@@ -51,6 +51,9 @@ export function DashboardSidebarNav() {
       </SidebarNavLink>
       <SidebarNavLink aria-current={pathname.startsWith("/dashboard/directories") ? "page" : undefined} href="/dashboard/directories" icon={<FolderGit2Icon aria-hidden="true" />}>
         Directories
+      </SidebarNavLink>
+      <SidebarNavLink aria-current={pathname.startsWith("/dashboard/seo") ? "page" : undefined} href="/dashboard/seo" icon={<SearchIcon aria-hidden="true" />}>
+        SEO checker
       </SidebarNavLink>
     </SidebarNavList>
   );
