@@ -3,11 +3,15 @@
   "world": "Research Desk",
   "tokens": {
     "signal": "#8E6AFA",
-    "paper": "#F7F6F3",
+    "signal-deep": "#7551E8",
+    "signal-tint": "#F0ECFF",
+    "paper": "#FAFAF9",
+    "sidebar": "#F3F1EE",
     "sheet": "#FFFFFF",
-    "ink": "#1E1D22",
-    "muted": "#6C6A72",
-    "line": "#DEDCE4",
-    "radius": "12px"
+    "ink": "#1A1917",
+    "muted": "#706E69",
+    "line": "#E5E3DF",
+    "line-strong": "#CAC8C3",
+    "radius": "8px"
   }
 }
