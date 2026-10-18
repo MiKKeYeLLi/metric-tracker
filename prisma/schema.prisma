@@ -7,6 +7,28 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum ArticleType {
+  NewsArticle
+  Interview
+  FeatureStory
+  PressRelease
+  OpinionCommentary
+  PartnerSponsoredContent
+  BroadcastPodcastAppearance
+  Other
+}
+
+enum SubmissionStatus {
+  Draft
+  Submitted
+  UnderReview
+  ChangesRequested
+  Accepted
+  Published
+  Rejected
+  Withdrawn
+}
+
 model User {
   id            String    @id @default(cuid())
   name          String?
@@ -38,6 +60,39 @@ model ContentItem {
 
   @@index([userId, createdDate])
   @@index([userId, status])
+}
+
+model PressCoverage {
+  id                  String           @id @default(cuid())
+  title              String
+  outlet             String
+  articleType        ArticleType
+  articleTypeOther   String?
+  publishedArticleUrl String?
+  publicationDate    DateTime?
+  summary            String?
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+  submissions        PressSubmission[]
+}
+
+model PressSubmission {
+  id                  String           @id @default(cuid())
+  title              String
+  outlet             String
+  articleType        ArticleType
+  articleTypeOther   String?
+  status             SubmissionStatus @default(Draft)
+  dateSubmitted      DateTime
+  responsiblePerson  String?
+  followUpDate       DateTime?
+  draftUrl           String?
+  publishedArticleUrl String?
+  notes              String?
+  coverageId         String?
+  coverage           PressCoverage?   @relation(fields: [coverageId], references: [id], onDelete: SetNull)
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
 }
 
 model Account {

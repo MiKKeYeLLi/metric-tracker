@@ -6,6 +6,7 @@ import {
   contentItemSchema,
   contentUpdateSchema,
 } from "@/lib/schemas/content";
+import { mediaInputSchema, mediaListResponseSchema } from "@/lib/schemas/media";
 
 // Register request/response schemas and paths here; they appear at /docs.
 export const registry = new OpenAPIRegistry();
@@ -108,6 +109,50 @@ registry.registerPath({
     204: { description: "Content deleted" },
     401: { description: "Unauthorized" },
     404: { description: "Not found" },
+  },
+});
+
+// ── Media ──
+registry.registerPath({
+  method: "get",
+  path: "/api/media",
+  summary: "List media records",
+  security: [{ sessionCookie: [] }],
+  responses: {
+    200: {
+      description: "A list of coverage and submission records.",
+      content: {
+        "application/json": {
+          schema: mediaListResponseSchema,
+        },
+      },
+    },
+  },
+});
+
+registry.registerPath({
+  method: "post",
+  path: "/api/media",
+  summary: "Create a press media record",
+  security: [{ sessionCookie: [] }],
+  request: {
+    body: {
+      content: {
+        "application/json": {
+          schema: mediaInputSchema,
+        },
+      },
+    },
+  },
+  responses: {
+    201: {
+      description: "The created media record.",
+      content: {
+        "application/json": {
+          schema: mediaInputSchema,
+        },
+      },
+    },
   },
 });
 
