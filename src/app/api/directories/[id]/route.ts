@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/api";
 import {
   dateFromInput,
+  displayName,
   isSubmittedStatus,
   serializeDirectory,
   statusMessage,
@@ -42,6 +43,13 @@ export async function PATCH(request: Request, { params }: { params: { id: string
   const existing = await prisma.directory.findUnique({ where: { id: params.id } });
   if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
+  if ((result.data.name ?? existing.name) === "" && (result.data.website ?? existing.website) === "") {
+    return NextResponse.json(
+      { error: "Validation failed", details: { name: ["Add a name or a website so you can recognise it later."] } },
+      { status: 400 }
+    );
+  }
+
   const data = result.data;
   const nextStatus = data.status !== undefined ? statusToDb(data.status) : existing.status;
   const statusChanged = nextStatus !== existing.status;
@@ -65,12 +73,13 @@ export async function PATCH(request: Request, { params }: { params: { id: string
       },
       include: withChecklist,
     });
+    const name = displayName(updated);
     if (statusChanged) {
       await tx.directoryActivity.create({
         data: {
           directoryId: updated.id,
-          directoryName: updated.name,
-          message: statusMessage(updated.name, nextStatus),
+          directoryName: name,
+          message: statusMessage(name, nextStatus),
           status: nextStatus,
         },
       });
@@ -78,8 +87,8 @@ export async function PATCH(request: Request, { params }: { params: { id: string
       await tx.directoryActivity.create({
         data: {
           directoryId: updated.id,
-          directoryName: updated.name,
-          message: `${updated.name} listing link added`,
+          directoryName: name,
+          message: `${name} listing link added`,
           status: updated.status,
         },
       });
@@ -94,14 +103,16 @@ export async function DELETE(_request: Request, { params }: { params: { id: stri
   const { error } = await requireAuth();
   if (error) return error;
 
-  const existing = await prisma.directory.findUnique({ where: { id: params.id }, select: { id: true, name: true } });
+  const existing = await prisma.directory.findUnique({
+    where: { id: params.id },
+    select: { id: true, name: true, website: true },
+  });
   if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
+  const name = displayName(existing);
   await prisma.$transaction([
     prisma.directory.delete({ where: { id: existing.id } }),
-    prisma.directoryActivity.create({
-      data: { directoryName: existing.name, message: `${existing.name} removed from the list` },
-    }),
+    prisma.directoryActivity.create({ data: { directoryName: name, message: `${name} removed from the list` } }),
   ]);
 
   return new NextResponse(null, { status: 204 });

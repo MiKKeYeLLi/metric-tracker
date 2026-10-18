@@ -3,6 +3,7 @@ import { requireAuth } from "@/lib/api";
 import {
   dateFromInput,
   defaultChecklist,
+  displayName,
   isSubmittedStatus,
   serializeDirectory,
   statusToDb,
@@ -61,11 +62,12 @@ export async function POST(request: Request) {
       },
       include: withChecklist,
     });
+    const name = displayName(created);
     await tx.directoryActivity.create({
       data: {
         directoryId: created.id,
-        directoryName: created.name,
-        message: status === "NotSubmitted" ? `${created.name} added to the shortlist` : `${created.name} added as ${data.status}`,
+        directoryName: name,
+        message: status === "NotSubmitted" ? `${name} added to the shortlist` : `${name} added as ${data.status}`,
         status,
       },
     });

@@ -7,6 +7,7 @@ import {
   CircleXIcon,
   PencilLineIcon,
   SendIcon,
+  Trash2Icon,
   type LucideIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -22,6 +23,9 @@ const STATUS_ICON: Record<DirectoryStatus, { icon: LucideIcon; tone: string }> =
   Rejected: { icon: CircleXIcon, tone: "bg-destructive-muted text-destructive" },
   "Not submitted": { icon: CircleDashedIcon, tone: "bg-muted text-muted-foreground" },
 };
+
+// Removals have no status: the directory is gone.
+const REMOVED_ICON = { icon: Trash2Icon, tone: "bg-muted text-muted-foreground" };
 
 const PREVIEW_COUNT = 6;
 const relativeTime = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
@@ -69,7 +73,8 @@ export function ActivityFeed() {
       ) : (
         <ol className="m-0 flex list-none flex-col p-0">
           {visible.map((entry, index) => {
-            const { icon: Icon, tone } = STATUS_ICON[entry.status] ?? STATUS_ICON["Not submitted"];
+            const { icon: Icon, tone } = entry.status ? STATUS_ICON[entry.status] : REMOVED_ICON;
+            const timestamp = Date.parse(entry.createdAt);
             const isLast = index === visible.length - 1;
             return (
               <li key={entry.id} className="relative flex gap-3 pb-4 last:pb-0">
@@ -84,11 +89,11 @@ export function ActivityFeed() {
                 </span>
                 <div className="flex min-w-0 flex-col gap-0.5 pt-1">
                   <p className="m-0 text-sm leading-snug font-medium text-foreground">
-                    {entry.actionText}
+                    {entry.message}
                   </p>
                   <p className="m-0 text-xs text-faint-foreground">
-                    <time dateTime={new Date(entry.timestamp).toISOString()} className="text-muted-foreground">
-                      {timeAgo(entry.timestamp)}
+                    <time dateTime={entry.createdAt} className="text-muted-foreground">
+                      {timeAgo(timestamp)}
                     </time>
                   </p>
                 </div>

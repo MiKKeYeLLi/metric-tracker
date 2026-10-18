@@ -1,9 +1,18 @@
 "use client";
 
-import { ChangeEvent, useRef, useState } from "react";
-import { CheckIcon, PlusIcon, UploadIcon } from "lucide-react";
-
-import { Button } from "@/components/ui/button";
+import { useRef, useState, type ChangeEvent, type FormEvent } from "react";
+import {
+  CircleCheckIcon,
+  CircleXIcon,
+  LightbulbIcon,
+  PencilLineIcon,
+  PlusIcon,
+  SendIcon,
+  UploadIcon,
+  type LucideIcon,
+} from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -11,17 +20,25 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
-import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
+import { Spinner } from "@/components/ui/spinner";
+import { Textarea } from "@/components/ui/textarea";
 import { useDirectories } from "@/context/DirectoryContext";
-import type { DirectoryItem, DirectoryStatus, Priority } from "@/types/directory";
+import type { DirectoryInput, DirectoryItem, DirectoryStatus, Priority } from "@/types/directory";
 
-interface AddDirectoryModalProps {
-  triggerLabel?: string;
-  triggerVariant?: "default" | "outline";
+export const STATUS_OPTIONS: DirectoryStatus[] = ["Not submitted", "Pending review", "Needs changes", "Live", "Rejected"];
+export const PRIORITY_OPTIONS: Priority[] = ["High", "Medium", "Low"];
+
+/** How to show a directory that may only have a name or only a website. */
+export function directoryLabel(directory: Pick<DirectoryItem, "name" | "website">) {
+  return directory.name || directory.website || "Untitled directory";
+}
+
+export function normalizeWebsite(value: string) {
+  return value.trim().replace(/^https?:\/\//i, "").replace(/\/$/, "");
 }
 
 type FormState = {
@@ -32,413 +49,325 @@ type FormState = {
   dateSubmitted: string;
   listingUrl: string;
   notes: string;
-  addToChecklist: boolean;
 };
 
-const defaultFormState: FormState = {
-  name: "",
-  website: "",
-  status: "Pending review",
-  priority: "Medium",
-  dateSubmitted: "",
-  listingUrl: "",
-  notes: "",
-  addToChecklist: true,
-};
-
-const statusOptions: DirectoryStatus[] = [
-  "Live",
-  "Pending review",
-  "Needs changes",
-  "Rejected",
-  "Not submitted",
-];
-
-const priorityOptions: Priority[] = ["High", "Medium", "Low"];
-
-const quickAddPresets = [
-  { name: "Product Hunt", website: "producthunt.com", status: "Pending review" as DirectoryStatus, priority: "High" as Priority },
-  { name: "BetaList", website: "betalist.com", status: "Pending review" as DirectoryStatus, priority: "Medium" as Priority },
-  { name: "Indie Hackers", website: "indiehackers.com", status: "Live" as DirectoryStatus, priority: "Medium" as Priority },
-  { name: "G2", website: "g2.com", status: "Needs changes" as DirectoryStatus, priority: "High" as Priority },
-  { name: "AlternativeTo", website: "alternativeto.net", status: "Live" as DirectoryStatus, priority: "Low" as Priority },
-  { name: "SaaSHub", website: "saashub.com", status: "Pending review" as DirectoryStatus, priority: "Medium" as Priority },
-];
-
-function formatSubmittedDate(value: string) {
-  if (!value) {
-    return new Intl.DateTimeFormat("en-GB", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-    }).format(new Date());
-  }
-
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return new Intl.DateTimeFormat("en-GB", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-    }).format(new Date());
-  }
-
-  return new Intl.DateTimeFormat("en-GB", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  }).format(date);
-}
-
-function normalizeWebsite(value: string) {
-  const nextValue = value.trim().replace(/^https?:\/\//i, "").replace(/\/$/, "");
-  return nextValue;
-}
-
-function generateDirectoryId() {
-  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
-    return crypto.randomUUID();
-  }
-
-  return `dir-${Date.now()}-${Math.random().toString(16).slice(2, 10)}`;
-}
-
-function parseCsvValue(value: string) {
-  return value.trim().replace(/^"|"$/g, "");
-}
-
-export function ImportCsvButton({
-  className,
-  label = "Import CSV",
-}: {
-  className?: string;
-  label?: string;
-}) {
-  const { addDirectory } = useDirectories();
-  const inputRef = useRef<HTMLInputElement | null>(null);
-
-  const handleImport = async (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) {
-      return;
-    }
-
-    const text = await file.text();
-    const lines = text
-      .split(/\r?\n/)
-      .map((line) => line.trim())
-      .filter(Boolean);
-
-    if (lines.length === 0) {
-      event.target.value = "";
-      return;
-    }
-
-    const rows = lines.slice(1).map((line) =>
-      line.split(",").map((value) => parseCsvValue(value)),
-    );
-
-    const importRows = rows.length > 0 ? rows : [[...lines[0].split(",")]];
-
-    importRows.forEach((row) => {
-      const name = row[0]?.trim() || "Imported directory";
-      const website = (row[1] || name).trim();
-      const status = (row[2] as DirectoryStatus) || "Pending review";
-      const priority = (row[3] as Priority) || "Medium";
-
-      addDirectory({
-        id: generateDirectoryId(),
-        name,
-        website: normalizeWebsite(website),
-        status: statusOptions.includes(status) ? status : "Pending review",
-        priority: priorityOptions.includes(priority) ? priority : "Medium",
-        dateSubmitted: formatSubmittedDate(""),
-        listingUrl: undefined,
-        notes: "Imported from CSV.",
-      });
-    });
-
-    event.target.value = "";
+function formFrom(directory: DirectoryItem | null): FormState {
+  return {
+    name: directory?.name ?? "",
+    website: directory?.website ?? "",
+    status: directory?.status ?? "Not submitted",
+    priority: directory?.priority ?? "Medium",
+    dateSubmitted: directory?.dateSubmitted ?? "",
+    listingUrl: directory?.listingUrl ?? "",
+    notes: directory?.notes ?? "",
   };
+}
 
+/** Adds a new directory, or edits `directory` when one is given. */
+export function DirectoryFormDialog({
+  open,
+  onOpenChange,
+  directory,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  directory: DirectoryItem | null;
+}) {
   return (
-    <>
-      <Button
-        type="button"
-        variant="outline"
-        onClick={() => inputRef.current?.click()}
-        className={className}
-      >
-        <UploadIcon className="size-4" aria-hidden="true" />
-        {label}
-      </Button>
-      <input
-        ref={inputRef}
-        type="file"
-        accept=".csv,text/csv"
-        className="hidden"
-        onChange={handleImport}
-      />
-    </>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="flex max-h-[calc(100dvh-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-[600px]">
+        {open && <DirectoryForm key={directory?.id ?? "new"} directory={directory} onDone={() => onOpenChange(false)} />}
+      </DialogContent>
+    </Dialog>
   );
 }
 
-export function AddDirectoryModal({
-  triggerLabel = "Add directory",
-  triggerVariant = "default",
-}: AddDirectoryModalProps) {
-  const { addDirectory } = useDirectories();
-  const [open, setOpen] = useState(false);
-  const [form, setForm] = useState<FormState>(defaultFormState);
-  const [errors, setErrors] = useState<Partial<Record<keyof FormState, string>>>({});
+const STAGES: { value: DirectoryStatus; icon: LucideIcon; hint: string }[] = [
+  { value: "Not submitted", icon: LightbulbIcon, hint: "An idea or shortlist pick" },
+  { value: "Pending review", icon: SendIcon, hint: "Submitted, waiting" },
+  { value: "Needs changes", icon: PencilLineIcon, hint: "They asked for edits" },
+  { value: "Live", icon: CircleCheckIcon, hint: "Listed" },
+  { value: "Rejected", icon: CircleXIcon, hint: "Turned down" },
+];
 
-  const handleFieldChange = <K extends keyof FormState>(
-    field: K,
-    value: FormState[K],
-  ) => {
+function DirectoryForm({ directory, onDone }: { directory: DirectoryItem | null; onDone: () => void }) {
+  const { addDirectory, updateDirectory } = useDirectories();
+  const [form, setForm] = useState<FormState>(() => formFrom(directory));
+  const [error, setError] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+  const isEditing = directory !== null;
+  const submitted = form.status !== "Not submitted";
+  const canSave = form.name.trim() !== "" || form.website.trim() !== "";
+
+  const update = <K extends keyof FormState>(field: K, value: FormState[K]) => {
     setForm((current) => ({ ...current, [field]: value }));
-    setErrors((current) => ({ ...current, [field]: undefined }));
+    setError("");
   };
 
-  const validateForm = () => {
-    const nextErrors: Partial<Record<keyof FormState, string>> = {};
-
-    if (form.name.trim().length < 2) {
-      nextErrors.name = "Directory name is required.";
-    }
-
-    if (form.website.trim().length < 2) {
-      nextErrors.website = "Website is required.";
-    }
-
-    if (!form.status) {
-      nextErrors.status = "Choose a status.";
-    }
-
-    if (!form.priority) {
-      nextErrors.priority = "Choose a priority.";
-    }
-
-    return nextErrors;
-  };
-
-  const handleQuickAdd = (preset: {
-    name: string;
-    website: string;
-    status: DirectoryStatus;
-    priority: Priority;
-  }) => {
-    setForm((current) => ({
-      ...current,
-      name: preset.name,
-      website: preset.website,
-      status: preset.status,
-      priority: preset.priority,
-    }));
-  };
-
-  const handleSubmit = () => {
-    const nextErrors = validateForm();
-
-    if (Object.keys(nextErrors).length > 0) {
-      setErrors(nextErrors);
+  const save = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!canSave) {
+      setError("Add a name or a website so you can recognise it later.");
       return;
     }
-
-    const sanitizedNotes = form.notes.trim();
-    const nextDirectory: DirectoryItem = {
-      id: generateDirectoryId(),
+    const input: DirectoryInput = {
       name: form.name.trim(),
       website: normalizeWebsite(form.website),
       status: form.status,
       priority: form.priority,
-      dateSubmitted: formatSubmittedDate(form.dateSubmitted),
-      listingUrl: form.listingUrl.trim() || undefined,
-      notes: form.addToChecklist
-        ? sanitizedNotes
-          ? `Follow-up required: ${sanitizedNotes}`
-          : "Added to the review checklist."
-        : sanitizedNotes || undefined,
+      dateSubmitted: submitted && form.dateSubmitted ? form.dateSubmitted : null,
+      listingUrl: form.status === "Live" ? form.listingUrl.trim() || null : (directory?.listingUrl ?? null),
+      notes: form.notes.trim() || null,
     };
-
-    addDirectory(nextDirectory);
-    setForm(defaultFormState);
-    setErrors({});
-    setOpen(false);
+    setIsSaving(true);
+    try {
+      if (isEditing) {
+        // Leave the submission date alone unless it was changed, so the server can default it.
+        const { dateSubmitted, ...rest } = input;
+        await updateDirectory(directory.id, dateSubmitted !== directory.dateSubmitted ? input : rest);
+      } else {
+        await addDirectory(input);
+      }
+      onDone();
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : "Couldn't save. Please try again.");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button
-          type="button"
-          variant={triggerVariant === "outline" ? "outline" : "default"}
-        >
-          <PlusIcon data-icon="inline-start" aria-hidden="true" />
-          {triggerLabel}
-        </Button>
-      </DialogTrigger>
+    <form onSubmit={save} className="flex min-h-0 flex-1 flex-col">
+      <DialogHeader className="shrink-0 gap-1 px-6 pt-6 pb-4">
+        <DialogTitle className="text-xl font-extrabold tracking-[-0.03em]">
+          {isEditing ? `Edit ${directoryLabel(directory)}` : "Add directory"}
+        </DialogTitle>
+        <DialogDescription>
+          {isEditing
+            ? "Update where this submission stands."
+            : "Pick where it stands and fill in only what you know. A name or a website is enough to start."}
+        </DialogDescription>
+      </DialogHeader>
 
-      <DialogContent className="flex max-h-[calc(100dvh-2rem)] max-w-3xl flex-col gap-0 overflow-hidden p-0 sm:max-w-3xl">
-        <div className="min-h-0 space-y-5 overflow-y-auto p-5 sm:p-6">
-          <DialogHeader className="space-y-2">
-            <DialogTitle>Add directory</DialogTitle>
-            <DialogDescription>
-              Add a directory and where its submission stands.
-            </DialogDescription>
-          </DialogHeader>
+      <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-6 pb-6">
+        <fieldset className="m-0 border-0 p-0">
+          <legend className="mb-2.5 text-[13px] font-semibold text-foreground">Status</legend>
+          <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
+            {STAGES.map(({ value, icon: Icon, hint }) => (
+              <label
+                key={value}
+                className="group/stage flex cursor-pointer flex-col gap-2 rounded-2xl border border-border bg-card p-3 transition-[border-color,background-color] hover:border-border-strong has-checked:border-primary has-checked:bg-accent has-focus-visible:ring-3 has-focus-visible:ring-ring/50"
+              >
+                <input
+                  type="radio"
+                  name="directory-status"
+                  value={value}
+                  checked={form.status === value}
+                  onChange={() => update("status", value)}
+                  className="sr-only"
+                />
+                <span className="flex size-8 items-center justify-center rounded-lg bg-muted text-muted-foreground transition-colors group-has-checked/stage:bg-primary group-has-checked/stage:text-primary-foreground">
+                  <Icon className="size-4" aria-hidden="true" />
+                </span>
+                <span className="flex flex-col gap-0.5">
+                  <span className="text-[13px] leading-tight font-semibold text-foreground group-has-checked/stage:text-accent-foreground">
+                    {value}
+                  </span>
+                  <span className="hidden text-xs leading-snug text-muted-foreground sm:block">{hint}</span>
+                </span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
 
-          <div className="space-y-2">
-            <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-muted-foreground">
-              Quick add
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {quickAddPresets.map((preset) => (
-                <button
-                  key={preset.name}
-                  type="button"
-                  onClick={() => handleQuickAdd(preset)}
-                  className="rounded-full border border-border bg-background px-2.5 py-1 text-xs font-medium text-foreground transition-colors hover:bg-muted"
-                >
-                  {preset.name}
-                </button>
-              ))}
-            </div>
+        {error && (
+          <Alert variant="destructive">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+
+        <FieldGroup className="gap-4">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field>
+              <FieldLabel htmlFor="directory-name">Name</FieldLabel>
+              <Input
+                id="directory-name"
+                value={form.name}
+                onChange={(event) => update("name", event.target.value)}
+                placeholder="e.g. Product Hunt"
+                autoComplete="off"
+                autoFocus
+              />
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="directory-website">Website</FieldLabel>
+              <Input
+                id="directory-website"
+                value={form.website}
+                onChange={(event) => update("website", event.target.value)}
+                placeholder="producthunt.com"
+                inputMode="url"
+                autoComplete="off"
+              />
+            </Field>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
-            <ImportCsvButton label="Import CSV" className="inline-flex items-center gap-2" />
-            <Button type="button" variant="ghost" className="text-muted-foreground">
-              Save draft
-            </Button>
-          </div>
-
-          <FieldGroup className="gap-4">
-            <div className="grid gap-4 md:grid-cols-2">
-              <Field data-invalid={Boolean(errors.name)}>
-                <FieldLabel htmlFor="directory-name">Directory name</FieldLabel>
-                <Input
-                  id="directory-name"
-                  value={form.name}
-                  onChange={(event) => handleFieldChange("name", event.target.value)}
-                  aria-invalid={Boolean(errors.name)}
-                  placeholder="Product Hunt"
-                />
-                {errors.name ? <FieldError>{errors.name}</FieldError> : null}
-              </Field>
-
-              <Field data-invalid={Boolean(errors.website)}>
-                <FieldLabel htmlFor="directory-website">Website</FieldLabel>
-                <Input
-                  id="directory-website"
-                  value={form.website}
-                  onChange={(event) => handleFieldChange("website", event.target.value)}
-                  aria-invalid={Boolean(errors.website)}
-                  placeholder="producthunt.com"
-                />
-                {errors.website ? <FieldError>{errors.website}</FieldError> : null}
-              </Field>
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-2">
-              <Field data-invalid={Boolean(errors.status)}>
-                <FieldLabel htmlFor="directory-status">Status</FieldLabel>
-                <NativeSelect
-                  id="directory-status"
-                  value={form.status}
-                  onChange={(event) =>
-                    handleFieldChange("status", event.target.value as DirectoryStatus)
-                  }
-                  aria-invalid={Boolean(errors.status)}
-                >
-                  {statusOptions.map((status) => (
-                    <NativeSelectOption key={status} value={status}>
-                      {status}
-                    </NativeSelectOption>
-                  ))}
-                </NativeSelect>
-                {errors.status ? <FieldError>{errors.status}</FieldError> : null}
-              </Field>
-
-              <Field data-invalid={Boolean(errors.priority)}>
-                <FieldLabel htmlFor="directory-priority">Priority</FieldLabel>
-                <NativeSelect
-                  id="directory-priority"
-                  value={form.priority}
-                  onChange={(event) =>
-                    handleFieldChange("priority", event.target.value as Priority)
-                  }
-                  aria-invalid={Boolean(errors.priority)}
-                >
-                  {priorityOptions.map((priority) => (
-                    <NativeSelectOption key={priority} value={priority}>
-                      {priority}
-                    </NativeSelectOption>
-                  ))}
-                </NativeSelect>
-                {errors.priority ? <FieldError>{errors.priority}</FieldError> : null}
-              </Field>
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field>
+              <FieldLabel htmlFor="directory-priority">Priority</FieldLabel>
+              <NativeSelect
+                id="directory-priority"
+                className="w-full"
+                value={form.priority}
+                onChange={(event) => update("priority", event.target.value as Priority)}
+              >
+                {PRIORITY_OPTIONS.map((priority) => (
+                  <NativeSelectOption key={priority} value={priority}>
+                    {priority}
+                  </NativeSelectOption>
+                ))}
+              </NativeSelect>
+            </Field>
+            {submitted && (
               <Field>
                 <FieldLabel htmlFor="directory-date">Date submitted</FieldLabel>
                 <Input
                   id="directory-date"
                   type="date"
                   value={form.dateSubmitted}
-                  onChange={(event) => handleFieldChange("dateSubmitted", event.target.value)}
+                  onChange={(event) => update("dateSubmitted", event.target.value)}
                 />
+                {!form.dateSubmitted && <FieldDescription className="text-xs">Defaults to today</FieldDescription>}
               </Field>
-            </div>
+            )}
+          </div>
 
+          {form.status === "Live" && (
             <Field>
-              <FieldLabel htmlFor="directory-link">Listing URL</FieldLabel>
+              <FieldLabel htmlFor="directory-listing">Listing link</FieldLabel>
               <Input
-                id="directory-link"
+                id="directory-listing"
+                type="url"
+                inputMode="url"
                 value={form.listingUrl}
-                onChange={(event) => handleFieldChange("listingUrl", event.target.value)}
-                placeholder="https://example.com"
+                onChange={(event) => update("listingUrl", event.target.value)}
+                placeholder="https://"
+                autoComplete="off"
               />
             </Field>
+          )}
 
-            <Field>
-              <FieldLabel htmlFor="directory-notes">Notes</FieldLabel>
-              <textarea
-                id="directory-notes"
-                value={form.notes}
-                onChange={(event) => handleFieldChange("notes", event.target.value)}
-                className="min-h-24 w-full rounded-lg border border-input bg-background px-3.5 py-2 text-[13px] text-foreground outline-none transition-colors placeholder:text-muted-foreground/70 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/20"
-                placeholder="Add tracking notes, outstanding tasks, or key requirements."
-              />
-            </Field>
+          <Field>
+            <FieldLabel htmlFor="directory-notes">Notes</FieldLabel>
+            <Textarea
+              id="directory-notes"
+              rows={submitted ? 3 : 4}
+              value={form.notes}
+              onChange={(event) => update("notes", event.target.value)}
+              placeholder={
+                submitted ? "Requirements, feedback from reviewers, next steps" : "Why it's worth it, audience, submission rules"
+              }
+            />
+          </Field>
+        </FieldGroup>
+      </div>
 
-            <label className="flex items-center gap-3 rounded-lg border border-border bg-muted/30 px-3 py-2 text-sm text-foreground">
-              <input
-                type="checkbox"
-                checked={form.addToChecklist}
-                onChange={(event) =>
-                  handleFieldChange("addToChecklist", event.target.checked)
-                }
-                className="size-4 rounded border-border text-primary-deep focus:ring-primary"
-              />
-              Add to review checklist
-            </label>
-          </FieldGroup>
-        </div>
-
-        <DialogFooter className="border-t px-6 py-4">
-          <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-            Cancel
-          </Button>
-          <Button type="button" onClick={handleSubmit}>
-            <CheckIcon className="size-4" aria-hidden="true" />
-            Save directory
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      <DialogFooter className="mx-0 mb-0 shrink-0 rounded-b-2xl">
+        <Button type="button" variant="ghost" disabled={isSaving} onClick={onDone}>
+          Cancel
+        </Button>
+        <Button type="submit" disabled={isSaving || !canSave}>
+          {isSaving && <Spinner data-icon="inline-start" />}
+          {isSaving ? "Saving…" : isEditing ? "Save changes" : "Add directory"}
+        </Button>
+      </DialogFooter>
+    </form>
   );
 }
 
-export default AddDirectoryModal;
+export function AddDirectoryModal({ triggerLabel = "Add directory" }: { triggerLabel?: string }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <Button type="button" onClick={() => setOpen(true)}>
+        <PlusIcon data-icon="inline-start" aria-hidden="true" />
+        {triggerLabel}
+      </Button>
+      <DirectoryFormDialog open={open} onOpenChange={setOpen} directory={null} />
+    </>
+  );
+}
+
+function parseCsvLine(line: string) {
+  const cells: string[] = [];
+  let current = "";
+  let quoted = false;
+  for (let index = 0; index < line.length; index += 1) {
+    const char = line[index];
+    if (char === '"' && quoted && line[index + 1] === '"') {
+      current += '"';
+      index += 1;
+    } else if (char === '"') {
+      quoted = !quoted;
+    } else if (char === "," && !quoted) {
+      cells.push(current.trim());
+      current = "";
+    } else {
+      current += char;
+    }
+  }
+  cells.push(current.trim());
+  return cells;
+}
+
+/** Imports rows in the same column order the export writes: name, website, status, priority, date submitted, listing URL. */
+export function ImportCsvButton({ label = "Import CSV" }: { label?: string }) {
+  const { addDirectory, reportError } = useDirectories();
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const [isImporting, setIsImporting] = useState(false);
+
+  const handleImport = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+
+    const rows = (await file.text())
+      .replace(/^﻿/, "")
+      .split(/\r?\n/)
+      .filter((line) => line.trim())
+      .map(parseCsvLine)
+      .filter((row) => row[0] && row[0].toLocaleLowerCase() !== "directory");
+
+    setIsImporting(true);
+    let failed = 0;
+    for (const row of rows) {
+      const status = STATUS_OPTIONS.find((option) => option === row[2]) ?? "Not submitted";
+      const date = /^\d{4}-\d{2}-\d{2}$/.test(row[4] ?? "") ? row[4] : null;
+      try {
+        await addDirectory({
+          name: row[0],
+          website: normalizeWebsite(row[1] || row[0]),
+          status,
+          priority: PRIORITY_OPTIONS.find((option) => option === row[3]) ?? "Medium",
+          dateSubmitted: status === "Not submitted" ? null : date,
+          listingUrl: row[5] || null,
+          notes: null,
+        });
+      } catch {
+        failed += 1;
+      }
+    }
+    setIsImporting(false);
+    if (failed > 0) reportError(new Error(`${failed} of ${rows.length} rows couldn't be imported. Check their website and link columns.`));
+  };
+
+  return (
+    <>
+      <button type="button" className={buttonVariants({ variant: "outline" })} disabled={isImporting} onClick={() => inputRef.current?.click()}>
+        {isImporting ? <Spinner data-icon="inline-start" /> : <UploadIcon data-icon="inline-start" aria-hidden="true" />}
+        {isImporting ? "Importing…" : label}
+      </button>
+      <input ref={inputRef} type="file" accept=".csv,text/csv" className="hidden" onChange={(event) => void handleImport(event)} />
+    </>
+  );
+}

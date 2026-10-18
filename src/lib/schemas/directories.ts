@@ -21,9 +21,10 @@ const httpUrl = (message: string) =>
       }
     }, message);
 
+// Entries can start as quick ideas: name and website are each optional, but not both.
 const directoryFields = {
-  name: z.string().trim().min(1, "Give the directory a name.").max(200),
-  website: httpUrl("Enter the directory's website, like producthunt.com."),
+  name: z.string().trim().max(200),
+  website: z.union([httpUrl("Enter the directory's website, like producthunt.com."), z.literal("")]),
   status: statusSchema,
   priority: prioritySchema,
   dateSubmitted: dateSchema.nullable(),
@@ -33,13 +34,17 @@ const directoryFields = {
 
 export const directoryCreateSchema = z
   .object({
-    name: directoryFields.name,
-    website: directoryFields.website,
+    name: directoryFields.name.default(""),
+    website: directoryFields.website.default(""),
     status: directoryFields.status.default("Not submitted"),
     priority: directoryFields.priority.default("Medium"),
     dateSubmitted: directoryFields.dateSubmitted.optional(),
     listingUrl: directoryFields.listingUrl.optional(),
     notes: directoryFields.notes.optional(),
+  })
+  .refine((value) => value.name !== "" || value.website !== "", {
+    message: "Add a name or a website so you can recognise it later.",
+    path: ["name"],
   })
   .openapi("DirectoryCreate");
 

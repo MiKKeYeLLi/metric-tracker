@@ -19,6 +19,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
 import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -33,24 +34,6 @@ const COPY_FEEDBACK_MS = 1600;
 // Roughly three lines of the tile's text at its narrowest width.
 const CLAMP_THRESHOLD = 140;
 
-export const INITIAL_COPY_BLOCKS: SavedCopyBlock[] = [
-  {
-    id: "tagline",
-    label: "Tagline",
-    text: "Track every directory that matters.",
-  },
-  {
-    id: "short",
-    label: "Short description",
-    text: "Zedu Amp keeps our directory submissions in one calm, organized workspace.",
-  },
-  {
-    id: "long",
-    label: "Long description",
-    text: "Zedu Amp brings content, SEO, social and paid metrics into one workspace the whole team can scan. Easily monitor listing status, review feedback, and manage marketing distribution across all major product directories.",
-  },
-];
-
 const characters = (text: string) => `${text.length.toLocaleString()} ${text.length === 1 ? "character" : "characters"}`;
 
 export function SavedCopyWidget({
@@ -62,7 +45,7 @@ export function SavedCopyWidget({
   helper?: string;
   className?: string;
 }) {
-  const [blocks, setBlocks] = useState<SavedCopyBlock[]>(INITIAL_COPY_BLOCKS);
+  const [blocks, setBlocks] = useState<SavedCopyBlock[]>([]);
   const [feedback, setFeedback] = useState<{ id: string; ok: boolean } | undefined>(undefined);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
@@ -153,9 +136,16 @@ export function SavedCopyWidget({
       </div>
 
       {blocks.length === 0 ? (
-        <p className="m-0 rounded-2xl border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">
-          Save your tagline and descriptions here to paste them into any directory.
-        </p>
+        <Empty className="rounded-2xl border border-dashed py-10">
+          <EmptyHeader>
+            <EmptyTitle>No saved copy yet</EmptyTitle>
+            <EmptyDescription>Save your tagline and descriptions here to paste them into any directory.</EmptyDescription>
+          </EmptyHeader>
+          <Button variant="outline" size="sm" onClick={openAddModal}>
+            <PlusIcon data-icon="inline-start" aria-hidden="true" />
+            Add copy
+          </Button>
+        </Empty>
       ) : (
         <ul className="m-0 grid list-none grid-cols-1 gap-3 p-0 md:grid-cols-2">
           {blocks.map((block) => {

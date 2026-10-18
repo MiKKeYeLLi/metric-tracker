@@ -22,6 +22,10 @@ const STATUS_FROM_DB = Object.fromEntries(
 ) as Record<DirectoryStatus, DirectoryStatusLabel>;
 
 export const statusToDb = (label: DirectoryStatusLabel) => STATUS_TO_DB[label];
+
+/** What to call a directory in messages when its name hasn't been filled in. */
+export const displayName = (directory: { name: string; website: string }) =>
+  directory.name || directory.website || "A directory";
 export const statusFromDb = (value: DirectoryStatus) => STATUS_FROM_DB[value];
 export const priorityToDb = (label: "High" | "Medium" | "Low"): DirectoryPriority => label;
 

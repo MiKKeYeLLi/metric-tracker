@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/api";
-import { serializeChecklistItem } from "@/lib/directories";
+import { displayName, serializeChecklistItem } from "@/lib/directories";
 import { prisma } from "@/lib/prisma";
 import { checklistItemUpdateSchema } from "@/lib/schemas/directories";
 
@@ -27,7 +27,7 @@ export async function PATCH(request: Request, { params }: Params) {
 
   const existing = await prisma.directoryChecklistItem.findFirst({
     where: { id: params.itemId, directoryId: params.id },
-    include: { directory: { select: { id: true, name: true, status: true } } },
+    include: { directory: { select: { id: true, name: true, website: true, status: true } } },
   });
   if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
@@ -45,8 +45,8 @@ export async function PATCH(request: Request, { params }: Params) {
         await tx.directoryActivity.create({
           data: {
             directoryId: existing.directory.id,
-            directoryName: existing.directory.name,
-            message: `${existing.directory.name} is ready to submit: checklist complete`,
+            directoryName: displayName(existing.directory),
+            message: `${displayName(existing.directory)} is ready to submit: checklist complete`,
             status: existing.directory.status,
           },
         });
