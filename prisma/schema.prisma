@@ -144,3 +144,61 @@ model SeoCheck {
 
   @@index([normalizedUrl, createdAt])
 }
+
+enum DirectoryStatus {
+  NotSubmitted
+  PendingReview
+  NeedsChanges
+  Live
+  Rejected
+}
+
+enum DirectoryPriority {
+  High
+  Medium
+  Low
+}
+
+model Directory {
+  id             String                   @id @default(cuid())
+  name           String
+  website        String
+  status         DirectoryStatus          @default(NotSubmitted)
+  priority       DirectoryPriority        @default(Medium)
+  dateSubmitted  DateTime?                @db.Date
+  listingUrl     String?
+  notes          String?
+  createdAt      DateTime                 @default(now())
+  updatedAt      DateTime                 @updatedAt
+  activities     DirectoryActivity[]
+  checklistItems DirectoryChecklistItem[]
+
+  @@index([status])
+}
+
+/// A team-wide log of directory changes. Stores the directory's name so entries survive its deletion.
+model DirectoryActivity {
+  id            String           @id @default(cuid())
+  directoryId   String?
+  directory     Directory?       @relation(fields: [directoryId], references: [id], onDelete: SetNull)
+  directoryName String
+  message       String
+  status        DirectoryStatus?
+  createdAt     DateTime         @default(now())
+
+  @@index([createdAt])
+}
+
+model DirectoryChecklistItem {
+  id          String    @id @default(cuid())
+  directoryId String
+  directory   Directory @relation(fields: [directoryId], references: [id], onDelete: Cascade)
+  label       String
+  done        Boolean   @default(false)
+  isDefault   Boolean   @default(false)
+  position    Int
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([directoryId, position])
+}

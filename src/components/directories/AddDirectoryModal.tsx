@@ -29,7 +29,6 @@ type FormState = {
   website: string;
   status: DirectoryStatus;
   priority: Priority;
-  submittedBy: string;
   dateSubmitted: string;
   listingUrl: string;
   notes: string;
@@ -41,7 +40,6 @@ const defaultFormState: FormState = {
   website: "",
   status: "Pending review",
   priority: "Medium",
-  submittedBy: "",
   dateSubmitted: "",
   listingUrl: "",
   notes: "",
@@ -147,8 +145,6 @@ export function ImportCsvButton({
       const website = (row[1] || name).trim();
       const status = (row[2] as DirectoryStatus) || "Pending review";
       const priority = (row[3] as Priority) || "Medium";
-      const submittedBy = row[4]?.trim() || "Team";
-      const notes = row[5]?.trim();
 
       addDirectory({
         id: generateDirectoryId(),
@@ -156,10 +152,9 @@ export function ImportCsvButton({
         website: normalizeWebsite(website),
         status: statusOptions.includes(status) ? status : "Pending review",
         priority: priorityOptions.includes(priority) ? priority : "Medium",
-        submittedBy,
         dateSubmitted: formatSubmittedDate(""),
         listingUrl: undefined,
-        notes: notes || "Imported from CSV.",
+        notes: "Imported from CSV.",
       });
     });
 
@@ -224,10 +219,6 @@ export function AddDirectoryModal({
       nextErrors.priority = "Choose a priority.";
     }
 
-    if (form.submittedBy.trim().length < 2) {
-      nextErrors.submittedBy = "Owner is required.";
-    }
-
     return nextErrors;
   };
 
@@ -261,7 +252,6 @@ export function AddDirectoryModal({
       website: normalizeWebsite(form.website),
       status: form.status,
       priority: form.priority,
-      submittedBy: form.submittedBy.trim(),
       dateSubmitted: formatSubmittedDate(form.dateSubmitted),
       listingUrl: form.listingUrl.trim() || undefined,
       notes: form.addToChecklist
@@ -294,7 +284,7 @@ export function AddDirectoryModal({
           <DialogHeader className="space-y-2">
             <DialogTitle>Add directory</DialogTitle>
             <DialogDescription>
-              Capture a new directory, the ownership, and the current submission status.
+              Add a directory and where its submission stands.
             </DialogDescription>
           </DialogHeader>
 
@@ -391,18 +381,6 @@ export function AddDirectoryModal({
             </div>
 
             <div className="grid gap-4 md:grid-cols-2">
-              <Field data-invalid={Boolean(errors.submittedBy)}>
-                <FieldLabel htmlFor="directory-owner">Submitted by</FieldLabel>
-                <Input
-                  id="directory-owner"
-                  value={form.submittedBy}
-                  onChange={(event) => handleFieldChange("submittedBy", event.target.value)}
-                  aria-invalid={Boolean(errors.submittedBy)}
-                  placeholder="Rabiah"
-                />
-                {errors.submittedBy ? <FieldError>{errors.submittedBy}</FieldError> : null}
-              </Field>
-
               <Field>
                 <FieldLabel htmlFor="directory-date">Date submitted</FieldLabel>
                 <Input

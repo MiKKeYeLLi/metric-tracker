@@ -1,0 +1,76 @@
+import { NextResponse } from "next/server";
+import { requireAuth } from "@/lib/api";
+import {
+  dateFromInput,
+  defaultChecklist,
+  isSubmittedStatus,
+  serializeDirectory,
+  statusToDb,
+  todayDate,
+  withChecklist,
+} from "@/lib/directories";
+import { prisma } from "@/lib/prisma";
+import { directoryCreateSchema } from "@/lib/schemas/directories";
+
+export const dynamic = "force-dynamic";
+
+export async function GET() {
+  const { error } = await requireAuth();
+  if (error) return error;
+
+  const directories = await prisma.directory.findMany({
+    include: withChecklist,
+    orderBy: { createdAt: "desc" },
+  });
+  return NextResponse.json(directories.map(serializeDirectory));
+}
+
+export async function POST(request: Request) {
+  const { error } = await requireAuth();
+  if (error) return error;
+
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Validation failed", details: { _errors: ["Invalid JSON"] } }, { status: 400 });
+  }
+
+  const result = directoryCreateSchema.safeParse(body);
+  if (!result.success) {
+    return NextResponse.json({ error: "Validation failed", details: result.error.flatten().fieldErrors }, { status: 400 });
+  }
+
+  const data = result.data;
+  const status = statusToDb(data.status);
+  const directory = await prisma.$transaction(async (tx) => {
+    const created = await tx.directory.create({
+      data: {
+        name: data.name,
+        website: data.website,
+        status,
+        priority: data.priority,
+        dateSubmitted: data.dateSubmitted
+          ? dateFromInput(data.dateSubmitted)
+          : isSubmittedStatus(status)
+            ? todayDate()
+            : null,
+        listingUrl: data.listingUrl || null,
+        notes: data.notes || null,
+        checklistItems: { create: defaultChecklist() },
+      },
+      include: withChecklist,
+    });
+    await tx.directoryActivity.create({
+      data: {
+        directoryId: created.id,
+        directoryName: created.name,
+        message: status === "NotSubmitted" ? `${created.name} added to the shortlist` : `${created.name} added as ${data.status}`,
+        status,
+      },
+    });
+    return created;
+  });
+
+  return NextResponse.json(serializeDirectory(directory), { status: 201 });
+}

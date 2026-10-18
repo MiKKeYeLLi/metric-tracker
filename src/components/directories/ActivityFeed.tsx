@@ -83,8 +83,8 @@ export function ActivityFeed() {
                   <Icon className="size-4" />
                 </span>
                 <div className="flex min-w-0 flex-col gap-0.5 pt-1">
-                  <p className="m-0 text-sm leading-snug text-muted-foreground">
-                    <span className="font-semibold text-foreground">{entry.owner || "Someone"}</span> {entry.actionText}
+                  <p className="m-0 text-sm leading-snug font-medium text-foreground">
+                    {entry.actionText}
                   </p>
                   <p className="m-0 text-xs text-faint-foreground">
                     <time dateTime={new Date(entry.timestamp).toISOString()} className="text-muted-foreground">

@@ -7,7 +7,6 @@ export const MOCK_DIRECTORIES: DirectoryItem[] = [
     website: "producthunt.com",
     status: "Live",
     priority: "High",
-    submittedBy: "Rabiah",
     dateSubmitted: "02 Oct 2026",
     listingUrl: "https://producthunt.com/posts/...",
     notes: "Submitted standard logo",
@@ -18,7 +17,6 @@ export const MOCK_DIRECTORIES: DirectoryItem[] = [
     website: "betalist.com",
     status: "Pending review",
     priority: "Medium",
-    submittedBy: "Denise",
     dateSubmitted: "08 Oct 2026",
   },
   {
@@ -27,7 +25,6 @@ export const MOCK_DIRECTORIES: DirectoryItem[] = [
     website: "indiehackers.com",
     status: "Live",
     priority: "Medium",
-    submittedBy: "Kanyisola",
     dateSubmitted: "05 Oct 2026",
     listingUrl: "https://indiehackers.com/...",
   },
@@ -37,7 +34,6 @@ export const MOCK_DIRECTORIES: DirectoryItem[] = [
     website: "g2.com",
     status: "Needs changes",
     priority: "High",
-    submittedBy: "Rabiah",
     dateSubmitted: "09 Oct 2026",
     notes: "They asked for a square logo",
   },
@@ -47,7 +43,6 @@ export const MOCK_DIRECTORIES: DirectoryItem[] = [
     website: "alternativeto.net",
     status: "Live",
     priority: "Low",
-    submittedBy: "Denise",
     dateSubmitted: "06 Oct 2026",
   },
   {
@@ -56,7 +51,6 @@ export const MOCK_DIRECTORIES: DirectoryItem[] = [
     website: "saashub.com",
     status: "Pending review",
     priority: "Medium",
-    submittedBy: "Kanyisola",
     dateSubmitted: "12 Oct 2026",
   },
   {
@@ -65,7 +59,6 @@ export const MOCK_DIRECTORIES: DirectoryItem[] = [
     website: "capterra.com",
     status: "Rejected",
     priority: "High",
-    submittedBy: "Roy",
     dateSubmitted: "07 Oct 2026",
   },
   {
@@ -74,7 +67,6 @@ export const MOCK_DIRECTORIES: DirectoryItem[] = [
     website: "futurepedia.io",
     status: "Not submitted",
     priority: "Low",
-    submittedBy: "Nobody yet",
     dateSubmitted: "-",
     notes: "Suggested directory",
   },

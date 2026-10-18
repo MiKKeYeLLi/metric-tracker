@@ -55,8 +55,6 @@ import {
 } from "@/components/directories/SubmissionChecklist";
 import { cn } from "@/lib/utils";
 
-const teamMembers = ["Denise", "Rabiah", "Kanyisola", "Roy"] as const;
-
 const priorityStyles: Record<Priority, string> = {
   High: "border-destructive/20 bg-destructive-muted text-destructive",
   Medium: "border-warning/20 bg-warning-muted text-warning",
@@ -96,7 +94,6 @@ function exportDirectoriesToCsv(directories: DirectoryItem[]) {
       "Website",
       "Status",
       "Priority",
-      "Submitted by",
       "Date submitted",
       "Listing URL",
     ],
@@ -105,7 +102,6 @@ function exportDirectoriesToCsv(directories: DirectoryItem[]) {
       directory.website,
       directory.status,
       directory.priority,
-      directory.submittedBy,
       formatSubmittedDate(directory.dateSubmitted),
       directory.listingUrl ?? "",
     ]),
@@ -187,7 +183,6 @@ export function DirectoryTable({
   const [internalStatusFilter, setInternalStatusFilter] = useState("all");
   const statusFilter = controlledStatusFilter ?? internalStatusFilter;
   const setStatusFilter = onStatusFilterChange ?? setInternalStatusFilter;
-  const [memberFilter, setMemberFilter] = useState("everyone");
   const [priorityFilter, setPriorityFilter] = useState("any");
   const [isChecklistOpen, setIsChecklistOpen] = useState(false);
   const [customChecklistItems, setCustomChecklistItems] = useState<CustomChecklistItems>({});
@@ -198,7 +193,6 @@ export function DirectoryTable({
     name: "",
     website: "",
     status: "Not submitted" as DirectoryStatus,
-    submittedBy: "Nobody yet",
     priority: "Medium" as Priority,
     listingUrl: "",
     notes: "",
@@ -209,7 +203,6 @@ export function DirectoryTable({
       name: directory.name,
       website: directory.website,
       status: directory.status,
-      submittedBy: directory.submittedBy,
       priority: directory.priority,
       listingUrl: directory.listingUrl ?? "",
       notes: directory.notes ?? "",
@@ -227,7 +220,6 @@ export function DirectoryTable({
       name: editForm.name.trim(),
       website: editForm.website.trim(),
       status: editForm.status,
-      submittedBy: editForm.submittedBy,
       priority: editForm.priority,
       listingUrl: editForm.listingUrl.trim() || undefined,
       notes: editForm.notes.trim() || undefined,
@@ -249,17 +241,12 @@ export function DirectoryTable({
         (statusFilter === "attention"
           ? directory.status === "Needs changes" || directory.status === "Rejected"
           : directory.status === statusFilter);
-      const matchesMember =
-        memberFilter === "everyone" ||
-        (memberFilter === "nobody"
-          ? directory.submittedBy === "Nobody yet"
-          : directory.submittedBy === memberFilter);
       const matchesPriority =
         priorityFilter === "any" || directory.priority === priorityFilter;
 
-      return matchesSearch && matchesStatus && matchesMember && matchesPriority;
+      return matchesSearch && matchesStatus && matchesPriority;
     });
-  }, [directories, memberFilter, priorityFilter, search, statusFilter]);
+  }, [directories, priorityFilter, search, statusFilter]);
 
   const checklistProgress = (directoryId: string) => {
     const items = [...DEFAULT_CHECKLIST_ITEMS, ...(customChecklistItems[directoryId] ?? [])];
@@ -273,12 +260,11 @@ export function DirectoryTable({
   };
 
   const hasActiveFilters =
-    search !== "" || statusFilter !== "all" || memberFilter !== "everyone" || priorityFilter !== "any";
+    search !== "" || statusFilter !== "all" || priorityFilter !== "any";
 
   const clearFilters = () => {
     setSearch("");
     setStatusFilter("all");
-    setMemberFilter("everyone");
     setPriorityFilter("any");
   };
 
@@ -300,17 +286,6 @@ export function DirectoryTable({
                 (status) => ({ value: status, label: status })
               ),
               { value: "attention", label: "Needs attention" },
-            ]}
-          />
-          <PillSelect
-            label="Submitted by"
-            value={memberFilter}
-            onChange={setMemberFilter}
-            defaultValue="everyone"
-            options={[
-              { value: "everyone", label: "Everyone" },
-              ...teamMembers.map((member) => ({ value: member, label: member })),
-              { value: "nobody", label: "Nobody yet" },
             ]}
           />
           <PillSelect
@@ -577,28 +552,6 @@ export function DirectoryTable({
                     ).map((status) => (
                       <NativeSelectOption key={status} value={status}>
                         {status}
-                      </NativeSelectOption>
-                    ))}
-                  </NativeSelect>
-                </label>
-                <label className="space-y-1.5 text-xs font-medium">
-                  Submitted by
-                  <NativeSelect
-                    className="w-full"
-                    onChange={(event) =>
-                      setEditForm({
-                        ...editForm,
-                        submittedBy: event.target.value,
-                      })
-                    }
-                    value={editForm.submittedBy}
-                  >
-                    <NativeSelectOption value="Nobody yet">
-                      Nobody yet
-                    </NativeSelectOption>
-                    {teamMembers.map((member) => (
-                      <NativeSelectOption key={member} value={member}>
-                        {member}
                       </NativeSelectOption>
                     ))}
                   </NativeSelect>

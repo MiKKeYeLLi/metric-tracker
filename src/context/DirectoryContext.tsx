@@ -8,10 +8,7 @@ export interface ActivityItem {
   id: string;
   directoryName: string;
   actionText: string;
-  owner: string;
-  date: string;
   status: DirectoryStatus;
-  timeAgo: string;
   timestamp: number;
 }
 
@@ -30,12 +27,7 @@ interface DirectoryContextType {
   updateDirectory: (id: string, updates: Partial<DirectoryItem>) => void;
   deleteDirectory: (id: string) => void;
   toggleChecklistItem: (directoryId: string, itemKey: string) => void;
-  logActivity: (
-    directoryName: string,
-    actionText: string,
-    owner: string,
-    status: DirectoryStatus,
-  ) => void;
+  logActivity: (directoryName: string, actionText: string, status: DirectoryStatus) => void;
 }
 
 const DirectoryContext = createContext<DirectoryContextType | undefined>(
@@ -43,31 +35,42 @@ const DirectoryContext = createContext<DirectoryContextType | undefined>(
 );
 
 const STORAGE_KEY = "metric_tracker_directories_v1";
-const ACTIVITY_KEY = "metric_tracker_activities_v1";
+// v2 drops the per-person names the first version stored.
+const ACTIVITY_KEY = "metric_tracker_activities_v2";
 const CHECKLIST_KEY = "metric_tracker_checklist_v1";
 
 const DEFAULT_ACTIVITIES: ActivityItem[] = [
   {
     id: "act-1",
     directoryName: "Product Hunt",
-    actionText: "marked Product Hunt as Live",
-    owner: "Denise",
-    date: "14 Oct 2026",
+    actionText: "Product Hunt went live",
     status: "Live",
-    timeAgo: "2 days ago",
     timestamp: Date.now() - 172800000,
   },
   {
     id: "act-2",
     directoryName: "BetaList",
-    actionText: "submitted BetaList",
-    owner: "Rabiah",
-    date: "8 Oct 2026",
+    actionText: "BetaList was submitted and is pending review",
     status: "Pending review",
-    timeAgo: "8 days ago",
     timestamp: Date.now() - 691200000,
   },
 ];
+
+// Same wording as the API's activity log (src/lib/directories.ts), so switching storage keeps the feed consistent.
+function statusMessage(name: string, status: DirectoryStatus) {
+  switch (status) {
+    case "Live":
+      return `${name} went live`;
+    case "Pending review":
+      return `${name} was submitted and is pending review`;
+    case "Needs changes":
+      return `${name} needs changes`;
+    case "Rejected":
+      return `${name} was rejected`;
+    case "Not submitted":
+      return `${name} moved back to the shortlist`;
+  }
+}
 
 export function DirectoryProvider({ children }: { children: React.ReactNode }) {
   const [isMounted, setIsMounted] = useState(false);
@@ -135,44 +138,23 @@ export function DirectoryProvider({ children }: { children: React.ReactNode }) {
     }
   }, [checklistState, isMounted]);
 
-  const logActivity = (
-    directoryName: string,
-    actionText: string,
-    owner: string,
-    status: DirectoryStatus,
-  ) => {
-    const todayFormatted = new Intl.DateTimeFormat("en-GB", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-    }).format(new Date());
-
+  const logActivity = (directoryName: string, actionText: string, status: DirectoryStatus) => {
     const newActivity: ActivityItem = {
-      id: `act-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+      id: `act-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
       directoryName,
       actionText,
-      owner: owner && owner !== "Nobody yet" ? owner : "Denise",
-      date: todayFormatted,
       status,
-      timeAgo: "Just now",
       timestamp: Date.now(),
     };
     setActivities((prev) => [newActivity, ...prev]);
   };
 
   const addDirectory = (newDir: DirectoryItem) => {
-    const ownerName =
-      newDir.submittedBy && newDir.submittedBy.trim() !== ""
-        ? newDir.submittedBy
-        : "Denise";
-
     logActivity(
       newDir.name,
-      `added ${newDir.name} (${newDir.status})`,
-      ownerName,
+      newDir.status === "Not submitted" ? `${newDir.name} added to the shortlist` : `${newDir.name} added as ${newDir.status}`,
       newDir.status,
     );
-
     setDirectories((prev) => [newDir, ...prev]);
     setSelectedDirectoryId(newDir.id);
   };
@@ -182,45 +164,17 @@ export function DirectoryProvider({ children }: { children: React.ReactNode }) {
     if (!targetItem) return;
 
     const updated = { ...targetItem, ...updates };
-    const ownerName =
-      updated.submittedBy && updated.submittedBy !== "Nobody yet"
-        ? updated.submittedBy
-        : "Denise";
-
     if (updates.status && updates.status !== targetItem.status) {
-      logActivity(
-        targetItem.name,
-        `changed status to ${updates.status}`,
-        ownerName,
-        updated.status,
-      );
-    } else {
-      logActivity(
-        targetItem.name,
-        `updated directory details`,
-        ownerName,
-        updated.status,
-      );
+      logActivity(updated.name, statusMessage(updated.name, updates.status), updates.status);
     }
 
-    setDirectories((prev) =>
-      prev.map((item) => (item.id === id ? updated : item)),
-    );
+    setDirectories((prev) => prev.map((item) => (item.id === id ? updated : item)));
   };
 
   const deleteDirectory = (id: string) => {
     const dirToDelete = directories.find((d) => d.id === id);
     if (dirToDelete) {
-      const ownerName =
-        dirToDelete.submittedBy && dirToDelete.submittedBy !== "Nobody yet"
-          ? dirToDelete.submittedBy
-          : "Denise";
-      logActivity(
-        dirToDelete.name,
-        `deleted ${dirToDelete.name}`,
-        ownerName,
-        dirToDelete.status,
-      );
+      logActivity(dirToDelete.name, `${dirToDelete.name} removed from the list`, dirToDelete.status);
     }
     setDirectories((prev) => prev.filter((item) => item.id !== id));
   };

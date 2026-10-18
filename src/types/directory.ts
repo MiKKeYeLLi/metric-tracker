@@ -8,7 +8,6 @@ export interface DirectoryItem {
   website: string;
   status: DirectoryStatus;
   priority: Priority;
-  submittedBy: string;
   dateSubmitted: string;
   listingUrl?: string;
   notes?: string;
