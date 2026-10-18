@@ -1,6 +1,14 @@
 import { prisma } from "@/lib/prisma";
 import type { CategoryScores, CheckResult, Snapshot } from "@/lib/seo/types";
 
+export const DEFAULT_SEO_PAGE_URL = "https://zedu.chat";
+
+type SeoSettingsClient = {
+  seoSettings: {
+    findUnique: (args: { where: { id: string } }) => Promise<{ pageUrl: string } | null>;
+  };
+};
+
 export interface SeoView {
   check: {
     id: string;
@@ -54,6 +62,13 @@ export async function buildView(row: Row): Promise<SeoView> {
 export async function getLatestView(): Promise<SeoView | null> {
   const row = await prisma.seoCheck.findFirst({ orderBy: { createdAt: "desc" } });
   return row ? buildView(row) : null;
+}
+
+export async function getSeoPageUrl(): Promise<string> {
+  const settings = await (prisma as unknown as SeoSettingsClient).seoSettings.findUnique({
+    where: { id: "workspace" },
+  });
+  return settings?.pageUrl ?? DEFAULT_SEO_PAGE_URL;
 }
 
 export async function getViewById(id: string): Promise<SeoView | null> {

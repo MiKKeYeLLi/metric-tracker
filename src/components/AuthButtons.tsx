@@ -1,30 +1,41 @@
 "use client";
 
+import { useState } from "react";
 import { signIn, signOut } from "next-auth/react";
-import { ChevronRightIcon } from "lucide-react";
+import { LogOutIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 
 export function SignInButton() {
+  const [isRedirecting, setIsRedirecting] = useState(false);
+
   return (
     <Button
-      size="xl"
-      className="relative w-full"
-      onClick={() => signIn("google", { callbackUrl: "/dashboard" })}
+      size="lg"
+      className="w-full"
+      disabled={isRedirecting}
+      onClick={() => {
+        setIsRedirecting(true);
+        void signIn("google", { callbackUrl: "/dashboard" });
+      }}
     >
-      Sign in with Google
-      <ChevronRightIcon
-        data-icon="inline-end"
-        aria-hidden="true"
-        className="absolute right-5 transition-transform group-hover/button:translate-x-0.75"
-      />
+      {isRedirecting && <Spinner data-icon="inline-start" />}
+      {isRedirecting ? "Opening Google…" : "Continue with Google"}
     </Button>
   );
 }
 
 export function SignOutButton() {
   return (
-    <Button variant="outline" className="w-full" onClick={() => signOut()}>
-      Sign out
+    <Button
+      variant="ghost"
+      size="icon-sm"
+      aria-label="Sign out"
+      title="Sign out"
+      className="text-sidebar-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+      onClick={() => signOut()}
+    >
+      <LogOutIcon aria-hidden="true" />
     </Button>
   );
 }

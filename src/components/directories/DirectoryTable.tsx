@@ -1,22 +1,31 @@
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import { PillSelect, SearchPill, Toolbar, ToolbarGroup } from "@/components/Toolbar";
 import {
+  ArrowUpRightIcon,
+  CheckIcon,
   DownloadIcon,
-  MoreVerticalIcon,
-  SearchIcon,
-  Trash2Icon,
-  ExternalLinkIcon,
   Edit3Icon,
+  ExternalLinkIcon,
+  ListChecksIcon,
+  MoreHorizontalIcon,
+  Trash2Icon,
+  XIcon,
 } from "lucide-react";
 import { useDirectories } from "@/context/DirectoryContext";
-import { DirectoryItem, DirectoryStatus, Priority } from "@/types/directory";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import type { DirectoryStatus, DirectoryItem, Priority } from "@/types/directory";
+import { Badge } from "@/components/ui/badge";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
-  NativeSelect,
-  NativeSelectOption,
-} from "@/components/ui/native-select";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
+import { Spinner } from "@/components/ui/spinner";
 import {
   Table,
   TableBody,
@@ -34,36 +43,31 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { DirectoryStatusBadge } from "@/components/directories/DirectoryStatusBadge";
-
-const teamMembers = ["Denise", "Rabiah", "Kanyisola", "Roy"] as const;
+import {
+  AddDirectoryModal,
+  DirectoryFormDialog,
+  ImportCsvButton,
+  directoryLabel,
+} from "@/components/directories/AddDirectoryModal";
+import { Skeleton } from "@/components/ui/skeleton";
+import { ChecklistButton, SubmissionChecklistDialog } from "@/components/directories/SubmissionChecklist";
+import { cn } from "@/lib/utils";
 
 const priorityStyles: Record<Priority, string> = {
-  High: "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900 dark:bg-rose-950/40 dark:text-rose-300",
-  Medium:
-    "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300",
-  Low: "border-slate-200 bg-slate-100 text-slate-600 dark:border-slate-700 dark:bg-slate-800/50 dark:text-slate-300",
+  High: "border-destructive/20 bg-destructive-muted text-destructive",
+  Medium: "border-warning/20 bg-warning-muted text-warning",
+  Low: "border-border bg-secondary text-muted-foreground",
 };
 
 function websiteHref(website: string) {
   return /^https?:\/\//i.test(website) ? website : `https://${website}`;
 }
 
-function formatSubmittedDate(dateSubmitted: string) {
-  if (!dateSubmitted || dateSubmitted === "-") {
-    return "—";
-  }
-
-  const date = new Date(dateSubmitted);
-  if (Number.isNaN(date.getTime())) {
-    return dateSubmitted;
-  }
-
-  return new Intl.DateTimeFormat("en-GB", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    timeZone: "UTC",
-  }).format(date);
+function formatSubmittedDate(dateSubmitted: string | null) {
+  if (!dateSubmitted) return "–";
+  const date = new Date(`${dateSubmitted}T00:00:00Z`);
+  if (Number.isNaN(date.getTime())) return dateSubmitted;
+  return new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" }).format(date);
 }
 
 function csvValue(value: string) {
@@ -77,7 +81,6 @@ function exportDirectoriesToCsv(directories: DirectoryItem[]) {
       "Website",
       "Status",
       "Priority",
-      "Submitted by",
       "Date submitted",
       "Listing URL",
     ],
@@ -86,8 +89,7 @@ function exportDirectoriesToCsv(directories: DirectoryItem[]) {
       directory.website,
       directory.status,
       directory.priority,
-      directory.submittedBy,
-      formatSubmittedDate(directory.dateSubmitted),
+      directory.dateSubmitted ?? "",
       directory.listingUrl ?? "",
     ]),
   ];
@@ -106,143 +108,84 @@ function exportDirectoriesToCsv(directories: DirectoryItem[]) {
 function ActionMenu({
   directory,
   openEditDirectory,
+  openChecklist,
   deleteDirectory,
 }: {
   directory: DirectoryItem;
   openEditDirectory: (dir: DirectoryItem) => void;
+  openChecklist: (dir: DirectoryItem) => void;
   deleteDirectory: (id: string) => void;
 }) {
-  const [isOpen, setIsOpen] = useState(false);
-
   return (
-    <div className="relative inline-block text-left">
-      <Button
-        aria-label={`Actions for ${directory.name}`}
-        className="text-muted-foreground hover:text-foreground"
-        size="icon-xs"
-        variant="ghost"
-        onClick={(e) => {
-          e.stopPropagation();
-          setIsOpen((prev) => !prev);
-        }}
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        type="button"
+        aria-label={`Actions for ${directoryLabel(directory)}`}
+        className={cn(
+          buttonVariants({ variant: "ghost", size: "icon-sm" }),
+          "pointer-fine:opacity-0 pointer-fine:group-hover/row:opacity-100 pointer-fine:group-focus-within/row:opacity-100 aria-expanded:opacity-100"
+        )}
       >
-        <MoreVerticalIcon aria-hidden="true" className="size-4" />
-      </Button>
-
-      {isOpen && (
-        <>
-          <div
-            className="fixed inset-0 z-40"
-            onClick={(e) => {
-              e.stopPropagation();
-              setIsOpen(false);
-            }}
-          />
-
-          <div className="absolute right-0 mt-1 w-48 rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-lg z-50">
-            <button
-              type="button"
-              className="flex w-full items-center rounded-sm px-2.5 py-1.5 text-xs font-medium hover:bg-muted text-left cursor-pointer"
-              onClick={(e) => {
-                e.stopPropagation();
-                setIsOpen(false);
-                openEditDirectory(directory);
-              }}
-            >
-              <Edit3Icon className="mr-2 size-3.5 text-muted-foreground" />
-              Edit Details
-            </button>
-            <button
-              type="button"
-              className="flex w-full items-center rounded-sm px-2.5 py-1.5 text-xs font-medium hover:bg-muted text-left cursor-pointer"
-              onClick={(e) => {
-                e.stopPropagation();
-                setIsOpen(false);
-                window.open(
-                  websiteHref(directory.website),
-                  "_blank",
-                  "noopener,noreferrer",
-                );
-              }}
-            >
-              <ExternalLinkIcon className="mr-2 size-3.5 text-muted-foreground" />
-              Open Website
-            </button>
-            <div className="my-1 h-px bg-border" />
-            <button
-              type="button"
-              className="flex w-full items-center rounded-sm px-2.5 py-1.5 text-xs font-medium text-destructive hover:bg-destructive/10 text-left cursor-pointer"
-              onClick={(e) => {
-                e.stopPropagation();
-                setIsOpen(false);
-                deleteDirectory(directory.id);
-              }}
-            >
-              <Trash2Icon className="mr-2 size-3.5" />
-              Delete Directory
-            </button>
-          </div>
-        </>
-      )}
-    </div>
+        <MoreHorizontalIcon aria-hidden="true" />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-44">
+        <DropdownMenuItem onSelect={() => openEditDirectory(directory)}>
+          <Edit3Icon aria-hidden="true" />
+          Edit details
+        </DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => openChecklist(directory)}>
+          <ListChecksIcon aria-hidden="true" />
+          Submission checklist
+        </DropdownMenuItem>
+        {directory.website && (
+          <DropdownMenuItem onSelect={() => window.open(websiteHref(directory.website), "_blank", "noopener,noreferrer")}>
+            <ExternalLinkIcon aria-hidden="true" />
+            Open website
+          </DropdownMenuItem>
+        )}
+        <DropdownMenuSeparator />
+        <DropdownMenuItem variant="destructive" onSelect={() => deleteDirectory(directory.id)}>
+          <Trash2Icon aria-hidden="true" />
+          Delete directory
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
-export function DirectoryTable() {
-  const {
-    directories,
-    updateDirectory,
-    deleteDirectory,
-    selectedDirectoryId,
-    setSelectedDirectoryId,
-  } = useDirectories();
+export function DirectoryTable({
+  statusFilter: controlledStatusFilter,
+  onStatusFilterChange,
+}: {
+  statusFilter?: string;
+  onStatusFilterChange?: (value: string) => void;
+} = {}) {
+  const { directories, isLoading, loadError, deleteDirectory, selectedDirectoryId, setSelectedDirectoryId, reportError } =
+    useDirectories();
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [memberFilter, setMemberFilter] = useState("everyone");
+  const [internalStatusFilter, setInternalStatusFilter] = useState("all");
+  const statusFilter = controlledStatusFilter ?? internalStatusFilter;
+  const setStatusFilter = onStatusFilterChange ?? setInternalStatusFilter;
   const [priorityFilter, setPriorityFilter] = useState("any");
-  const [editingDirectory, setEditingDirectory] =
-    useState<DirectoryItem | null>(null);
+  const [isChecklistOpen, setIsChecklistOpen] = useState(false);
+  const [editingDirectory, setEditingDirectory] = useState<DirectoryItem | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<DirectoryItem | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
-  const [editForm, setEditForm] = useState({
-    name: "",
-    website: "",
-    status: "Not submitted" as DirectoryStatus,
-    submittedBy: "Nobody yet",
-    priority: "Medium" as Priority,
-    listingUrl: "",
-    notes: "",
-  });
+  const openEditDirectory = (directory: DirectoryItem) => setEditingDirectory(directory);
 
-  const openEditDirectory = (directory: DirectoryItem) => {
-    setEditForm({
-      name: directory.name,
-      website: directory.website,
-      status: directory.status,
-      submittedBy: directory.submittedBy,
-      priority: directory.priority,
-      listingUrl: directory.listingUrl ?? "",
-      notes: directory.notes ?? "",
-    });
-    setEditingDirectory(directory);
-  };
-
-  const saveDirectory = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!editingDirectory) {
-      return;
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    setIsDeleting(true);
+    try {
+      await deleteDirectory(deleteTarget.id);
+      setDeleteTarget(null);
+    } catch (error) {
+      reportError(error);
+      setDeleteTarget(null);
+    } finally {
+      setIsDeleting(false);
     }
-
-    updateDirectory(editingDirectory.id, {
-      name: editForm.name.trim(),
-      website: editForm.website.trim(),
-      status: editForm.status,
-      submittedBy: editForm.submittedBy,
-      priority: editForm.priority,
-      listingUrl: editForm.listingUrl.trim() || undefined,
-      notes: editForm.notes.trim() || undefined,
-    });
-
-    setEditingDirectory(null);
   };
 
   const filteredDirectories = useMemo(() => {
@@ -254,394 +197,323 @@ export function DirectoryTable() {
         directory.name.toLocaleLowerCase().includes(normalizedSearch) ||
         directory.website.toLocaleLowerCase().includes(normalizedSearch);
       const matchesStatus =
-        statusFilter === "all" || directory.status === statusFilter;
-      const matchesMember =
-        memberFilter === "everyone" ||
-        (memberFilter === "nobody"
-          ? directory.submittedBy === "Nobody yet"
-          : directory.submittedBy === memberFilter);
+        statusFilter === "all" ||
+        (statusFilter === "attention"
+          ? directory.status === "Needs changes" || directory.status === "Rejected"
+          : directory.status === statusFilter);
       const matchesPriority =
         priorityFilter === "any" || directory.priority === priorityFilter;
 
-      return matchesSearch && matchesStatus && matchesMember && matchesPriority;
+      return matchesSearch && matchesStatus && matchesPriority;
     });
-  }, [directories, memberFilter, priorityFilter, search, statusFilter]);
+  }, [directories, priorityFilter, search, statusFilter]);
+
+  const checklistProgress = (directory: DirectoryItem) => ({
+    done: directory.checklist.filter((item) => item.done).length,
+    total: directory.checklist.length,
+  });
+
+  const openChecklistFor = (directoryId: string) => {
+    setSelectedDirectoryId(directoryId);
+    setIsChecklistOpen(true);
+  };
+
+  const hasActiveFilters =
+    search !== "" || statusFilter !== "all" || priorityFilter !== "any";
+
+  const clearFilters = () => {
+    setSearch("");
+    setStatusFilter("all");
+    setPriorityFilter("any");
+  };
 
   return (
-    <section className="rounded-xl border border-border bg-card shadow-sm">
-      <div className="grid grid-cols-1 gap-2 border-b border-border p-3 lg:grid-cols-[minmax(0,1.5fr)_repeat(3,minmax(0,1fr))]">
-        <div className="relative min-w-0">
-          <SearchIcon
-            aria-hidden="true"
-            className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground"
+    <>
+      <Toolbar>
+        <ToolbarGroup className="md:flex-1">
+          <SearchPill value={search} onChange={setSearch} placeholder="Search directories" />
+          <ChecklistButton onClick={() => setIsChecklistOpen(true)} />
+        </ToolbarGroup>
+        <ToolbarGroup>
+          <PillSelect
+            label="Status"
+            value={statusFilter}
+            onChange={setStatusFilter}
+            options={[
+              { value: "all", label: "All" },
+              ...(["Live", "Pending review", "Needs changes", "Rejected", "Not submitted"] as DirectoryStatus[]).map(
+                (status) => ({ value: status, label: status })
+              ),
+              { value: "attention", label: "Needs attention" },
+            ]}
           />
-          <Input
-            aria-label="Search by directory name"
-            className="h-8 pl-8 text-[11px] placeholder:text-[11px]"
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search by directory name..."
-            type="search"
-            value={search}
+          <PillSelect
+            label="Priority"
+            value={priorityFilter}
+            onChange={setPriorityFilter}
+            defaultValue="any"
+            options={[
+              { value: "any", label: "Any" },
+              ...(["High", "Medium", "Low"] as Priority[]).map((priority) => ({ value: priority, label: priority })),
+            ]}
           />
+          {hasActiveFilters && (
+            <Button type="button" variant="ghost" onClick={clearFilters} className="shrink-0">
+              <XIcon data-icon="inline-start" aria-hidden="true" />
+              Clear
+            </Button>
+          )}
+        </ToolbarGroup>
+      </Toolbar>
+
+      <section
+        aria-labelledby="directories-table-title"
+        className="flex min-w-0 flex-col gap-4 rounded-[22px] border border-border bg-card p-4 sm:p-5"
+      >
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+            <h2 id="directories-table-title" className="m-0 text-[17px] leading-tight font-bold tracking-[-0.02em] text-foreground">
+              All directories
+            </h2>
+            {!isLoading && !loadError && (
+              <p className="m-0 text-[13px] text-muted-foreground tabular-nums">
+                {filteredDirectories.length === directories.length
+                  ? `${directories.length} ${directories.length === 1 ? "directory" : "directories"}`
+                  : `${filteredDirectories.length} of ${directories.length} directories`}
+              </p>
+            )}
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => exportDirectoriesToCsv(filteredDirectories)}
+            disabled={filteredDirectories.length === 0}
+          >
+            <DownloadIcon data-icon="inline-start" aria-hidden="true" />
+            Export CSV
+          </Button>
         </div>
 
-        <NativeSelect
-          aria-label="Filter by status"
-          className="w-full min-w-0"
-          onChange={(event) => setStatusFilter(event.target.value)}
-          size="sm"
-          value={statusFilter}
-        >
-          <NativeSelectOption value="all">All statuses</NativeSelectOption>
-          {(
-            [
-              "Live",
-              "Pending review",
-              "Needs changes",
-              "Rejected",
-              "Not submitted",
-            ] as DirectoryStatus[]
-          ).map((status) => (
-            <NativeSelectOption key={status} value={status}>
-              {status}
-            </NativeSelectOption>
-          ))}
-        </NativeSelect>
-
-        <NativeSelect
-          aria-label="Filter by team member"
-          className="w-full min-w-0"
-          onChange={(event) => setMemberFilter(event.target.value)}
-          size="sm"
-          value={memberFilter}
-        >
-          <NativeSelectOption value="everyone">Everyone</NativeSelectOption>
-          {teamMembers.map((member) => (
-            <NativeSelectOption key={member} value={member}>
-              {member}
-            </NativeSelectOption>
-          ))}
-          <NativeSelectOption value="nobody">Nobody yet</NativeSelectOption>
-        </NativeSelect>
-
-        <NativeSelect
-          aria-label="Filter by priority"
-          className="w-full min-w-0"
-          onChange={(event) => setPriorityFilter(event.target.value)}
-          size="sm"
-          value={priorityFilter}
-        >
-          <NativeSelectOption value="any">Any priority</NativeSelectOption>
-          {(["High", "Medium", "Low"] as Priority[]).map((priority) => (
-            <NativeSelectOption key={priority} value={priority}>
-              {priority}
-            </NativeSelectOption>
-          ))}
-        </NativeSelect>
-      </div>
-
-      <Table className="table-fixed">
-        <TableHeader className="[&_tr]:border-b">
-          <TableRow className="hover:bg-transparent">
-            <TableHead className="w-[20%] px-2 py-2 text-[10px] align-middle">
-              Directory
-            </TableHead>
-            <TableHead className="w-[22%] px-2 py-2 text-[10px] align-middle">
-              Status
-            </TableHead>
-            <TableHead className="w-[14%] px-2 py-2 text-[10px] align-middle">
-              Submitted by
-            </TableHead>
-            <TableHead className="w-[14%] px-2 py-2 text-[10px] align-middle">
-              Date submitted
-            </TableHead>
-            <TableHead className="w-[9%] px-2 py-2 text-[10px] align-middle">
-              Priority
-            </TableHead>
-            <TableHead className="w-[15%] px-2 py-2 text-[10px] align-middle">
-              Listing
-            </TableHead>
-            <TableHead className="w-[6%] px-2 py-2 text-[10px] align-middle">
-              <span className="sr-only">Actions</span>
-            </TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {filteredDirectories.length > 0 ? (
-            filteredDirectories.map((directory) => {
-              const isSelected = selectedDirectoryId === directory.id;
-              return (
-                <TableRow
-                  key={directory.id}
-                  onClick={() => setSelectedDirectoryId(directory.id)}
-                  className={`h-[58px] cursor-pointer text-xs transition-colors ${
-                    isSelected
-                      ? "bg-emerald-500/5 font-medium dark:bg-emerald-950/20"
-                      : "hover:bg-muted/50"
-                  }`}
-                >
-                  <TableCell className="min-w-0 px-2 py-2 align-middle">
-                    <div
-                      className="truncate font-semibold leading-tight text-foreground"
-                      title={directory.name}
-                    >
-                      {directory.name}
-                    </div>
-                    <div className="mt-1 flex min-w-0 items-center gap-1 text-[10px] leading-tight text-muted-foreground">
-                      <a
-                        className="min-w-0 truncate hover:text-primary hover:underline"
-                        href={websiteHref(directory.website)}
-                        rel="noreferrer"
-                        target="_blank"
-                        title={directory.website}
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        {directory.website}
-                      </a>
-                      {directory.status === "Not submitted" && (
-                        <span className="inline-flex shrink-0 items-center rounded-full border border-border bg-muted px-1.5 py-0.5 text-[9px] font-medium text-muted-foreground">
-                          Suggested
-                        </span>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell className="px-2 py-2 align-middle">
-                    <DirectoryStatusBadge
-                      className="h-auto max-w-full shrink-0 gap-1 whitespace-nowrap px-1.5 py-0.5 text-[10px] leading-tight"
-                      status={directory.status}
-                    />
-                  </TableCell>
-                  <TableCell className="px-2 py-2 align-middle text-[11px]">
-                    <span
-                      className={`block truncate ${
-                        directory.submittedBy === "Nobody yet"
-                          ? "text-muted-foreground"
-                          : "text-foreground"
-                      }`}
-                      title={directory.submittedBy}
-                    >
-                      {directory.submittedBy}
-                    </span>
-                  </TableCell>
-                  <TableCell className="whitespace-nowrap px-2 py-2 align-middle text-[10px] text-muted-foreground">
-                    {formatSubmittedDate(directory.dateSubmitted)}
-                  </TableCell>
-                  <TableCell className="px-2 py-2 align-middle">
-                    <span
-                      className={`inline-flex items-center whitespace-nowrap rounded-full border px-1.5 py-0.5 text-[10px] font-medium ${
-                        priorityStyles[directory.priority]
-                      }`}
-                    >
-                      {directory.priority}
-                    </span>
-                  </TableCell>
-                  <TableCell className="px-2 py-2 align-middle text-[10px]">
-                    {directory.listingUrl ? (
-                      <a
-                        className="block truncate font-medium text-primary hover:underline"
-                        href={directory.listingUrl}
-                        rel="noreferrer"
-                        target="_blank"
-                        title={directory.listingUrl}
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        View listing ↗
-                      </a>
-                    ) : (
-                      <span className="whitespace-nowrap text-[10px] text-muted-foreground">
-                        Not yet
-                      </span>
-                    )}
-                  </TableCell>
-                  <TableCell
-                    className="px-2 py-2 text-right align-middle"
-                    onClick={(e) => e.stopPropagation()}
+        {isLoading ? (
+          <div className="flex flex-col gap-3" aria-busy="true" aria-label="Loading directories">
+            <Skeleton className="h-[52px] w-full rounded-full" />
+            {[0, 1, 2, 3].map((index) => (
+              <div key={index} className="flex items-center gap-3 px-2 py-1.5">
+                <Skeleton className="size-9 rounded-xl" />
+                <div className="flex flex-1 flex-col gap-1.5">
+                  <Skeleton className="h-3.5 w-40" />
+                  <Skeleton className="h-3 w-28" />
+                </div>
+                <Skeleton className="h-6 w-24 rounded-full" />
+              </div>
+            ))}
+          </div>
+        ) : directories.length === 0 ? (
+          <Empty className="rounded-2xl border border-dashed py-12">
+            <EmptyHeader>
+              <EmptyTitle>{loadError ? "Directories couldn't load" : "No directories yet"}</EmptyTitle>
+              <EmptyDescription>
+                {loadError
+                  ? "Try again from the banner above."
+                  : "Add the directories you've submitted to, or plan to, and track each one from shortlist to live."}
+              </EmptyDescription>
+            </EmptyHeader>
+            {!loadError && (
+              <div className="flex flex-wrap items-center justify-center gap-2">
+                <AddDirectoryModal />
+                <ImportCsvButton />
+              </div>
+            )}
+          </Empty>
+        ) : filteredDirectories.length === 0 ? (
+          <Empty className="rounded-2xl border border-dashed py-12">
+            <EmptyHeader>
+              <EmptyTitle>No directories match</EmptyTitle>
+              <EmptyDescription>Try a different search, or clear the filters.</EmptyDescription>
+            </EmptyHeader>
+            <Button variant="outline" onClick={clearFilters}>
+              <XIcon data-icon="inline-start" aria-hidden="true" />
+              Clear filters
+            </Button>
+          </Empty>
+        ) : (
+          <Table variant="pill" aria-labelledby="directories-table-title">
+            <TableHeader>
+              <TableRow>
+                <TableHead>Directory</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="hidden md:table-cell">Checklist</TableHead>
+                <TableHead className="hidden sm:table-cell">Date submitted</TableHead>
+                <TableHead className="hidden lg:table-cell">Priority</TableHead>
+                <TableHead className="hidden xl:table-cell">Listing</TableHead>
+                <TableHead className="w-12 px-1! sm:px-2!">
+                  <span className="sr-only">Actions</span>
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredDirectories.map((directory) => {
+                const isSelected = selectedDirectoryId === directory.id;
+                const progress = checklistProgress(directory);
+                return (
+                  <TableRow
+                    key={directory.id}
+                    data-state={isSelected ? "selected" : undefined}
+                    aria-selected={isSelected}
+                    tabIndex={0}
+                    onClick={() => setSelectedDirectoryId(directory.id)}
+                    onKeyDown={(event) => {
+                      if (event.target !== event.currentTarget) return;
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        setSelectedDirectoryId(directory.id);
+                      }
+                    }}
+                    className="cursor-pointer outline-none focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring data-[state=selected]:bg-transparent data-[state=selected]:hover:bg-accent/45"
                   >
-                    <ActionMenu
-                      directory={directory}
-                      openEditDirectory={openEditDirectory}
-                      deleteDirectory={deleteDirectory}
-                    />
-                  </TableCell>
-                </TableRow>
-              );
-            })
-          ) : (
-            <TableRow>
-              <TableCell
-                className="h-24 text-center text-sm text-muted-foreground"
-                colSpan={7}
-              >
-                No directories match these filters.
-              </TableCell>
-            </TableRow>
-          )}
-        </TableBody>
-      </Table>
+                    <TableCell>
+                      <div className="flex w-[150px] min-w-0 items-center gap-2.5 sm:w-[260px] sm:gap-3 2xl:w-[320px]">
+                        <span
+                          aria-hidden="true"
+                          className={cn(
+                            "hidden size-9 shrink-0 items-center justify-center rounded-xl text-[13px] font-extrabold min-[420px]:flex",
+                            isSelected ? "bg-primary text-primary-foreground" : "bg-accent text-primary-deep"
+                          )}
+                        >
+                          {directoryLabel(directory).trim()[0]?.toUpperCase() ?? "?"}
+                        </span>
+                        <div className="min-w-0">
+                          <p className="m-0 truncate font-semibold text-foreground" title={directoryLabel(directory)}>
+                            {directoryLabel(directory)}
+                          </p>
+                          <div className="flex min-w-0 items-center gap-1.5">
+                            {directory.website && directory.name ? (
+                              <a
+                                className="min-w-0 truncate text-xs text-muted-foreground hover:text-primary-deep hover:underline"
+                                href={websiteHref(directory.website)}
+                                rel="noreferrer"
+                                target="_blank"
+                                title={directory.website}
+                                onClick={(event) => event.stopPropagation()}
+                              >
+                                {directory.website}
+                              </a>
+                            ) : (
+                              <span className="truncate text-xs text-faint-foreground">
+                                {directory.website ? "No name yet" : "No website yet"}
+                              </span>
+                            )}
+                            {directory.status === "Not submitted" && (
+                              <Badge variant="secondary" className="h-5 shrink-0 px-2 text-[11px]">
+                                Suggested
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <DirectoryStatusBadge status={directory.status} />
+                    </TableCell>
+                    <TableCell className="hidden md:table-cell" onClick={(event) => event.stopPropagation()}>
+                      <button
+                        type="button"
+                        onClick={() => openChecklistFor(directory.id)}
+                        aria-label={`Submission checklist for ${directoryLabel(directory)}: ${progress.done} of ${progress.total} ready`}
+                        className="group/check -mx-2 flex items-center gap-2.5 rounded-full px-2 py-1 transition-colors outline-none hover:bg-accent focus-visible:ring-3 focus-visible:ring-ring/50"
+                      >
+                        {progress.done === progress.total ? (
+                          <span className="inline-flex items-center gap-1 text-xs font-semibold text-success">
+                            <CheckIcon className="size-3.5" strokeWidth={3} aria-hidden="true" />
+                            Ready
+                          </span>
+                        ) : (
+                          <>
+                            <span className="h-1.5 w-14 overflow-hidden rounded-full bg-chart-track" aria-hidden="true">
+                              <span
+                                className="block h-full rounded-full bg-primary"
+                                style={{ width: `${(progress.done / progress.total) * 100}%` }}
+                              />
+                            </span>
+                            <span className="text-xs font-semibold text-muted-foreground tabular-nums group-hover/check:text-accent-foreground">
+                              {progress.done}/{progress.total}
+                            </span>
+                          </>
+                        )}
+                      </button>
+                    </TableCell>
+                    <TableCell className="hidden text-muted-foreground sm:table-cell">
+                      {formatSubmittedDate(directory.dateSubmitted)}
+                    </TableCell>
+                    <TableCell className="hidden lg:table-cell">
+                      <span
+                        className={cn(
+                          "inline-flex h-6 items-center rounded-full border px-2.5 text-xs font-semibold",
+                          priorityStyles[directory.priority]
+                        )}
+                      >
+                        {directory.priority}
+                      </span>
+                    </TableCell>
+                    <TableCell className="hidden xl:table-cell">
+                      {directory.listingUrl ? (
+                        <a
+                          className="inline-flex items-center gap-1 font-semibold text-primary-deep hover:underline"
+                          href={directory.listingUrl}
+                          rel="noreferrer"
+                          target="_blank"
+                          title={directory.listingUrl}
+                          onClick={(event) => event.stopPropagation()}
+                        >
+                          View listing
+                          <ArrowUpRightIcon className="size-3.5" aria-hidden="true" />
+                        </a>
+                      ) : (
+                        <span className="text-faint-foreground">Not yet</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="px-1! text-right sm:px-2!" onClick={(event) => event.stopPropagation()}>
+                      <ActionMenu
+                        directory={directory}
+                        openEditDirectory={openEditDirectory}
+                        openChecklist={(dir) => openChecklistFor(dir.id)}
+                        deleteDirectory={() => setDeleteTarget(directory)}
+                      />
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        )}
 
-      <div className="flex flex-col items-center justify-between gap-2 border-t border-border px-3 py-2.5 sm:flex-row">
-        <p className="text-xs text-muted-foreground">
-          Showing {filteredDirectories.length} of {directories.length}{" "}
-          directories
-        </p>
-        <Button
-          onClick={() => exportDirectoriesToCsv(filteredDirectories)}
-          size="sm"
-          variant="outline"
-          className="border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground"
-        >
-          <DownloadIcon aria-hidden="true" className="mr-1.5 size-3.5" />
-          Export CSV
-        </Button>
-      </div>
+        <DirectoryFormDialog
+          open={editingDirectory !== null}
+          onOpenChange={(open) => !open && setEditingDirectory(null)}
+          directory={editingDirectory}
+        />
 
-      <Dialog
-        onOpenChange={(open) => {
-          if (!open) {
-            setEditingDirectory(null);
-          }
-        }}
-        open={editingDirectory !== null}
-      >
-        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Edit Directory</DialogTitle>
-            <DialogDescription>
-              Update directory details, status, assignment, and listing
-              information.
-            </DialogDescription>
-          </DialogHeader>
-          <form className="space-y-4" onSubmit={saveDirectory}>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <label className="space-y-1.5 text-xs font-medium">
-                Directory name
-                <Input
-                  className="h-9 text-sm"
-                  onChange={(event) =>
-                    setEditForm({ ...editForm, name: event.target.value })
-                  }
-                  required
-                  value={editForm.name}
-                />
-              </label>
-              <label className="space-y-1.5 text-xs font-medium">
-                Website
-                <Input
-                  className="h-9 text-sm"
-                  onChange={(event) =>
-                    setEditForm({ ...editForm, website: event.target.value })
-                  }
-                  required
-                  value={editForm.website}
-                />
-              </label>
-              <label className="space-y-1.5 text-xs font-medium">
-                Status
-                <NativeSelect
-                  className="w-full"
-                  onChange={(event) =>
-                    setEditForm({
-                      ...editForm,
-                      status: event.target.value as DirectoryStatus,
-                    })
-                  }
-                  value={editForm.status}
-                >
-                  {(
-                    [
-                      "Live",
-                      "Pending review",
-                      "Needs changes",
-                      "Rejected",
-                      "Not submitted",
-                    ] as DirectoryStatus[]
-                  ).map((status) => (
-                    <NativeSelectOption key={status} value={status}>
-                      {status}
-                    </NativeSelectOption>
-                  ))}
-                </NativeSelect>
-              </label>
-              <label className="space-y-1.5 text-xs font-medium">
-                Submitted by
-                <NativeSelect
-                  className="w-full"
-                  onChange={(event) =>
-                    setEditForm({
-                      ...editForm,
-                      submittedBy: event.target.value,
-                    })
-                  }
-                  value={editForm.submittedBy}
-                >
-                  <NativeSelectOption value="Nobody yet">
-                    Nobody yet
-                  </NativeSelectOption>
-                  {teamMembers.map((member) => (
-                    <NativeSelectOption key={member} value={member}>
-                      {member}
-                    </NativeSelectOption>
-                  ))}
-                </NativeSelect>
-              </label>
-              <label className="space-y-1.5 text-xs font-medium">
-                Priority
-                <NativeSelect
-                  className="w-full"
-                  onChange={(event) =>
-                    setEditForm({
-                      ...editForm,
-                      priority: event.target.value as Priority,
-                    })
-                  }
-                  value={editForm.priority}
-                >
-                  {(["High", "Medium", "Low"] as Priority[]).map((priority) => (
-                    <NativeSelectOption key={priority} value={priority}>
-                      {priority}
-                    </NativeSelectOption>
-                  ))}
-                </NativeSelect>
-              </label>
-              <label className="space-y-1.5 text-xs font-medium sm:col-span-2">
-                Listing URL
-                <Input
-                  className="h-9 text-sm"
-                  onChange={(event) =>
-                    setEditForm({
-                      ...editForm,
-                      listingUrl: event.target.value,
-                    })
-                  }
-                  placeholder="https://"
-                  type="url"
-                  value={editForm.listingUrl}
-                />
-              </label>
-              <label className="space-y-1.5 text-xs font-medium sm:col-span-2">
-                Notes
-                <textarea
-                  className="min-h-24 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm font-normal outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/20"
-                  onChange={(event) =>
-                    setEditForm({ ...editForm, notes: event.target.value })
-                  }
-                  value={editForm.notes}
-                />
-              </label>
-            </div>
-            <DialogFooter className="mt-5">
-              <Button
-                onClick={() => setEditingDirectory(null)}
-                type="button"
-                variant="outline"
-              >
+        <Dialog open={deleteTarget !== null} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="text-xl font-extrabold tracking-[-0.03em]">Delete {deleteTarget ? directoryLabel(deleteTarget) : "directory"}?</DialogTitle>
+              <DialogDescription>
+                This removes the directory and its checklist for the whole team. You can&apos;t undo this.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button type="button" variant="ghost" disabled={isDeleting} onClick={() => setDeleteTarget(null)}>
                 Cancel
               </Button>
-              <Button type="submit">Save changes</Button>
+              <Button type="button" variant="destructive" disabled={isDeleting} onClick={() => void confirmDelete()}>
+                {isDeleting ? <Spinner data-icon="inline-start" /> : <Trash2Icon data-icon="inline-start" aria-hidden="true" />}
+                {isDeleting ? "Deleting…" : "Delete"}
+              </Button>
             </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-    </section>
+          </DialogContent>
+        </Dialog>
+      </section>
+      <SubmissionChecklistDialog open={isChecklistOpen} onOpenChange={setIsChecklistOpen} />
+    </>
   );
 }

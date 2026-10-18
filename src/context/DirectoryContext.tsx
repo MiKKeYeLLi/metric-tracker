@@ -1,275 +1,168 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect } from "react";
-import { DirectoryItem, DirectoryStatus } from "@/types/directory";
-import { MOCK_DIRECTORIES } from "@/data/mockDirectories";
-
-export interface ActivityItem {
-  id: string;
-  directoryName: string;
-  actionText: string;
-  owner: string;
-  date: string;
-  status: DirectoryStatus;
-  timeAgo: string;
-  timestamp: number;
-}
-
-export interface ChecklistState {
-  [directoryId: string]: {
-    logo: boolean;
-    screenshots: boolean;
-    tagline: boolean;
-    "long-description": boolean;
-    pricing: boolean;
-  };
-}
+import { createContext, useCallback, useContext, useEffect, useState } from "react";
+import type { ChecklistItem, DirectoryActivity, DirectoryInput, DirectoryItem } from "@/types/directory";
 
 interface DirectoryContextType {
   directories: DirectoryItem[];
+  activities: DirectoryActivity[];
+  isLoading: boolean;
+  loadError: string;
+  actionError: string;
+  clearActionError: () => void;
+  reload: () => Promise<void>;
   selectedDirectoryId: string | null;
   setSelectedDirectoryId: (id: string) => void;
-  activities: ActivityItem[];
-  checklistState: ChecklistState;
-  isMounted: boolean;
-  addDirectory: (directory: DirectoryItem) => void;
-  updateDirectory: (id: string, updates: Partial<DirectoryItem>) => void;
-  deleteDirectory: (id: string) => void;
-  toggleChecklistItem: (
-    directoryId: string,
-    itemKey: keyof ChecklistState[string],
-  ) => void;
-  logActivity: (
-    directoryName: string,
-    actionText: string,
-    owner: string,
-    status: DirectoryStatus,
-  ) => void;
+  addDirectory: (input: DirectoryInput) => Promise<DirectoryItem>;
+  updateDirectory: (id: string, input: Partial<DirectoryInput>) => Promise<DirectoryItem>;
+  deleteDirectory: (id: string) => Promise<void>;
+  toggleChecklistItem: (directoryId: string, itemId: string, done: boolean) => Promise<void>;
+  addChecklistItem: (directoryId: string, label: string) => Promise<void>;
+  removeChecklistItem: (directoryId: string, itemId: string) => Promise<void>;
+  reportError: (error: unknown) => void;
 }
 
-const DirectoryContext = createContext<DirectoryContextType | undefined>(
-  undefined,
-);
+const DirectoryContext = createContext<DirectoryContextType | undefined>(undefined);
 
-const STORAGE_KEY = "metric_tracker_directories_v1";
-const ACTIVITY_KEY = "metric_tracker_activities_v1";
-const CHECKLIST_KEY = "metric_tracker_checklist_v1";
-
-const DEFAULT_ACTIVITIES: ActivityItem[] = [
-  {
-    id: "act-1",
-    directoryName: "Product Hunt",
-    actionText: "marked Product Hunt as Live",
-    owner: "Denise",
-    date: "14 Oct 2026",
-    status: "Live",
-    timeAgo: "2 days ago",
-    timestamp: Date.now() - 172800000,
-  },
-  {
-    id: "act-2",
-    directoryName: "BetaList",
-    actionText: "submitted BetaList",
-    owner: "Rabiah",
-    date: "8 Oct 2026",
-    status: "Pending review",
-    timeAgo: "8 days ago",
-    timestamp: Date.now() - 691200000,
-  },
-];
+async function request<T>(url: string, init?: RequestInit): Promise<T> {
+  const response = await fetch(url, {
+    cache: "no-store",
+    ...init,
+    headers: init?.body ? { "Content-Type": "application/json" } : undefined,
+  });
+  if (response.status === 204) return undefined as T;
+  const body = (await response.json().catch(() => null)) as
+    | (T & { error?: string; details?: Record<string, string[]> })
+    | null;
+  if (!response.ok) {
+    const detail = body?.details ? Object.values(body.details).flat()[0] : undefined;
+    throw new Error(detail ?? body?.error ?? "Something went wrong. Please try again.");
+  }
+  return body as T;
+}
 
 export function DirectoryProvider({ children }: { children: React.ReactNode }) {
-  const [isMounted, setIsMounted] = useState(false);
+  const [directories, setDirectories] = useState<DirectoryItem[]>([]);
+  const [activities, setActivities] = useState<DirectoryActivity[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+  const [actionError, setActionError] = useState("");
+  const [selectedDirectoryId, setSelectedDirectoryId] = useState<string | null>(null);
 
-  const [directories, setDirectories] =
-    useState<DirectoryItem[]>(MOCK_DIRECTORIES);
-  const [selectedDirectoryId, setSelectedDirectoryId] = useState<string | null>(
-    null,
-  );
-  const [activities, setActivities] =
-    useState<ActivityItem[]>(DEFAULT_ACTIVITIES);
-  const [checklistState, setChecklistState] = useState<ChecklistState>({});
-
-  useEffect(() => {
-    setIsMounted(true);
-    if (typeof window !== "undefined") {
-      const savedDirs = localStorage.getItem(STORAGE_KEY);
-      if (savedDirs) {
-        try {
-          const parsed = JSON.parse(savedDirs);
-          setDirectories(parsed);
-          if (parsed.length > 0) setSelectedDirectoryId(parsed[0].id);
-        } catch (e) {
-          console.error(e);
-        }
-      } else if (MOCK_DIRECTORIES.length > 0) {
-        setSelectedDirectoryId(MOCK_DIRECTORIES[0].id);
-      }
-
-      const savedActs = localStorage.getItem(ACTIVITY_KEY);
-      if (savedActs) {
-        try {
-          setActivities(JSON.parse(savedActs));
-        } catch (e) {
-          console.error(e);
-        }
-      }
-
-      const savedChecks = localStorage.getItem(CHECKLIST_KEY);
-      if (savedChecks) {
-        try {
-          setChecklistState(JSON.parse(savedChecks));
-        } catch (e) {
-          console.error(e);
-        }
-      }
+  const loadActivity = useCallback(async () => {
+    try {
+      setActivities(await request<DirectoryActivity[]>("/api/directories/activity?limit=50"));
+    } catch {
+      // The feed is secondary; the directories themselves still load.
     }
   }, []);
 
-  useEffect(() => {
-    if (isMounted) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(directories));
+  const reload = useCallback(async () => {
+    setIsLoading(true);
+    setLoadError("");
+    try {
+      const [list] = await Promise.all([request<DirectoryItem[]>("/api/directories"), loadActivity()]);
+      setDirectories(list);
+      setSelectedDirectoryId((current) =>
+        current && list.some((directory) => directory.id === current) ? current : (list[0]?.id ?? null)
+      );
+    } catch {
+      setLoadError("Couldn't load directories. Check your connection and try again.");
+    } finally {
+      setIsLoading(false);
     }
-  }, [directories, isMounted]);
+  }, [loadActivity]);
 
   useEffect(() => {
-    if (isMounted) {
-      localStorage.setItem(ACTIVITY_KEY, JSON.stringify(activities));
-    }
-  }, [activities, isMounted]);
+    void reload();
+  }, [reload]);
 
-  useEffect(() => {
-    if (isMounted) {
-      localStorage.setItem(CHECKLIST_KEY, JSON.stringify(checklistState));
-    }
-  }, [checklistState, isMounted]);
+  const reportError = useCallback((error: unknown) => {
+    setActionError(error instanceof Error ? error.message : "Something went wrong. Please try again.");
+  }, []);
 
-  const logActivity = (
-    directoryName: string,
-    actionText: string,
-    owner: string,
-    status: DirectoryStatus,
-  ) => {
-    const todayFormatted = new Intl.DateTimeFormat("en-GB", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-    }).format(new Date());
+  const replace = (updated: DirectoryItem) =>
+    setDirectories((previous) => previous.map((directory) => (directory.id === updated.id ? updated : directory)));
 
-    const newActivity: ActivityItem = {
-      id: `act-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
-      directoryName,
-      actionText,
-      owner: owner && owner !== "Nobody yet" ? owner : "Denise",
-      date: todayFormatted,
-      status,
-      timeAgo: "Just now",
-      timestamp: Date.now(),
-    };
-    setActivities((prev) => [newActivity, ...prev]);
-  };
-
-  const addDirectory = (newDir: DirectoryItem) => {
-    const ownerName =
-      newDir.submittedBy && newDir.submittedBy.trim() !== ""
-        ? newDir.submittedBy
-        : "Denise";
-
-    logActivity(
-      newDir.name,
-      `added ${newDir.name} (${newDir.status})`,
-      ownerName,
-      newDir.status,
+  const patchChecklist = (directoryId: string, change: (items: ChecklistItem[]) => ChecklistItem[]) =>
+    setDirectories((previous) =>
+      previous.map((directory) =>
+        directory.id === directoryId ? { ...directory, checklist: change(directory.checklist) } : directory
+      )
     );
 
-    setDirectories((prev) => [newDir, ...prev]);
-    setSelectedDirectoryId(newDir.id);
+  const addDirectory = async (input: DirectoryInput) => {
+    const created = await request<DirectoryItem>("/api/directories", { method: "POST", body: JSON.stringify(input) });
+    setDirectories((previous) => [created, ...previous]);
+    setSelectedDirectoryId(created.id);
+    void loadActivity();
+    return created;
   };
 
-  const updateDirectory = (id: string, updates: Partial<DirectoryItem>) => {
-    const targetItem = directories.find((d) => d.id === id);
-    if (!targetItem) return;
-
-    const updated = { ...targetItem, ...updates };
-    const ownerName =
-      updated.submittedBy && updated.submittedBy !== "Nobody yet"
-        ? updated.submittedBy
-        : "Denise";
-
-    if (updates.status && updates.status !== targetItem.status) {
-      logActivity(
-        targetItem.name,
-        `changed status to ${updates.status}`,
-        ownerName,
-        updated.status,
-      );
-    } else {
-      logActivity(
-        targetItem.name,
-        `updated directory details`,
-        ownerName,
-        updated.status,
-      );
-    }
-
-    setDirectories((prev) =>
-      prev.map((item) => (item.id === id ? updated : item)),
-    );
-  };
-
-  const deleteDirectory = (id: string) => {
-    const dirToDelete = directories.find((d) => d.id === id);
-    if (dirToDelete) {
-      const ownerName =
-        dirToDelete.submittedBy && dirToDelete.submittedBy !== "Nobody yet"
-          ? dirToDelete.submittedBy
-          : "Denise";
-      logActivity(
-        dirToDelete.name,
-        `deleted ${dirToDelete.name}`,
-        ownerName,
-        dirToDelete.status,
-      );
-    }
-    setDirectories((prev) => prev.filter((item) => item.id !== id));
-  };
-
-  const toggleChecklistItem = (
-    directoryId: string,
-    itemKey: keyof ChecklistState[string],
-  ) => {
-    setChecklistState((prev) => {
-      const currentDirChecklist = prev[directoryId] || {
-        logo: false,
-        screenshots: false,
-        tagline: false,
-        "long-description": false,
-        pricing: false,
-      };
-      return {
-        ...prev,
-        [directoryId]: {
-          ...currentDirChecklist,
-          [itemKey]: !currentDirChecklist[itemKey],
-        },
-      };
+  const updateDirectory = async (id: string, input: Partial<DirectoryInput>) => {
+    const updated = await request<DirectoryItem>(`/api/directories/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(input),
     });
+    replace(updated);
+    void loadActivity();
+    return updated;
+  };
+
+  const deleteDirectory = async (id: string) => {
+    await request<void>(`/api/directories/${id}`, { method: "DELETE" });
+    setDirectories((previous) => previous.filter((directory) => directory.id !== id));
+    setSelectedDirectoryId((current) => (current === id ? null : current));
+    void loadActivity();
+  };
+
+  const toggleChecklistItem = async (directoryId: string, itemId: string, done: boolean) => {
+    // Tick immediately; roll back if the save fails.
+    patchChecklist(directoryId, (items) => items.map((item) => (item.id === itemId ? { ...item, done } : item)));
+    try {
+      await request<ChecklistItem>(`/api/directories/${directoryId}/checklist/${itemId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ done }),
+      });
+      if (done) void loadActivity();
+    } catch (error) {
+      patchChecklist(directoryId, (items) => items.map((item) => (item.id === itemId ? { ...item, done: !done } : item)));
+      throw error;
+    }
+  };
+
+  const addChecklistItem = async (directoryId: string, label: string) => {
+    const item = await request<ChecklistItem>(`/api/directories/${directoryId}/checklist`, {
+      method: "POST",
+      body: JSON.stringify({ label }),
+    });
+    patchChecklist(directoryId, (items) => [...items, item]);
+  };
+
+  const removeChecklistItem = async (directoryId: string, itemId: string) => {
+    await request<void>(`/api/directories/${directoryId}/checklist/${itemId}`, { method: "DELETE" });
+    patchChecklist(directoryId, (items) => items.filter((item) => item.id !== itemId));
   };
 
   return (
     <DirectoryContext.Provider
       value={{
         directories,
+        activities,
+        isLoading,
+        loadError,
+        actionError,
+        clearActionError: () => setActionError(""),
+        reload,
         selectedDirectoryId,
         setSelectedDirectoryId,
-        activities,
-        checklistState,
-        isMounted,
         addDirectory,
         updateDirectory,
         deleteDirectory,
         toggleChecklistItem,
-        logActivity,
+        addChecklistItem,
+        removeChecklistItem,
+        reportError,
       }}
     >
       {children}

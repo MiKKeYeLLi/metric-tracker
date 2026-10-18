@@ -1,36 +1,45 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { FolderGit2Icon, NewspaperIcon, SearchIcon } from "lucide-react";
+import {
+  FileTextIcon,
+  FolderOpenIcon,
+  LayoutDashboardIcon,
+  NewspaperIcon,
+  ScanSearchIcon,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function SidebarNavList({
   className,
   ...props
 }: React.ComponentProps<"nav">) {
-  return <nav className={cn("flex shrink-0 gap-1 lg:flex-col lg:gap-0", className)} {...props} />;
+  return <nav className={cn("flex shrink-0 items-center gap-1 lg:flex-col lg:items-stretch lg:gap-1.5", className)} {...props} />;
 }
 
 interface SidebarNavLinkProps extends React.ComponentProps<"a"> {
   icon: React.ReactNode;
   badge?: React.ReactNode;
+  collapsed?: boolean;
 }
 
-export function SidebarNavLink({ icon, badge, children, className, ...props }: SidebarNavLinkProps) {
+export function SidebarNavLink({ icon, badge, collapsed = false, children, className, ...props }: SidebarNavLinkProps) {
   return (
     <a
+      title={collapsed && typeof children === "string" ? children : undefined}
       className={cn(
-        "group/nav flex shrink-0 items-center gap-2 overflow-hidden rounded-[7px] px-2.5 py-1.75 text-[13px] font-medium whitespace-nowrap text-muted-foreground no-underline transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground [&_svg]:size-3.5 [&_svg]:shrink-0",
-        "aria-[current=page]:bg-transparent aria-[current=page]:font-semibold aria-[current=page]:text-primary-deep",
-        "lg:aria-[current=page]:rounded-none lg:aria-[current=page]:pl-2.5 lg:aria-[current=page]:shadow-[inset_2px_0_0_var(--primary)]",
+        "group/nav flex h-9 shrink-0 items-center gap-2.5 rounded-full px-3.5 text-sm font-medium whitespace-nowrap text-sidebar-muted-foreground no-underline transition-[color,background-color,box-shadow] duration-150 outline-none hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 focus-visible:ring-sidebar-ring [&_svg]:size-4 [&_svg]:shrink-0",
+        "lg:h-11 lg:gap-3 lg:px-4 lg:text-[15px] lg:[&_svg]:size-5",
+        "aria-[current=page]:bg-sidebar-primary aria-[current=page]:font-semibold aria-[current=page]:text-sidebar-primary-foreground aria-[current=page]:shadow-[0_8px_20px_rgb(125_104_249/0.35)]",
+        collapsed && "lg:size-11 lg:justify-center lg:self-center lg:px-0",
         className
       )}
       {...props}
     >
       {icon}
-      <span className="min-w-0 flex-1 truncate">{children}</span>
-      {badge != null && (
-        <span className="shrink-0 rounded-full bg-muted px-1.5 font-mono text-2xs/[1.7] font-medium text-muted-foreground group-aria-[current=page]/nav:bg-accent group-aria-[current=page]/nav:text-primary-deep">
+      <span className={cn("min-w-0 flex-1 truncate", collapsed && "lg:sr-only")}>{children}</span>
+      {badge != null && !collapsed && (
+        <span className="ml-auto shrink-0 rounded-full bg-sidebar-accent px-2 text-xs font-semibold text-sidebar-foreground group-aria-[current=page]/nav:bg-white/20">
           {badge}
         </span>
       )}
@@ -38,26 +47,40 @@ export function SidebarNavLink({ icon, badge, children, className, ...props }: S
   );
 }
 
-export function DashboardSidebarNav() {
+const CHANNELS = [
+  { href: "/dashboard/content", label: "Content", icon: FileTextIcon },
+  { href: "/dashboard/directories", label: "Directories", icon: FolderOpenIcon },
+  { href: "/dashboard/seo", label: "SEO checker", icon: ScanSearchIcon },
+  { href: "/dashboard/media", label: "Press & Media", icon: NewspaperIcon },
+];
+
+export function DashboardSidebarNav({ collapsed = false }: { collapsed?: boolean }) {
   const pathname = usePathname();
+  const current = (href: string) =>
+    (href === "/dashboard" ? pathname === href : pathname.startsWith(href)) ? "page" : undefined;
 
   return (
     <SidebarNavList aria-label="Main navigation">
-      <SidebarNavLink aria-current={pathname === "/dashboard" ? "page" : undefined} href="/dashboard" icon={<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M4 12.5V6.5a2 2 0 0 1 2-2h3.5a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2Zm9 5V9.5a2 2 0 0 1 2-2H18a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-3a2 2 0 0 1-2-2ZM4 18.5v-3.5a2 2 0 0 1 2-2h3.5a2 2 0 0 1 2 2v3.5a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2Z" /></svg>}>
+      <SidebarNavLink
+        aria-current={current("/dashboard")}
+        href="/dashboard"
+        collapsed={collapsed}
+        icon={<LayoutDashboardIcon aria-hidden="true" />}
+      >
         Overview
       </SidebarNavLink>
-      <SidebarNavLink aria-current={pathname.startsWith("/dashboard/content") ? "page" : undefined} href="/dashboard/content" icon={<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M7 4.5h7l4 4V18a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6.5a2 2 0 0 1 2-2Zm7 0v4h4" /><path d="M8.5 12h7M8.5 15.5h7" /></svg>}>
-        Content
-      </SidebarNavLink>
-      <SidebarNavLink aria-current={pathname.startsWith("/dashboard/directories") ? "page" : undefined} href="/dashboard/directories" icon={<FolderGit2Icon aria-hidden="true" />}>
-        Directories
-      </SidebarNavLink>
-      <SidebarNavLink aria-current={pathname.startsWith("/dashboard/seo") ? "page" : undefined} href="/dashboard/seo" icon={<SearchIcon aria-hidden="true" />}>
-        SEO checker
-      </SidebarNavLink>
-      <SidebarNavLink aria-current={pathname.startsWith("/dashboard/media") ? "page" : undefined} href="/dashboard/media" icon={<NewspaperIcon aria-hidden="true" />}>
-        Press &amp; Media
-      </SidebarNavLink>
+      <span aria-hidden="true" className="mx-1 h-5 w-px shrink-0 bg-sidebar-border lg:mx-3 lg:my-1.5 lg:h-px lg:w-auto" />
+      {CHANNELS.map(({ href, label, icon: Icon }) => (
+        <SidebarNavLink
+          key={href}
+          aria-current={current(href)}
+          href={href}
+          collapsed={collapsed}
+          icon={<Icon aria-hidden="true" />}
+        >
+          {label}
+        </SidebarNavLink>
+      ))}
     </SidebarNavList>
   );
 }

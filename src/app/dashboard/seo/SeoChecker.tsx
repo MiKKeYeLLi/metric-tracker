@@ -1,26 +1,40 @@
 "use client";
 
-import { Fragment, useState, useTransition, type FormEvent } from "react";
+import { Fragment, useEffect, useRef, useState, useTransition, type FormEvent } from "react";
+import { RotateCwIcon, Settings2Icon } from "lucide-react";
+import { KpiCard, KpiGrid } from "@/components/KpiCard";
+import { PageContent, PageHeader } from "@/components/PageHeader";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
+import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { CATEGORY_LABELS, CATEGORY_ORDER, IMPORTANCE_LABEL, scoreLabel } from "@/lib/seo/config";
 import { todoList } from "@/lib/seo/scoring";
 import type { CategoryId, Outcome, Severity } from "@/lib/seo/types";
 import { cn } from "@/lib/utils";
-import { openCheck, runCheck, type ActionResult } from "./actions";
+import { openCheck, runCheck, saveSeoSettings, type ActionResult } from "./actions";
 import type { SeoView } from "./data";
 
-const card = "rounded-xl border bg-card p-5 sm:p-6";
-const h2 = "m-0 text-base font-bold tracking-[-0.02em]";
-const hint = "text-xs text-muted-foreground";
+// A saved check younger than this is shown as-is on load instead of running a new one.
+const FRESH_FOR_MS = 10 * 60_000;
 
-// Darker text shades than the brand tokens, so small text stays readable on white.
-const TONE = { ok: "text-green-700", warn: "text-amber-700", err: "text-red-700", tip: "text-primary-deep" };
+const card = "flex min-w-0 flex-col gap-4 rounded-[22px] border border-border bg-card p-4 sm:p-5";
+const cardTitle = "m-0 text-[17px] leading-tight font-bold tracking-[-0.02em] text-foreground";
+const hint = "m-0 text-[13px] text-muted-foreground";
+
+const TONE = { ok: "text-success", warn: "text-warning", err: "text-destructive", tip: "text-primary-deep" };
 
 const OUTCOME: Record<Outcome, { text: string; cls: string }> = {
   pass: { text: "✓ Pass", cls: TONE.ok },
@@ -34,20 +48,39 @@ const SEVERITY: Record<Severity, { text: string; cls: string }> = {
 };
 
 const date = (iso: string) => new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
+const relative = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
 
-export function SeoChecker({ initial }: { initial: SeoView | null }) {
+function checkedAgo(iso: string) {
+  const minutes = Math.round((new Date(iso).getTime() - Date.now()) / 60_000);
+  if (minutes > -1) return "just now";
+  if (minutes > -60) return relative.format(minutes, "minute");
+  if (minutes > -1440) return relative.format(Math.round(minutes / 60), "hour");
+  return `on ${date(iso)}`;
+}
+
+function hostOf(url: string) {
+  try {
+    return new URL(url.includes("://") ? url : `https://${url}`).host;
+  } catch {
+    return url;
+  }
+}
+
+export function SeoChecker({ initial, initialUrl }: { initial: SeoView | null; initialUrl: string }) {
   const [view, setView] = useState<SeoView | null>(initial);
-  const [url, setUrl] = useState(initial?.check.url ?? "");
+  const [url, setUrl] = useState(initialUrl);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState("");
   const [filter, setFilter] = useState<CategoryId>("meta");
   const [open, setOpen] = useState<Set<string>>(new Set());
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [draftUrl, setDraftUrl] = useState("");
   const [pending, start] = useTransition();
+  const startedRef = useRef(false);
 
   function apply(r: ActionResult, done: string) {
     if (r.ok) {
       setView(r.view);
-      setUrl(r.view.check.url);
       setError(null);
       setOpen(new Set());
       setStatus(done);
@@ -57,11 +90,43 @@ export function SeoChecker({ initial }: { initial: SeoView | null }) {
     }
   }
 
-  function submit(e: FormEvent) {
-    e.preventDefault();
-    setStatus("Running check…");
+  function check(target: string) {
+    setStatus(`Checking ${hostOf(target)}…`);
     setError(null);
-    start(async () => apply(await runCheck({ url }), "Check complete."));
+    start(async () => apply(await runCheck({ url: target }), "Check complete."));
+  }
+
+  useEffect(() => {
+    if (startedRef.current) return;
+    startedRef.current = true;
+    const target = initialUrl;
+    const sameUrl = initial && hostOf(initial.check.url) === hostOf(target);
+    const fresh = sameUrl && Date.now() - new Date(initial.check.createdAt).getTime() < FRESH_FOR_MS;
+    if (!sameUrl) setView(null);
+    if (!fresh) check(target);
+  }, [initial, initialUrl]);
+
+  function openSettings() {
+    setDraftUrl(url);
+    setSettingsOpen(true);
+  }
+
+  function saveSettings(event: FormEvent) {
+    event.preventDefault();
+    const next = draftUrl.trim();
+    if (!next) return;
+    start(async () => {
+      const saved = await saveSeoSettings({ url: next });
+      if (!saved.ok) {
+        setError(saved.error);
+        return;
+      }
+      setUrl(saved.url);
+      setSettingsOpen(false);
+      if (view && hostOf(view.check.url) !== hostOf(saved.url)) setView(null);
+      setStatus(`Checking ${hostOf(saved.url)}…`);
+      apply(await runCheck({ url: saved.url }), "Settings saved and check complete.");
+    });
   }
 
   function toggle(id: string) {
@@ -77,234 +142,361 @@ export function SeoChecker({ initial }: { initial: SeoView | null }) {
   const todo = c ? todoList(c.results) : [];
   const rows = c ? c.results.filter((r) => r.category === filter) : [];
   const delta = c && view?.previous ? c.score - view.previous.score : null;
+  const firstLoad = !c && pending;
 
   return (
-    <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
-      <p className="m-0 max-w-[65ch] text-[13px] text-muted-foreground">
-        Check how well a single page is set up for search engines. Only the page’s HTML is read, so content added by JavaScript isn’t seen.
-      </p>
+    <>
+      <PageHeader
+        title="SEO checker"
+        description="How well a page is set up for search engines. Only the page's HTML is read, so content added by JavaScript isn't seen."
+        actions={
+          <>
+            <Button
+              variant="outline"
+              size="icon"
+              aria-label="Run the check again"
+              title="Run again"
+              disabled={pending}
+              onClick={() => check(url)}
+            >
+              {pending ? <Spinner aria-hidden="true" /> : <RotateCwIcon aria-hidden="true" />}
+            </Button>
+            <Button variant="outline" size="icon" aria-label="Checker settings" title="Settings" onClick={openSettings}>
+              <Settings2Icon aria-hidden="true" />
+            </Button>
+          </>
+        }
+      />
 
-      <form onSubmit={submit} className={cn(card, "flex flex-wrap items-end gap-3")}>
-        <div className="flex min-w-[260px] flex-1 flex-col gap-1.5">
-          <Label htmlFor="seo-url">Page address</Label>
-          <Input
-            id="seo-url"
-            type="text"
-            inputMode="url"
-            autoComplete="off"
-            placeholder="https://"
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-            aria-invalid={error ? true : undefined}
-            aria-describedby={error ? "seo-error" : undefined}
-          />
-        </div>
-        <Button type="submit" size="lg" disabled={pending}>
-          {pending && <Spinner aria-hidden="true" />}
-          {pending ? "Checking…" : "Run check"}
-        </Button>
-      </form>
-      <p className="sr-only" role="status" aria-live="polite">{status}</p>
-      {error && (
-        <Alert variant="destructive" id="seo-error">
-          <AlertDescription>✕ {error}</AlertDescription>
-        </Alert>
-      )}
+      <PageContent>
+        <p className="sr-only" role="status" aria-live="polite">
+          {status}
+        </p>
+        {error && (
+          <Alert variant="destructive">
+            <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
+              <span>{error}</span>
+              <span className="flex gap-2">
+                <Button type="button" variant="outline" size="sm" onClick={openSettings}>
+                  Change page
+                </Button>
+                <Button type="button" variant="outline" size="sm" onClick={() => check(url)}>
+                  Try again
+                </Button>
+              </span>
+            </AlertDescription>
+          </Alert>
+        )}
 
-      {!c && !error && (
-        <Empty className="border">
-          <EmptyHeader>
-            <EmptyTitle>No checks yet</EmptyTitle>
-            <EmptyDescription>
-              Enter a page address above and press “Run check”. You’ll get a score, a prioritised to-do list and a full list of checks. Each check is saved, so you can see whether the page improves.
-            </EmptyDescription>
-          </EmptyHeader>
-        </Empty>
-      )}
-
-      {c && view && (
-        <>
-          <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-            <section className={card} aria-labelledby="score-h">
-              <div className="flex flex-wrap items-baseline justify-between gap-x-4">
-                <h2 id="score-h" className={h2}>On-page score</h2>
-                <span className={hint}>Checked {date(c.createdAt)} · {c.errorCount} {c.errorCount === 1 ? "error" : "errors"} found</span>
-              </div>
-              <div className="mt-5 flex flex-wrap items-center gap-x-8 gap-y-5">
-                <div
-                  className="flex size-36 shrink-0 items-center justify-center rounded-full"
-                  style={{ background: `conic-gradient(var(--primary) 0 ${c.score}%, var(--muted) 0)` }}
-                >
-                  <div className="flex size-26 flex-col items-center justify-center rounded-full bg-card">
-                    <span className="text-3xl leading-none font-bold tracking-[-0.03em] tabular-nums">{c.score}%</span>
-                    <span className={cn("mt-1 text-xs font-semibold", c.score >= 80 ? TONE.ok : c.score >= 50 ? TONE.warn : TONE.err)}>
-                      {scoreLabel(c.score)}
-                    </span>
-                  </div>
-                </div>
-                <div className="flex min-w-[240px] flex-1 flex-col gap-2.5 text-[13px]">
-                  {delta !== null && view.previous && (
-                    <p className={cn("m-0 text-xs font-medium", delta > 0 ? TONE.ok : delta < 0 ? TONE.warn : "text-muted-foreground")}>
-                      {delta > 0 ? `▲ ${delta} points` : delta < 0 ? `▼ ${-delta} points` : "No change"} since the check on {date(view.previous.createdAt)}
-                    </p>
-                  )}
+        {firstLoad && (
+          <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)]" aria-hidden="true">
+            <div className={card}>
+              <Skeleton className="h-5 w-40" />
+              <div className="flex flex-wrap items-center gap-8">
+                <Skeleton className="size-36 rounded-full" />
+                <div className="flex min-w-[240px] flex-1 flex-col gap-3">
                   {CATEGORY_ORDER.map((k) => (
-                    <div key={k} className="grid grid-cols-[110px_1fr_40px] items-center gap-3">
-                      <span>{CATEGORY_LABELS[k]}</span>
-                      <div className="h-2.5 rounded-full bg-muted" aria-hidden="true">
-                        <div className="h-2.5 rounded-full bg-primary" style={{ width: `${c.categoryScores[k] ?? 0}%` }} />
-                      </div>
-                      <span className="text-right font-semibold tabular-nums">{c.categoryScores[k] === null ? "—" : `${c.categoryScores[k]}%`}</span>
-                    </div>
+                    <Skeleton key={k} className="h-3 w-full" />
                   ))}
-                  <div className="grid grid-cols-[110px_1fr] items-center gap-3">
-                    <span>External factors</span>
-                    <span className={hint}>Not included in version one</span>
-                  </div>
                 </div>
               </div>
+            </div>
+            <div className={card}>
+              <Skeleton className="h-5 w-32" />
+              {[0, 1, 2, 3].map((i) => (
+                <Skeleton key={i} className="h-4 w-full" />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {!c && !firstLoad && !error && (
+          <Empty className="rounded-[22px] border">
+            <EmptyHeader>
+              <EmptyTitle>No check yet</EmptyTitle>
+              <EmptyDescription>Choose the page to check in settings, and the result will show here.</EmptyDescription>
+            </EmptyHeader>
+            <Button onClick={openSettings}>
+              <Settings2Icon data-icon="inline-start" aria-hidden="true" />
+              Choose a page
+            </Button>
+          </Empty>
+        )}
+
+        {c && view && (
+          <>
+            <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)]">
+              <section className={card} aria-labelledby="score-h">
+                <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-1">
+                  <div className="flex min-w-0 flex-col gap-1">
+                    <h2 id="score-h" className={cardTitle}>
+                      On-page score
+                    </h2>
+                    <p className={cn(hint, "truncate")}>
+                      <span className="font-semibold text-foreground">{hostOf(c.url)}</span> · checked {checkedAgo(c.createdAt)} ·{" "}
+                      {c.errorCount} {c.errorCount === 1 ? "error" : "errors"}
+                    </p>
+                  </div>
+                  {pending && (
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-accent px-2.5 py-1 text-xs font-semibold text-accent-foreground">
+                      <Spinner aria-hidden="true" className="size-3.5" />
+                      Checking…
+                    </span>
+                  )}
+                </div>
+                <div className="flex flex-wrap items-center gap-x-8 gap-y-5">
+                  <div
+                    className="flex size-36 shrink-0 items-center justify-center rounded-full"
+                    style={{ background: `conic-gradient(var(--primary) 0 ${c.score}%, var(--chart-track) 0)` }}
+                  >
+                    <div className="flex size-28 flex-col items-center justify-center rounded-full bg-card">
+                      <span className="text-[32px] leading-none font-extrabold tracking-[-0.04em] tabular-nums">{c.score}%</span>
+                      <span className={cn("mt-1 text-xs font-semibold", c.score >= 80 ? TONE.ok : c.score >= 50 ? TONE.warn : TONE.err)}>
+                        {scoreLabel(c.score)}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex min-w-[240px] flex-1 flex-col gap-3 text-sm">
+                    {delta !== null && view.previous && (
+                      <p className={cn("m-0 text-xs font-semibold", delta > 0 ? TONE.ok : delta < 0 ? TONE.err : "text-muted-foreground")}>
+                        {delta > 0 ? `▲ ${delta} points` : delta < 0 ? `▼ ${-delta} points` : "No change"} since the check on{" "}
+                        {date(view.previous.createdAt)}
+                      </p>
+                    )}
+                    {CATEGORY_ORDER.map((k) => (
+                      <div key={k} className="grid grid-cols-[110px_1fr_44px] items-center gap-3">
+                        <span className="text-muted-foreground">{CATEGORY_LABELS[k]}</span>
+                        <div className="h-2.5 overflow-hidden rounded-full bg-chart-track" aria-hidden="true">
+                          <div className="h-full rounded-full bg-primary" style={{ width: `${c.categoryScores[k] ?? 0}%` }} />
+                        </div>
+                        <span className="text-right font-semibold tabular-nums">
+                          {c.categoryScores[k] === null ? "–" : `${c.categoryScores[k]}%`}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </section>
+
+              <aside className={card} aria-labelledby="hist-h">
+                <div className="flex flex-col gap-1">
+                  <h2 id="hist-h" className={cardTitle}>
+                    Score history
+                  </h2>
+                  <p className={hint}>Saved checks of this page</p>
+                </div>
+                <ul className="m-0 flex list-none flex-col gap-1 p-0">
+                  {view.history.map((h) => (
+                    <li key={h.id}>
+                      <button
+                        type="button"
+                        aria-current={h.id === c.id ? "true" : undefined}
+                        onClick={() => start(async () => apply(await openCheck(h.id), `Showing the check from ${date(h.createdAt)}.`))}
+                        className="grid min-h-10 w-full cursor-pointer grid-cols-[56px_1fr_44px] items-center gap-3 rounded-xl px-2.5 text-left text-sm outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50 aria-[current=true]:bg-accent"
+                      >
+                        <span className="text-muted-foreground">{date(h.createdAt)}</span>
+                        <span className="h-2 overflow-hidden rounded-full bg-chart-track" aria-hidden="true">
+                          <span className="block h-full rounded-full bg-chart-2" style={{ width: `${h.score}%` }} />
+                        </span>
+                        <span className="text-right font-semibold tabular-nums">{h.score}%</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </aside>
+            </div>
+
+            <KpiGrid>
+              <KpiCard
+                title="Response time"
+                value={(c.snapshot.responseTimeMs / 1000).toFixed(2)}
+                decimals=" sec"
+                context={`Status code ${c.snapshot.statusCode}`}
+              />
+              <KpiCard
+                title="Page size"
+                value={Math.round(c.snapshot.sizeBytes / 1000).toLocaleString()}
+                decimals=" kB"
+                context="HTML only"
+              />
+              <KpiCard title="Word count" value={c.snapshot.wordCount.toLocaleString()} context="Visible text on the page" />
+              <KpiCard
+                title="Links"
+                value={(c.snapshot.internalLinks + c.snapshot.externalLinks).toLocaleString()}
+                context={`${c.snapshot.internalLinks} internal · ${c.snapshot.externalLinks} external`}
+              />
+            </KpiGrid>
+
+            <section className={card} aria-labelledby="snap-h">
+              <h2 id="snap-h" className={cardTitle}>
+                Page details
+              </h2>
+              <dl className="m-0 grid gap-x-8 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">
+                {[
+                  ["Meta title", c.snapshot.title ?? "None found"],
+                  ["Meta description", c.snapshot.description ?? "None found"],
+                  ["Final URL", c.snapshot.finalUrl],
+                  ["Indexable", c.snapshot.indexable ? "Yes" : "No"],
+                  ["Language", c.snapshot.language ?? "Not set"],
+                ].map(([k, v]) => (
+                  <div key={k} className="min-w-0 rounded-2xl bg-muted px-4 py-3">
+                    <dt className="text-xs font-medium text-muted-foreground">{k}</dt>
+                    <dd className="m-0 mt-1 text-sm font-semibold break-words text-foreground">{v}</dd>
+                  </div>
+                ))}
+              </dl>
             </section>
 
-            <aside className={card} aria-labelledby="hist-h">
-              <h2 id="hist-h" className={h2}>Score history</h2>
-              <p className={cn(hint, "mt-1")}>Saved checks of this page</p>
-              <ul className="mt-3 m-0 flex list-none flex-col gap-0.5 p-0">
-                {view.history.map((h) => (
-                  <li key={h.id}>
-                    <button
+            <section className={card} aria-labelledby="todo-h">
+              <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+                <h2 id="todo-h" className={cardTitle}>
+                  To-do list
+                </h2>
+                <p className={hint}>Sorted by priority</p>
+              </div>
+              {todo.length === 0 ? (
+                <p className={cn("m-0 text-sm font-semibold", TONE.ok)}>✓ Nothing to fix. Every check passed.</p>
+              ) : (
+                <Table variant="pill">
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>To do</TableHead>
+                      <TableHead className="hidden sm:table-cell">Importance</TableHead>
+                      <TableHead className="text-right">
+                        <span className="sr-only">Details</span>
+                      </TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {todo.map((t) => (
+                      <Fragment key={t.id}>
+                        <TableRow>
+                          <TableCell className="whitespace-normal">
+                            {t.label}
+                            <span className={cn("mt-0.5 block text-xs font-semibold sm:hidden", SEVERITY[t.severity].cls)}>
+                              {SEVERITY[t.severity].text}
+                            </span>
+                          </TableCell>
+                          <TableCell className={cn("hidden text-xs font-semibold sm:table-cell", SEVERITY[t.severity].cls)}>
+                            {SEVERITY[t.severity].text}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              aria-expanded={open.has(t.id)}
+                              aria-controls={`todo-${t.id}`}
+                              onClick={() => toggle(t.id)}
+                            >
+                              {open.has(t.id) ? "Hide" : "How to fix"}
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                        {open.has(t.id) && (
+                          <TableRow id={`todo-${t.id}`} className="hover:bg-transparent">
+                            <TableCell colSpan={3} className="h-auto! py-3! whitespace-normal">
+                              <div className="flex flex-col gap-1.5 rounded-2xl bg-muted px-4 py-3 text-sm leading-relaxed">
+                                <p className="m-0">
+                                  <span className="font-semibold">What we found:</span> {t.detail}
+                                </p>
+                                <p className="m-0">
+                                  <span className="font-semibold">How to fix it:</span> {t.fix}
+                                </p>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </Fragment>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </section>
+
+            <section className={card} aria-labelledby="checks-h">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <h2 id="checks-h" className={cardTitle}>
+                  Detailed checks
+                </h2>
+                <div className="flex flex-wrap gap-2" role="group" aria-label="Filter checks by area">
+                  {CATEGORY_ORDER.map((k) => (
+                    <Button
+                      key={k}
                       type="button"
-                      aria-current={h.id === c.id ? "true" : undefined}
-                      onClick={() => start(async () => apply(await openCheck(h.id), `Showing the check from ${date(h.createdAt)}.`))}
-                      className="grid min-h-9 w-full cursor-pointer grid-cols-[52px_1fr_40px] items-center gap-3 rounded-lg px-2 text-left text-[13px] outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50 aria-[current=true]:bg-accent"
+                      variant={filter === k ? "secondary" : "outline"}
+                      size="sm"
+                      aria-pressed={filter === k}
+                      onClick={() => setFilter(k)}
                     >
-                      <span className="text-muted-foreground">{date(h.createdAt)}</span>
-                      <span className="h-2.5 rounded-full bg-muted" aria-hidden="true">
-                        <span className="block h-2.5 rounded-full bg-primary/50" style={{ width: `${h.score}%` }} />
-                      </span>
-                      <span className="text-right font-semibold tabular-nums">{h.score}%</span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </aside>
-          </div>
-
-          <section className={card} aria-labelledby="snap-h">
-            <h2 id="snap-h" className={h2}>Page snapshot</h2>
-            <dl className="m-0 mt-4 grid gap-x-8 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">
-              {[
-                ["Meta title", c.snapshot.title ?? "None found"],
-                ["Meta description", c.snapshot.description ?? "None found"],
-                ["URL", c.snapshot.finalUrl],
-                ["Status code", String(c.snapshot.statusCode)],
-                ["Indexable", c.snapshot.indexable ? "Yes" : "No"],
-                ["Language", c.snapshot.language ?? "Not set"],
-                ["Response time", `${(c.snapshot.responseTimeMs / 1000).toFixed(2)} sec`],
-                ["File size", `${Math.round(c.snapshot.sizeBytes / 1000)} kB`],
-                ["Word count", String(c.snapshot.wordCount)],
-                ["Links", `${c.snapshot.internalLinks} internal, ${c.snapshot.externalLinks} external`],
-              ].map(([k, v]) => (
-                <div key={k} className="min-w-0">
-                  <dt className={hint}>{k}</dt>
-                  <dd className="m-0 mt-0.5 text-[13px] font-medium break-words">{v}</dd>
+                      {CATEGORY_LABELS[k]}
+                    </Button>
+                  ))}
                 </div>
-              ))}
-            </dl>
-          </section>
-
-          <section className={card} aria-labelledby="todo-h">
-            <div className="flex flex-wrap items-baseline justify-between gap-x-4">
-              <h2 id="todo-h" className={h2}>To-do list</h2>
-              <span className={hint}>Sorted by priority</span>
-            </div>
-            {todo.length === 0 ? (
-              <p className={cn("mt-4 mb-0 text-[13px] font-medium", TONE.ok)}>✓ Nothing to fix. Every check passed.</p>
-            ) : (
-              <Table className="mt-2 min-w-[520px]">
+              </div>
+              <Table variant="pill">
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="pl-0 text-xs text-muted-foreground">To do</TableHead>
-                    <TableHead className="text-xs text-muted-foreground">Importance</TableHead>
-                    <TableHead className="text-xs text-muted-foreground">Action</TableHead>
+                    <TableHead>Check</TableHead>
+                    <TableHead>Result</TableHead>
+                    <TableHead className="hidden md:table-cell">Importance</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {todo.map((t) => (
-                    <Fragment key={t.id}>
-                      <TableRow>
-                        <TableCell className="py-3 pl-0 text-[13px] whitespace-normal">{t.label}</TableCell>
-                        <TableCell className={cn("text-xs font-semibold", SEVERITY[t.severity].cls)}>{SEVERITY[t.severity].text}</TableCell>
-                        <TableCell>
-                          <Button
-                            type="button"
-                            variant="link"
-                            size="sm"
-                            aria-expanded={open.has(t.id)}
-                            aria-controls={`todo-${t.id}`}
-                            onClick={() => toggle(t.id)}
-                            className="px-0 text-primary-deep"
-                          >
-                            {open.has(t.id) ? "Hide details" : "More details"}
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                      {open.has(t.id) && (
-                        <TableRow id={`todo-${t.id}`} className="bg-muted/60 hover:bg-muted/60">
-                          <TableCell colSpan={3} className="px-4 py-3 text-[13px] leading-relaxed whitespace-normal">
-                            <strong>What we found:</strong> {t.detail}
-                            <br />
-                            <strong>How to fix it:</strong> {t.fix}
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </Fragment>
+                  {rows.map((r) => (
+                    <TableRow key={r.id}>
+                      <TableCell className="h-auto! py-3! align-top whitespace-normal">
+                        <span className="font-semibold text-foreground">{r.label}</span>
+                        <span className="mt-0.5 block text-xs text-muted-foreground">{r.detail}</span>
+                      </TableCell>
+                      <TableCell className={cn("py-3! align-top text-xs font-semibold whitespace-nowrap", OUTCOME[r.outcome].cls)}>
+                        {OUTCOME[r.outcome].text}
+                      </TableCell>
+                      <TableCell className="hidden py-3! align-top text-muted-foreground md:table-cell">
+                        {IMPORTANCE_LABEL[r.severity]}
+                      </TableCell>
+                    </TableRow>
                   ))}
                 </TableBody>
               </Table>
-            )}
-          </section>
+            </section>
+          </>
+        )}
 
-          <section className={card} aria-labelledby="checks-h">
-            <h2 id="checks-h" className={h2}>Detailed checks</h2>
-            <div className="mt-3 mb-2 flex flex-wrap gap-2" role="group" aria-label="Filter checks by area">
-              {CATEGORY_ORDER.map((k) => (
-                <Button
-                  key={k}
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  aria-pressed={filter === k}
-                  onClick={() => setFilter(k)}
-                  className="rounded-full aria-pressed:border-primary aria-pressed:bg-accent aria-pressed:text-primary-deep"
-                >
-                  {CATEGORY_LABELS[k]}
+        <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
+          <DialogContent className="sm:max-w-[460px]">
+            <form onSubmit={saveSettings} className="flex flex-col gap-5">
+              <DialogHeader className="gap-1">
+                <DialogTitle className="text-xl font-extrabold tracking-[-0.03em]">Checker settings</DialogTitle>
+                <DialogDescription>The page checked each time you open the SEO checker.</DialogDescription>
+              </DialogHeader>
+              <Field>
+                <FieldLabel htmlFor="seo-url">Page address</FieldLabel>
+                <Input
+                  id="seo-url"
+                  type="text"
+                  inputMode="url"
+                  autoComplete="off"
+                  placeholder="https://zedu.chat"
+                  value={draftUrl}
+                  onChange={(event) => setDraftUrl(event.target.value)}
+                  autoFocus
+                />
+                <FieldDescription className="text-xs">Shared with everyone in this workspace.</FieldDescription>
+              </Field>
+              <DialogFooter>
+                <Button type="button" variant="ghost" onClick={() => setSettingsOpen(false)}>
+                  Cancel
                 </Button>
-              ))}
-            </div>
-            <Table className="min-w-[520px]">
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="pl-0 text-xs text-muted-foreground">Check</TableHead>
-                  <TableHead className="text-xs text-muted-foreground">Result</TableHead>
-                  <TableHead className="text-xs text-muted-foreground">Importance</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {rows.map((r) => (
-                  <TableRow key={r.id}>
-                    <TableCell className="py-3 pl-0 align-top text-[13px] whitespace-normal">
-                      {r.label}
-                      <div className={cn(hint, "mt-0.5")}>{r.detail}</div>
-                    </TableCell>
-                    <TableCell className={cn("align-top text-xs font-semibold", OUTCOME[r.outcome].cls)}>{OUTCOME[r.outcome].text}</TableCell>
-                    <TableCell className={cn("align-top", hint)}>{IMPORTANCE_LABEL[r.severity]}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </section>
-        </>
-      )}
-    </div>
+                <Button type="submit" disabled={pending || !draftUrl.trim()}>
+                  {pending && <Spinner data-icon="inline-start" />}
+                  Save and check
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+      </PageContent>
+    </>
   );
 }
