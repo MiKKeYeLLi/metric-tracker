@@ -40,6 +40,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { MarkFeaturedDialog } from "./MarkFeaturedDialog";
+import { OutletDetailsDialog } from "./OutletDetailsDialog";
 import { PressFormDialog } from "./PressFormDialog";
 import {
   ARTICLE_TYPES,
@@ -54,6 +55,7 @@ import {
   today,
   sendJson,
   type ApiRecord,
+  type OutletDetails,
   type OutletSummary,
   type PressItem,
   type Stage,
@@ -114,6 +116,7 @@ function csvCell(value: string) {
 
 export function PressMediaDashboard() {
   const [records, setRecords] = useState<ApiRecord[]>([]);
+  const [outletDetails, setOutletDetails] = useState<OutletDetails[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [notice, setNotice] = useState("");
@@ -125,16 +128,22 @@ export function PressMediaDashboard() {
   const [form, setForm] = useState<{ item: PressItem | null; stage: Stage; outlet: string } | null>(null);
   const [featuring, setFeaturing] = useState<PressItem | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<PressItem | null>(null);
+  const [selectedOutlet, setSelectedOutlet] = useState<OutletDetails | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
   const loadRecords = useCallback(async () => {
     setIsLoading(true);
     setLoadError("");
     try {
-      const response = await fetch("/api/media", { cache: "no-store" });
-      if (!response.ok) throw new Error();
-      const data = (await response.json()) as { records?: ApiRecord[] };
+      const [mediaResponse, outletsResponse] = await Promise.all([
+        fetch("/api/media", { cache: "no-store" }),
+        fetch("/api/media/outlets", { cache: "no-store" }),
+      ]);
+      if (!mediaResponse.ok || !outletsResponse.ok) throw new Error();
+      const data = (await mediaResponse.json()) as { records?: ApiRecord[] };
+      const outletData = (await outletsResponse.json()) as OutletDetails[];
       setRecords(Array.isArray(data.records) ? data.records : []);
+      setOutletDetails(Array.isArray(outletData) ? outletData : []);
     } catch {
       setLoadError("Couldn't load your press list. Check your connection and try again.");
     } finally {
@@ -160,6 +169,16 @@ export function PressMediaDashboard() {
 
   const items = useMemo(() => deriveItems(records), [records]);
   const outlets = useMemo(() => groupByOutlet(items), [items]);
+  const outletDetailsByKey = useMemo(
+    () => new Map(outletDetails.map((outlet) => [outletKey(outlet.name), outlet])),
+    [outletDetails]
+  );
+
+  const saveOutletDetails = (updated: OutletDetails) => {
+    setOutletDetails((previous) => previous.map((outlet) => (outlet.id === updated.id ? updated : outlet)));
+    // A rename also renames the outlet on its coverage and pitches, so reload those too.
+    afterSave(`${updated.name} details updated.`);
+  };
 
   const featured = items.filter((item) => item.stage === "Featured");
   const pitched = items.filter((item) => item.stage === "Pitched");
@@ -424,6 +443,8 @@ export function PressMediaDashboard() {
                   <TableRow>
                     <TableHead>Outlet</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead className="hidden md:table-cell">Tier</TableHead>
+                    <TableHead className="hidden lg:table-cell">Contact</TableHead>
                     <TableHead className="hidden md:table-cell">Features</TableHead>
                     <TableHead className="hidden lg:table-cell">In progress</TableHead>
                     <TableHead className="hidden sm:table-cell">Last activity</TableHead>
@@ -437,7 +458,9 @@ export function PressMediaDashboard() {
                     <OutletRow
                       key={outlet.key}
                       outlet={outlet}
+                      details={outletDetailsByKey.get(outlet.key)}
                       onOpen={() => show(outlet.stage === "Featured" ? "featured" : "pipeline", "all", outlet.name)}
+                      onEditDetails={setSelectedOutlet}
                       onAddPitch={() => openForm(null, "Pitched", outlet.name)}
                       onAddFeature={() => openForm(null, "Featured", outlet.name)}
                     />
@@ -611,6 +634,13 @@ export function PressMediaDashboard() {
 
         <MarkFeaturedDialog item={featuring} onOpenChange={(open) => !open && setFeaturing(null)} onSaved={afterSave} />
 
+        <OutletDetailsDialog
+          outlet={selectedOutlet}
+          open={selectedOutlet !== null}
+          onOpenChange={(open) => !open && setSelectedOutlet(null)}
+          onSaved={saveOutletDetails}
+        />
+
         <Dialog open={deleteTarget !== null} onOpenChange={(open) => !open && setDeleteTarget(null)}>
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
@@ -714,14 +744,26 @@ function OutletCell({ name, detail, muted }: { name: string; detail: string; mut
   );
 }
 
+function websiteHost(website: string) {
+  try {
+    return new URL(website).hostname.replace(/^www\./, "");
+  } catch {
+    return website;
+  }
+}
+
 function OutletRow({
   outlet,
+  details,
   onOpen,
+  onEditDetails,
   onAddPitch,
   onAddFeature,
 }: {
   outlet: OutletSummary;
+  details: OutletDetails | undefined;
   onOpen: () => void;
+  onEditDetails: (details: OutletDetails) => void;
   onAddPitch: () => void;
   onAddFeature: () => void;
 }) {
@@ -732,6 +774,12 @@ function OutletRow({
   ]
     .filter(Boolean)
     .join(" · ");
+  const summary = details
+    ? [details.tier, details.contactName ?? details.contactEmail, details.website && websiteHost(details.website)]
+        .filter(Boolean)
+        .join(" · ")
+    : "";
+  const contactName = details?.contactName ?? details?.contactEmail;
 
   return (
     <TableRow
@@ -748,13 +796,52 @@ function OutletRow({
       <TableCell>
         <div className="flex w-[150px] min-w-0 items-center gap-2.5 sm:w-[260px] sm:gap-3">
           <Monogram name={outlet.name} className={outlet.stage === "Featured" ? "bg-primary text-primary-foreground" : undefined} />
-          <p className="m-0 truncate font-semibold text-foreground" title={outlet.name}>
-            {outlet.name}
-          </p>
+          <div className="min-w-0">
+            <p className="m-0 truncate font-semibold text-foreground" title={outlet.name}>
+              {outlet.name}
+            </p>
+            <p
+              className={cn("m-0 truncate text-xs lg:hidden", summary ? "text-muted-foreground" : "text-faint-foreground")}
+              title={summary || undefined}
+            >
+              {summary || "No contact details yet"}
+            </p>
+          </div>
         </div>
       </TableCell>
       <TableCell>
         <StatusBadge {...badge} />
+      </TableCell>
+      <TableCell className={cn("hidden md:table-cell", details?.tier ? "text-foreground" : "text-faint-foreground")}>
+        {details?.tier ?? "–"}
+      </TableCell>
+      <TableCell className="hidden lg:table-cell" onClick={(event) => event.stopPropagation()}>
+        {contactName || details?.website ? (
+          <div className="flex max-w-[220px] min-w-0 flex-col">
+            {contactName && (
+              <span className="truncate text-foreground" title={contactName}>
+                {contactName}
+              </span>
+            )}
+            {details?.contactName && details.contactEmail && (
+              <a href={`mailto:${details.contactEmail}`} className="truncate text-xs text-primary-deep hover:underline">
+                {details.contactEmail}
+              </a>
+            )}
+            {details?.website && (
+              <a
+                href={details.website}
+                target="_blank"
+                rel="noreferrer"
+                className="truncate text-xs text-primary-deep hover:underline"
+              >
+                {websiteHost(details.website)}
+              </a>
+            )}
+          </div>
+        ) : (
+          <span className="text-faint-foreground">–</span>
+        )}
       </TableCell>
       <TableCell className="hidden font-semibold tabular-nums md:table-cell">
         {outlet.features ? outlet.features : <span className="font-normal text-faint-foreground">–</span>}
@@ -769,6 +856,10 @@ function OutletRow({
             <MoreHorizontalIcon aria-hidden="true" />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-44">
+            <DropdownMenuItem disabled={!details} onSelect={() => details && onEditDetails(details)}>
+              <PencilIcon aria-hidden="true" />
+              View or edit details
+            </DropdownMenuItem>
             <DropdownMenuItem onSelect={onOpen}>
               <ArrowUpRightIcon aria-hidden="true" />
               View details

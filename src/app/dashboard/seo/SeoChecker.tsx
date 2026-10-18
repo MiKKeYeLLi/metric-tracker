@@ -24,11 +24,9 @@ import { CATEGORY_LABELS, CATEGORY_ORDER, IMPORTANCE_LABEL, scoreLabel } from "@
 import { todoList } from "@/lib/seo/scoring";
 import type { CategoryId, Outcome, Severity } from "@/lib/seo/types";
 import { cn } from "@/lib/utils";
-import { openCheck, runCheck, type ActionResult } from "./actions";
+import { openCheck, runCheck, saveSeoSettings, type ActionResult } from "./actions";
 import type { SeoView } from "./data";
 
-const DEFAULT_URL = "https://zedu.chat";
-const URL_STORAGE_KEY = "zedu-amp:seo-checker-url";
 // A saved check younger than this is shown as-is on load instead of running a new one.
 const FRESH_FOR_MS = 10 * 60_000;
 
@@ -68,25 +66,9 @@ function hostOf(url: string) {
   }
 }
 
-function readStoredUrl() {
-  try {
-    return window.localStorage.getItem(URL_STORAGE_KEY) || DEFAULT_URL;
-  } catch {
-    return DEFAULT_URL;
-  }
-}
-
-function storeUrl(url: string) {
-  try {
-    window.localStorage.setItem(URL_STORAGE_KEY, url);
-  } catch {
-    // Storage can be unavailable (private mode); the address still applies for this visit.
-  }
-}
-
-export function SeoChecker({ initial }: { initial: SeoView | null }) {
+export function SeoChecker({ initial, initialUrl }: { initial: SeoView | null; initialUrl: string }) {
   const [view, setView] = useState<SeoView | null>(initial);
-  const [url, setUrl] = useState<string | null>(null);
+  const [url, setUrl] = useState(initialUrl);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState("");
   const [filter, setFilter] = useState<CategoryId>("meta");
@@ -117,17 +99,15 @@ export function SeoChecker({ initial }: { initial: SeoView | null }) {
   useEffect(() => {
     if (startedRef.current) return;
     startedRef.current = true;
-    const target = readStoredUrl();
-    setUrl(target);
+    const target = initialUrl;
     const sameUrl = initial && hostOf(initial.check.url) === hostOf(target);
     const fresh = sameUrl && Date.now() - new Date(initial.check.createdAt).getTime() < FRESH_FOR_MS;
     if (!sameUrl) setView(null);
     if (!fresh) check(target);
-    // Runs once on mount: the stored address only exists in the browser.
-  }, []);
+  }, [initial, initialUrl]);
 
   function openSettings() {
-    setDraftUrl(url ?? DEFAULT_URL);
+    setDraftUrl(url);
     setSettingsOpen(true);
   }
 
@@ -135,11 +115,18 @@ export function SeoChecker({ initial }: { initial: SeoView | null }) {
     event.preventDefault();
     const next = draftUrl.trim();
     if (!next) return;
-    storeUrl(next);
-    setUrl(next);
-    setSettingsOpen(false);
-    if (view && hostOf(view.check.url) !== hostOf(next)) setView(null);
-    check(next);
+    start(async () => {
+      const saved = await saveSeoSettings({ url: next });
+      if (!saved.ok) {
+        setError(saved.error);
+        return;
+      }
+      setUrl(saved.url);
+      setSettingsOpen(false);
+      if (view && hostOf(view.check.url) !== hostOf(saved.url)) setView(null);
+      setStatus(`Checking ${hostOf(saved.url)}…`);
+      apply(await runCheck({ url: saved.url }), "Settings saved and check complete.");
+    });
   }
 
   function toggle(id: string) {
@@ -155,7 +142,7 @@ export function SeoChecker({ initial }: { initial: SeoView | null }) {
   const todo = c ? todoList(c.results) : [];
   const rows = c ? c.results.filter((r) => r.category === filter) : [];
   const delta = c && view?.previous ? c.score - view.previous.score : null;
-  const firstLoad = !c && (pending || url === null);
+  const firstLoad = !c && pending;
 
   return (
     <>
@@ -169,8 +156,8 @@ export function SeoChecker({ initial }: { initial: SeoView | null }) {
               size="icon"
               aria-label="Run the check again"
               title="Run again"
-              disabled={pending || url === null}
-              onClick={() => url && check(url)}
+              disabled={pending}
+              onClick={() => check(url)}
             >
               {pending ? <Spinner aria-hidden="true" /> : <RotateCwIcon aria-hidden="true" />}
             </Button>
@@ -193,11 +180,9 @@ export function SeoChecker({ initial }: { initial: SeoView | null }) {
                 <Button type="button" variant="outline" size="sm" onClick={openSettings}>
                   Change page
                 </Button>
-                {url && (
-                  <Button type="button" variant="outline" size="sm" onClick={() => check(url)}>
-                    Try again
-                  </Button>
-                )}
+                <Button type="button" variant="outline" size="sm" onClick={() => check(url)}>
+                  Try again
+                </Button>
               </span>
             </AlertDescription>
           </Alert>
@@ -497,13 +482,14 @@ export function SeoChecker({ initial }: { initial: SeoView | null }) {
                   onChange={(event) => setDraftUrl(event.target.value)}
                   autoFocus
                 />
-                <FieldDescription className="text-xs">Saved in this browser. The default is zedu.chat.</FieldDescription>
+                <FieldDescription className="text-xs">Shared with everyone in this workspace.</FieldDescription>
               </Field>
               <DialogFooter>
                 <Button type="button" variant="ghost" onClick={() => setSettingsOpen(false)}>
                   Cancel
                 </Button>
-                <Button type="submit" disabled={!draftUrl.trim()}>
+                <Button type="submit" disabled={pending || !draftUrl.trim()}>
+                  {pending && <Spinner data-icon="inline-start" />}
                   Save and check
                 </Button>
               </DialogFooter>

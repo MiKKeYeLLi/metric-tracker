@@ -1,18 +1,41 @@
 "use server";
 
 import { getServerSession } from "next-auth";
-import { z } from "zod";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { SeoCheckError } from "@/lib/seo/errors";
 import { runSeoCheck } from "@/lib/seo/run";
+import { z } from "@/lib/zod";
 import { buildView, getViewById, type SeoView } from "./data";
 
 export type ActionResult = { ok: true; view: SeoView } | { ok: false; error: string };
+export type SettingsResult = { ok: true; url: string } | { ok: false; error: string };
 
 const input = z.object({
   url: z.string().trim().min(1, "Enter a page address.").max(2048, "That address is too long."),
 });
+
+const settingsInput = input.refine(
+  ({ url }) => {
+    try {
+      const parsed = new URL(url.includes("://") ? url : `https://${url}`);
+      return parsed.protocol === "http:" || parsed.protocol === "https:";
+    } catch {
+      return false;
+    }
+  },
+  { message: "Enter a valid HTTP or HTTPS address." }
+);
+
+type SeoSettingsClient = {
+  seoSettings: {
+    upsert: (args: {
+      where: { id: string };
+      update: { pageUrl: string };
+      create: { id: string; pageUrl: string };
+    }) => Promise<{ pageUrl: string }>;
+  };
+};
 
 // 10 checks per user per minute. In memory, so per server instance: fine for version one.
 const hits = new Map<string, number[]>();
@@ -59,6 +82,21 @@ export async function runCheck(raw: { url: string }): Promise<ActionResult> {
     console.error("SEO check failed", err);
     return { ok: false, error: "Something went wrong running that check. Please try again." };
   }
+}
+
+export async function saveSeoSettings(raw: { url: string }): Promise<SettingsResult> {
+  if (!(await currentUserId())) return { ok: false, error: "Please sign in to save settings." };
+
+  const parsed = settingsInput.safeParse(raw);
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Enter a page address." };
+
+  const url = parsed.data.url.includes("://") ? parsed.data.url : `https://${parsed.data.url}`;
+  const settings = await (prisma as unknown as SeoSettingsClient).seoSettings.upsert({
+    where: { id: "workspace" },
+    update: { pageUrl: url },
+    create: { id: "workspace", pageUrl: url },
+  });
+  return { ok: true, url: settings.pageUrl };
 }
 
 /** Open an earlier saved check from the history list. */

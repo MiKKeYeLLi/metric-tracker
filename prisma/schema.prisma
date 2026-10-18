@@ -152,6 +152,12 @@ model SeoCheck {
   @@index([normalizedUrl, createdAt])
 }
 
+model SeoSettings {
+  id        String   @id @default("workspace")
+  pageUrl   String
+  updatedAt DateTime @updatedAt
+}
+
 enum DirectoryStatus {
   NotSubmitted
   PendingReview
