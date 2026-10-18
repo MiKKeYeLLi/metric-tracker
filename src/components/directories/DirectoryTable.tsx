@@ -1,7 +1,14 @@
 "use client";
 
 import { FormEvent, useMemo, useState } from "react";
-import { DownloadIcon, MoreVerticalIcon, SearchIcon } from "lucide-react";
+import {
+  DownloadIcon,
+  MoreVerticalIcon,
+  SearchIcon,
+  Trash2Icon,
+  ExternalLinkIcon,
+  Edit3Icon,
+} from "lucide-react";
 import { useDirectories } from "@/context/DirectoryContext";
 import { DirectoryItem, DirectoryStatus, Priority } from "@/types/directory";
 import { Button } from "@/components/ui/button";
@@ -18,12 +25,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import {
   Dialog,
   DialogContent,
@@ -54,7 +55,7 @@ function formatSubmittedDate(dateSubmitted: string) {
 
   const date = new Date(dateSubmitted);
   if (Number.isNaN(date.getTime())) {
-    return "—";
+    return dateSubmitted;
   }
 
   return new Intl.DateTimeFormat("en-GB", {
@@ -91,9 +92,7 @@ function exportDirectoriesToCsv(directories: DirectoryItem[]) {
     ]),
   ];
   const csv = rows.map((row) => row.map(csvValue).join(",")).join("\r\n");
-  const blob = new Blob(["\uFEFF", csv], {
-    type: "text/csv;charset=utf-8",
-  });
+  const blob = new Blob(["\uFEFF", csv], { type: "text/csv;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   const downloadLink = document.createElement("a");
   downloadLink.href = url;
@@ -104,15 +103,106 @@ function exportDirectoriesToCsv(directories: DirectoryItem[]) {
   window.setTimeout(() => URL.revokeObjectURL(url), 0);
 }
 
+function ActionMenu({
+  directory,
+  openEditDirectory,
+  deleteDirectory,
+}: {
+  directory: DirectoryItem;
+  openEditDirectory: (dir: DirectoryItem) => void;
+  deleteDirectory: (id: string) => void;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <div className="relative inline-block text-left">
+      <Button
+        aria-label={`Actions for ${directory.name}`}
+        className="text-muted-foreground hover:text-foreground"
+        size="icon-xs"
+        variant="ghost"
+        onClick={(e) => {
+          e.stopPropagation();
+          setIsOpen((prev) => !prev);
+        }}
+      >
+        <MoreVerticalIcon aria-hidden="true" className="size-4" />
+      </Button>
+
+      {isOpen && (
+        <>
+          <div
+            className="fixed inset-0 z-40"
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsOpen(false);
+            }}
+          />
+
+          <div className="absolute right-0 mt-1 w-48 rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-lg z-50">
+            <button
+              type="button"
+              className="flex w-full items-center rounded-sm px-2.5 py-1.5 text-xs font-medium hover:bg-muted text-left cursor-pointer"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsOpen(false);
+                openEditDirectory(directory);
+              }}
+            >
+              <Edit3Icon className="mr-2 size-3.5 text-muted-foreground" />
+              Edit Details
+            </button>
+            <button
+              type="button"
+              className="flex w-full items-center rounded-sm px-2.5 py-1.5 text-xs font-medium hover:bg-muted text-left cursor-pointer"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsOpen(false);
+                window.open(
+                  websiteHref(directory.website),
+                  "_blank",
+                  "noopener,noreferrer",
+                );
+              }}
+            >
+              <ExternalLinkIcon className="mr-2 size-3.5 text-muted-foreground" />
+              Open Website
+            </button>
+            <div className="my-1 h-px bg-border" />
+            <button
+              type="button"
+              className="flex w-full items-center rounded-sm px-2.5 py-1.5 text-xs font-medium text-destructive hover:bg-destructive/10 text-left cursor-pointer"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsOpen(false);
+                deleteDirectory(directory.id);
+              }}
+            >
+              <Trash2Icon className="mr-2 size-3.5" />
+              Delete Directory
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 export function DirectoryTable() {
-  const { directories, updateDirectory } = useDirectories();
+  const {
+    directories,
+    updateDirectory,
+    deleteDirectory,
+    selectedDirectoryId,
+    setSelectedDirectoryId,
+  } = useDirectories();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [memberFilter, setMemberFilter] = useState("everyone");
   const [priorityFilter, setPriorityFilter] = useState("any");
-  const [editingDirectory, setEditingDirectory] = useState<DirectoryItem | null>(
-    null,
-  );
+  const [editingDirectory, setEditingDirectory] =
+    useState<DirectoryItem | null>(null);
+
   const [editForm, setEditForm] = useState({
     name: "",
     website: "",
@@ -142,12 +232,16 @@ export function DirectoryTable() {
       return;
     }
 
-    updateDirectory({
-      ...editingDirectory,
-      ...editForm,
+    updateDirectory(editingDirectory.id, {
+      name: editForm.name.trim(),
+      website: editForm.website.trim(),
+      status: editForm.status,
+      submittedBy: editForm.submittedBy,
+      priority: editForm.priority,
       listingUrl: editForm.listingUrl.trim() || undefined,
       notes: editForm.notes.trim() || undefined,
     });
+
     setEditingDirectory(null);
   };
 
@@ -169,14 +263,12 @@ export function DirectoryTable() {
       const matchesPriority =
         priorityFilter === "any" || directory.priority === priorityFilter;
 
-      return (
-        matchesSearch && matchesStatus && matchesMember && matchesPriority
-      );
+      return matchesSearch && matchesStatus && matchesMember && matchesPriority;
     });
   }, [directories, memberFilter, priorityFilter, search, statusFilter]);
 
   return (
-    <section className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+    <section className="rounded-xl border border-border bg-card shadow-sm">
       <div className="grid grid-cols-1 gap-2 border-b border-border p-3 lg:grid-cols-[minmax(0,1.5fr)_repeat(3,minmax(0,1fr))]">
         <div className="relative min-w-0">
           <SearchIcon
@@ -276,111 +368,104 @@ export function DirectoryTable() {
         </TableHeader>
         <TableBody>
           {filteredDirectories.length > 0 ? (
-            filteredDirectories.map((directory) => (
-              <TableRow key={directory.id} className="h-[58px] text-xs">
-                <TableCell className="min-w-0 px-2 py-2 align-middle">
-                  <div
-                    className="truncate font-semibold leading-tight text-foreground"
-                    title={directory.name}
-                  >
-                    {directory.name}
-                  </div>
-                  <div className="mt-1 flex min-w-0 items-center gap-1 text-[10px] leading-tight text-muted-foreground">
-                    <a
-                      className="min-w-0 truncate hover:text-primary hover:underline"
-                      href={websiteHref(directory.website)}
-                      rel="noreferrer"
-                      target="_blank"
-                      title={directory.website}
+            filteredDirectories.map((directory) => {
+              const isSelected = selectedDirectoryId === directory.id;
+              return (
+                <TableRow
+                  key={directory.id}
+                  onClick={() => setSelectedDirectoryId(directory.id)}
+                  className={`h-[58px] cursor-pointer text-xs transition-colors ${
+                    isSelected
+                      ? "bg-emerald-500/5 font-medium dark:bg-emerald-950/20"
+                      : "hover:bg-muted/50"
+                  }`}
+                >
+                  <TableCell className="min-w-0 px-2 py-2 align-middle">
+                    <div
+                      className="truncate font-semibold leading-tight text-foreground"
+                      title={directory.name}
                     >
-                      {directory.website}
-                    </a>
-                    {directory.status === "Not submitted" && (
-                      <span className="inline-flex shrink-0 items-center rounded-full border border-border bg-muted px-1.5 py-0.5 text-[9px] font-medium text-muted-foreground">
-                        Suggested
+                      {directory.name}
+                    </div>
+                    <div className="mt-1 flex min-w-0 items-center gap-1 text-[10px] leading-tight text-muted-foreground">
+                      <a
+                        className="min-w-0 truncate hover:text-primary hover:underline"
+                        href={websiteHref(directory.website)}
+                        rel="noreferrer"
+                        target="_blank"
+                        title={directory.website}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {directory.website}
+                      </a>
+                      {directory.status === "Not submitted" && (
+                        <span className="inline-flex shrink-0 items-center rounded-full border border-border bg-muted px-1.5 py-0.5 text-[9px] font-medium text-muted-foreground">
+                          Suggested
+                        </span>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell className="px-2 py-2 align-middle">
+                    <DirectoryStatusBadge
+                      className="h-auto max-w-full shrink-0 gap-1 whitespace-nowrap px-1.5 py-0.5 text-[10px] leading-tight"
+                      status={directory.status}
+                    />
+                  </TableCell>
+                  <TableCell className="px-2 py-2 align-middle text-[11px]">
+                    <span
+                      className={`block truncate ${
+                        directory.submittedBy === "Nobody yet"
+                          ? "text-muted-foreground"
+                          : "text-foreground"
+                      }`}
+                      title={directory.submittedBy}
+                    >
+                      {directory.submittedBy}
+                    </span>
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap px-2 py-2 align-middle text-[10px] text-muted-foreground">
+                    {formatSubmittedDate(directory.dateSubmitted)}
+                  </TableCell>
+                  <TableCell className="px-2 py-2 align-middle">
+                    <span
+                      className={`inline-flex items-center whitespace-nowrap rounded-full border px-1.5 py-0.5 text-[10px] font-medium ${
+                        priorityStyles[directory.priority]
+                      }`}
+                    >
+                      {directory.priority}
+                    </span>
+                  </TableCell>
+                  <TableCell className="px-2 py-2 align-middle text-[10px]">
+                    {directory.listingUrl ? (
+                      <a
+                        className="block truncate font-medium text-primary hover:underline"
+                        href={directory.listingUrl}
+                        rel="noreferrer"
+                        target="_blank"
+                        title={directory.listingUrl}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        View listing ↗
+                      </a>
+                    ) : (
+                      <span className="whitespace-nowrap text-[10px] text-muted-foreground">
+                        Not yet
                       </span>
                     )}
-                  </div>
-                </TableCell>
-                <TableCell className="px-2 py-2 align-middle">
-                  <DirectoryStatusBadge
-                    className="h-auto max-w-full shrink-0 gap-1 whitespace-nowrap px-1.5 py-0.5 text-[10px] leading-tight"
-                    status={directory.status}
-                  />
-                </TableCell>
-                <TableCell className="px-2 py-2 align-middle text-[11px]">
-                  <span
-                    className={`block truncate ${
-                      directory.submittedBy === "Nobody yet"
-                        ? "text-muted-foreground"
-                        : "text-foreground"
-                    }`}
-                    title={directory.submittedBy}
+                  </TableCell>
+                  <TableCell
+                    className="px-2 py-2 text-right align-middle"
+                    onClick={(e) => e.stopPropagation()}
                   >
-                    {directory.submittedBy}
-                  </span>
-                </TableCell>
-                <TableCell className="whitespace-nowrap px-2 py-2 align-middle text-[10px] text-muted-foreground">
-                  {formatSubmittedDate(directory.dateSubmitted)}
-                </TableCell>
-                <TableCell className="px-2 py-2 align-middle">
-                  <span
-                    className={`inline-flex items-center whitespace-nowrap rounded-full border px-1.5 py-0.5 text-[10px] font-medium ${priorityStyles[directory.priority]}`}
-                  >
-                    {directory.priority}
-                  </span>
-                </TableCell>
-                <TableCell className="px-2 py-2 align-middle text-[10px]">
-                  {directory.listingUrl ? (
-                    <a
-                      className="block truncate font-medium text-primary hover:underline"
-                      href={directory.listingUrl}
-                      rel="noreferrer"
-                      target="_blank"
-                      title={directory.listingUrl}
-                    >
-                      View listing ↗
-                    </a>
-                  ) : (
-                    <span className="whitespace-nowrap text-[10px] text-muted-foreground">
-                      Not yet
-                    </span>
-                  )}
-                </TableCell>
-                <TableCell className="px-2 py-2 text-right align-middle">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        aria-label={`Actions for ${directory.name}`}
-                        className="text-muted-foreground"
-                        size="icon-xs"
-                        variant="ghost"
-                      >
-                        <MoreVerticalIcon aria-hidden="true" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-44">
-                      <DropdownMenuItem
-                        onSelect={() => openEditDirectory(directory)}
-                      >
-                        Edit Directory
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onSelect={() =>
-                          window.open(
-                            websiteHref(directory.website),
-                            "_blank",
-                            "noopener,noreferrer",
-                          )
-                        }
-                      >
-                        Open directory website
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </TableCell>
-              </TableRow>
-            ))
+                    <ActionMenu
+                      directory={directory}
+                      openEditDirectory={openEditDirectory}
+                      deleteDirectory={deleteDirectory}
+                    />
+                  </TableCell>
+                </TableRow>
+              );
+            })
           ) : (
             <TableRow>
               <TableCell
@@ -405,7 +490,7 @@ export function DirectoryTable() {
           variant="outline"
           className="border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground"
         >
-          <DownloadIcon aria-hidden="true" />
+          <DownloadIcon aria-hidden="true" className="mr-1.5 size-3.5" />
           Export CSV
         </Button>
       </div>
@@ -523,7 +608,10 @@ export function DirectoryTable() {
                 <Input
                   className="h-9 text-sm"
                   onChange={(event) =>
-                    setEditForm({ ...editForm, listingUrl: event.target.value })
+                    setEditForm({
+                      ...editForm,
+                      listingUrl: event.target.value,
+                    })
                   }
                   placeholder="https://"
                   type="url"
