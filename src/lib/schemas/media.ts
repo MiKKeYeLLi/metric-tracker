@@ -54,7 +54,8 @@ export const mediaInputSchema = z.object({
   recordType: recordTypeSchema,
   articleType: articleTypeSchema,
   articleTypeOther: z.string().optional(),
-  title: z.string().trim().min(1, "Article title is required."),
+  // A target outlet often has no story yet, so the title may be empty.
+  title: z.string().trim().max(300).default(""),
   outlet: z.string().trim().min(1, "Media outlet is required."),
   publicationDate: z.string().optional().or(z.literal("")),
   dateSubmitted: z.string().optional().or(z.literal("")),

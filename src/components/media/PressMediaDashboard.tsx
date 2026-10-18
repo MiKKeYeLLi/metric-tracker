@@ -1,26 +1,23 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  BellRingIcon,
+  ArrowUpRightIcon,
   CircleCheckIcon,
   DownloadIcon,
-  EllipsisVerticalIcon,
-  EyeIcon,
-  FileTextIcon,
-  Link2Icon,
-  NewspaperIcon,
+  MoreHorizontalIcon,
   PencilIcon,
   PlusIcon,
-  SearchIcon,
   SendIcon,
   Trash2Icon,
+  XIcon,
 } from "lucide-react";
+import { KpiCard, KpiGrid } from "@/components/KpiCard";
 import { PageContent, PageHeader } from "@/components/PageHeader";
-import { StatCard, StatGrid } from "@/components/StatCard";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { PillSelect, SearchPill, Toolbar, ToolbarGroup } from "@/components/Toolbar";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -33,1188 +30,804 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
-import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Spinner } from "@/components/ui/spinner";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { cn } from "@/lib/utils";
+import { MarkFeaturedDialog } from "./MarkFeaturedDialog";
+import { PressFormDialog } from "./PressFormDialog";
+import {
+  ARTICLE_TYPES,
+  articleTypeLabel,
+  deriveItems,
+  formatDate,
+  groupByOutlet,
+  isFollowUpDue,
+  parseDate,
+  submissionPayload,
+  today,
+  sendJson,
+  type ApiRecord,
+  type OutletSummary,
+  type PressItem,
+  type Stage,
+} from "./press-model";
 
-type RecordType = "Press Coverage" | "Press Submission";
-type ArticleType =
-  | "News Article"
-  | "Interview"
-  | "Feature Story"
-  | "Press Release"
-  | "Opinion / Commentary"
-  | "Partner / Sponsored Content"
-  | "Broadcast / Podcast Appearance"
-  | "Other";
-type SubmissionStatus =
-  | "Draft"
-  | "Submitted"
-  | "Under Review"
-  | "Changes Requested"
-  | "Accepted"
-  | "Published"
-  | "Rejected"
-  | "Withdrawn";
+type View = "outlets" | "featured" | "pipeline";
+type BadgeVariant = "success" | "info" | "warning" | "destructive" | "secondary";
 
-type PressRecord = {
-  id: string;
-  recordType: RecordType;
-  articleType: ArticleType;
-  articleTypeOther?: string;
-  title: string;
-  outlet: string;
-  publicationDate?: string;
-  dateSubmitted?: string;
-  status: SubmissionStatus | "Published";
-  responsiblePerson?: string;
-  followUpDate?: string;
-  articleUrl?: string;
-  documentUrl?: string;
-  notes?: string;
-  linkedCoverageId?: string;
+const ITEM_BADGE: Record<string, { label: string; variant: BadgeVariant }> = {
+  Draft: { label: "Target", variant: "secondary" },
+  Submitted: { label: "Pitched", variant: "info" },
+  "Under Review": { label: "Under review", variant: "info" },
+  "Changes Requested": { label: "Changes requested", variant: "warning" },
+  Accepted: { label: "Accepted", variant: "success" },
+  Published: { label: "Featured", variant: "success" },
+  Rejected: { label: "Rejected", variant: "destructive" },
+  Withdrawn: { label: "Withdrawn", variant: "secondary" },
 };
 
-type FormValues = {
-  recordType: RecordType | "";
-  articleType: ArticleType | "";
-  articleTypeOther: string;
-  title: string;
-  outlet: string;
-  publicationDate: string;
-  dateSubmitted: string;
-  status: SubmissionStatus | "";
-  responsiblePerson: string;
-  followUpDate: string;
-  articleUrl: string;
-  documentUrl: string;
-  notes: string;
+const OUTLET_BADGE: Record<Stage, { label: string; variant: BadgeVariant }> = {
+  Featured: { label: "Featured", variant: "success" },
+  Pitched: { label: "Pitched", variant: "info" },
+  Target: { label: "Target", variant: "secondary" },
+  Closed: { label: "Closed", variant: "destructive" },
 };
 
-const ARTICLE_TYPES: ArticleType[] = [
-  "News Article",
-  "Interview",
-  "Feature Story",
-  "Press Release",
-  "Opinion / Commentary",
-  "Partner / Sponsored Content",
-  "Broadcast / Podcast Appearance",
-  "Other",
-];
-
-const SUBMISSION_STATUSES: SubmissionStatus[] = [
-  "Draft",
-  "Submitted",
-  "Under Review",
-  "Changes Requested",
-  "Accepted",
-  "Published",
-  "Rejected",
-  "Withdrawn",
-];
-
-const EMPTY_FORM: FormValues = {
-  recordType: "Press Coverage",
-  articleType: "",
-  articleTypeOther: "",
-  title: "",
-  outlet: "",
-  publicationDate: "",
-  dateSubmitted: "",
-  status: "Draft",
-  responsiblePerson: "",
-  followUpDate: "",
-  articleUrl: "",
-  documentUrl: "",
-  notes: "",
-};
-
-const formattedToday = new Date().toISOString().slice(0, 10);
-
-function parseDate(value?: string) {
-  if (!value) return null;
-  const parsed = new Date(`${value}T12:00:00`);
-  if (Number.isNaN(parsed.getTime())) {
-    return null;
-  }
-  return parsed;
+function StatusBadge({ label, variant }: { label: string; variant: BadgeVariant }) {
+  return (
+    <Badge variant={variant}>
+      <span className="size-1.5 rounded-full bg-current" aria-hidden="true" />
+      {label}
+    </Badge>
+  );
 }
 
-function formatDate(value?: string) {
-  if (!value) return "—";
-  const parsed = parseDate(value);
-  if (!parsed) return "—";
-  return new Intl.DateTimeFormat("en", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  }).format(parsed);
+function Monogram({ name, className }: { name: string; className?: string }) {
+  return (
+    <span
+      aria-hidden="true"
+      className={cn(
+        "hidden size-9 shrink-0 items-center justify-center rounded-xl bg-accent text-[13px] font-extrabold text-primary-deep min-[420px]:flex",
+        className
+      )}
+    >
+      {name.trim()[0]?.toUpperCase() ?? "?"}
+    </span>
+  );
 }
 
-function getSummaryVariant(status: SubmissionStatus | "Published") {
-  switch (status) {
-    case "Published":
-    case "Accepted":
-      return "success";
-    case "Under Review":
-    case "Submitted":
-    case "Changes Requested":
-      return "warning";
-    case "Rejected":
-    case "Withdrawn":
-      return "destructive";
-    case "Draft":
-      return "secondary";
-    default:
-      return "secondary";
-  }
-}
+const actionsTrigger = cn(
+  buttonVariants({ variant: "ghost", size: "icon-sm" }),
+  "pointer-fine:opacity-0 pointer-fine:group-hover/row:opacity-100 pointer-fine:group-focus-within/row:opacity-100 aria-expanded:opacity-100"
+);
 
-function toFormValues(record?: PressRecord): FormValues {
-  if (!record) {
-    return { ...EMPTY_FORM };
-  }
-
-  return {
-    recordType: record.recordType,
-    articleType: record.articleType,
-    articleTypeOther: record.articleTypeOther ?? "",
-    title: record.title,
-    outlet: record.outlet,
-    publicationDate: record.publicationDate ?? "",
-    dateSubmitted: record.dateSubmitted ?? "",
-    status: record.recordType === "Press Submission" ? (record.status as SubmissionStatus) : "Published",
-    responsiblePerson: record.responsiblePerson ?? "",
-    followUpDate: record.followUpDate ?? "",
-    articleUrl: record.articleUrl ?? "",
-    documentUrl: record.documentUrl ?? "",
-    notes: record.notes ?? "",
-  };
-}
-
-function getRecordDate(record: PressRecord) {
-  if (record.recordType === "Press Coverage") {
-    return record.publicationDate;
-  }
-
-  return record.dateSubmitted;
-}
-
-async function readRecords(): Promise<PressRecord[]> {
-  const response = await fetch("/api/media", { cache: "no-store" });
-  if (!response.ok) {
-    throw new Error("Unable to load media records.");
-  }
-  const data = (await response.json()) as { records?: PressRecord[] };
-  return Array.isArray(data.records) ? data.records : [];
+function csvCell(value: string) {
+  return `"${value.replace(/"/g, '""')}"`;
 }
 
 export function PressMediaDashboard() {
-  const [records, setRecords] = useState<PressRecord[]>([]);
-  const [selectedTab, setSelectedTab] = useState<"all" | "coverage" | "submissions">("all");
-  const [search, setSearch] = useState("");
-  const [recordTypeFilter, setRecordTypeFilter] = useState<"all" | RecordType>("all");
-  const [articleTypeFilter, setArticleTypeFilter] = useState<ArticleType | "all">("all");
-  const [statusFilter, setStatusFilter] = useState<SubmissionStatus | "all">("all");
-  const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
+  const [records, setRecords] = useState<ApiRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [feedback, setFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
-  const [isFormOpen, setIsFormOpen] = useState(false);
-  const [isStatusDialogOpen, setIsStatusDialogOpen] = useState(false);
-  const [isLinkDialogOpen, setIsLinkDialogOpen] = useState(false);
-  const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [statusTargetId, setStatusTargetId] = useState<string | null>(null);
-  const [linkTargetId, setLinkTargetId] = useState<string | null>(null);
-  const [selectedRecord, setSelectedRecord] = useState<PressRecord | null>(null);
-  const [linkedCoverageId, setLinkedCoverageId] = useState("");
-  const [formValues, setFormValues] = useState<FormValues>(EMPTY_FORM);
-  const [formErrors, setFormErrors] = useState<Partial<Record<string, string>>>({});
+  const [loadError, setLoadError] = useState("");
+  const [notice, setNotice] = useState("");
+  const [actionError, setActionError] = useState("");
+  const [view, setView] = useState<View>("outlets");
+  const [search, setSearch] = useState("");
+  const [typeFilter, setTypeFilter] = useState("all");
+  const [stageFilter, setStageFilter] = useState("all");
+  const [form, setForm] = useState<{ item: PressItem | null; stage: Stage; outlet: string } | null>(null);
+  const [featuring, setFeaturing] = useState<PressItem | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<PressItem | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
-  const loadRecords = async () => {
+  const loadRecords = useCallback(async () => {
     setIsLoading(true);
+    setLoadError("");
     try {
-      const nextRecords = await readRecords();
-      setRecords(nextRecords);
-    } catch (error) {
-      setRecords([]);
-      setFeedback({
-        type: "error",
-        message: error instanceof Error ? error.message : "Unable to load media records.",
-      });
+      const response = await fetch("/api/media", { cache: "no-store" });
+      if (!response.ok) throw new Error();
+      const data = (await response.json()) as { records?: ApiRecord[] };
+      setRecords(Array.isArray(data.records) ? data.records : []);
+    } catch {
+      setLoadError("Couldn't load your press list. Check your connection and try again.");
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     void loadRecords();
-  }, []);
+  }, [loadRecords]);
 
-  const filteredRecords = useMemo(() => {
-    const searchTerm = search.trim().toLowerCase();
+  useEffect(() => {
+    if (!notice) return;
+    const timer = window.setTimeout(() => setNotice(""), 4000);
+    return () => window.clearTimeout(timer);
+  }, [notice]);
 
-    return records.filter((record) => {
-      const tabMatches =
-        selectedTab === "all" ||
-        (selectedTab === "coverage" && record.recordType === "Press Coverage") ||
-        (selectedTab === "submissions" && record.recordType === "Press Submission");
+  const afterSave = (message: string) => {
+    setNotice(message);
+    setActionError("");
+    void loadRecords();
+  };
 
-      const recordTypeMatches =
-        recordTypeFilter === "all" || record.recordType === recordTypeFilter;
+  const items = useMemo(() => deriveItems(records), [records]);
+  const outlets = useMemo(() => groupByOutlet(items), [items]);
 
-      const articleTypeMatches =
-        articleTypeFilter === "all" || record.articleType === articleTypeFilter;
+  const featured = items.filter((item) => item.stage === "Featured");
+  const pitched = items.filter((item) => item.stage === "Pitched");
+  const targets = items.filter((item) => item.stage === "Target");
+  const followUpsDue = pitched.filter(isFollowUpDue).length;
+  const year = new Date().getFullYear();
+  const coverageThisYear = featured.filter((item) => parseDate(item.date)?.getFullYear() === year).length;
+  const monthAgo = new Date(Date.now() - 30 * 86_400_000);
+  const firstFeature = new Map<string, Date>();
+  for (const item of featured) {
+    const key = item.outlet.trim().toLocaleLowerCase();
+    const date = parseDate(item.date);
+    if (date && (!firstFeature.has(key) || date < (firstFeature.get(key) as Date))) firstFeature.set(key, date);
+  }
+  const newOutlets = [...firstFeature.values()].filter((date) => date >= monthAgo).length;
+  const outletsFeatured = outlets.filter((outlet) => outlet.stage === "Featured").length;
+  const outletsTargeted = outlets.filter((outlet) => outlet.stage === "Target").length;
 
-      const statusMatches =
-        statusFilter === "all" ||
-        (record.recordType === "Press Submission" && record.status === statusFilter);
+  const query = search.trim().toLocaleLowerCase();
+  const matchesQuery = (text: string) => !query || text.toLocaleLowerCase().includes(query);
+  const visibleOutlets = outlets.filter((outlet) => matchesQuery(outlet.name));
+  const filterItems = (list: PressItem[]) =>
+    list.filter(
+      (item) =>
+        matchesQuery(`${item.outlet} ${item.title} ${item.owner ?? ""}`) &&
+        (typeFilter === "all" || item.articleType === typeFilter)
+    );
+  const visibleFeatured = filterItems(featured).sort((a, b) => (b.date ?? "").localeCompare(a.date ?? ""));
+  const visiblePipeline = filterItems(items.filter((item) => item.stage !== "Featured"))
+    .filter((item) => stageFilter === "all" || item.stage === stageFilter)
+    .sort(
+      (a, b) =>
+        Number(isFollowUpDue(b)) - Number(isFollowUpDue(a)) ||
+        ["Pitched", "Target", "Closed"].indexOf(a.stage) - ["Pitched", "Target", "Closed"].indexOf(b.stage) ||
+        (b.date ?? "").localeCompare(a.date ?? "")
+    );
 
-      const searchMatches =
-        !searchTerm ||
-        record.title.toLowerCase().includes(searchTerm) ||
-        record.outlet.toLowerCase().includes(searchTerm);
-
-      const dateValue = getRecordDate(record);
-      const fromMatch = !dateFrom || !dateValue || dateValue >= dateFrom;
-      const toMatch = !dateTo || !dateValue || dateValue <= dateTo;
-
-      return (
-        tabMatches &&
-        recordTypeMatches &&
-        articleTypeMatches &&
-        statusMatches &&
-        searchMatches &&
-        fromMatch &&
-        toMatch
-      );
-    });
-  }, [articleTypeFilter, dateFrom, dateTo, records, recordTypeFilter, search, selectedTab, statusFilter]);
-
-  const totalCoverage = useMemo(
-    () => records.filter((record) => record.recordType === "Press Coverage").length,
-    [records],
-  );
-
-  const activeSubmissions = useMemo(
-    () =>
-      records.filter(
-        (record) =>
-          record.recordType === "Press Submission" &&
-          !["Rejected", "Withdrawn", "Published"].includes(record.status),
-      ).length,
-    [records],
-  );
-
-  const currentYear = new Date().getFullYear();
-
-  const publishedThisYear = useMemo(
-    () =>
-      records.filter((record) => {
-        const publicationDate =
-          record.recordType === "Press Coverage"
-            ? record.publicationDate
-            : record.status === "Published"
-              ? record.publicationDate ?? record.dateSubmitted
-              : null;
-
-        if (!publicationDate) return false;
-        const parsed = parseDate(publicationDate);
-        return parsed ? parsed.getFullYear() === currentYear : false;
-      }).length,
-    [currentYear, records],
-  );
-
-  const followUpsDue = useMemo(
-    () =>
-      records.filter((record) => {
-        if (record.recordType !== "Press Submission" || !record.followUpDate) return false;
-        const parsed = parseDate(record.followUpDate);
-        if (!parsed) return false;
-        return parsed <= new Date(formattedToday) && !["Published", "Rejected", "Withdrawn"].includes(record.status);
-      }).length,
-    [records],
-  );
-
-  const coverageOptions = records.filter((record) => record.recordType === "Press Coverage");
-
+  const hasFilters = search !== "" || typeFilter !== "all" || stageFilter !== "all";
   const clearFilters = () => {
     setSearch("");
-    setRecordTypeFilter("all");
-    setArticleTypeFilter("all");
-    setStatusFilter("all");
-    setDateFrom("");
-    setDateTo("");
+    setTypeFilter("all");
+    setStageFilter("all");
   };
 
-  const handleOpenNewRecord = () => {
-    setEditingId(null);
-    setFormValues({ ...EMPTY_FORM, recordType: "Press Coverage" });
-    setFormErrors({});
-    setIsFormOpen(true);
+  const show = (next: View, stage = "all", outlet = "") => {
+    setView(next);
+    setTypeFilter("all");
+    setStageFilter(stage);
+    setSearch(outlet);
   };
 
-  const handleEditRecord = (record: PressRecord) => {
-    setEditingId(record.id);
-    setFormValues(toFormValues(record));
-    setFormErrors({});
-    setIsFormOpen(true);
-  };
+  const openForm = (item: PressItem | null, stage: Stage = "Target", outlet = "") => setForm({ item, stage, outlet });
 
-  const updateFormValue = <Key extends keyof FormValues>(field: Key, value: FormValues[Key]) => {
-    setFormValues((current) => ({
-      ...current,
-      [field]: value,
-    }));
-
-    setFormErrors((current) => ({ ...current, [field]: undefined }));
-  };
-
-  const validateForm = () => {
-    const errors: Partial<Record<string, string>> = {};
-
-    if (!formValues.recordType) {
-      errors.recordType = "Select a record type.";
-    }
-
-    if (!formValues.title.trim()) {
-      errors.title = "Article title is required.";
-    }
-
-    if (!formValues.outlet.trim()) {
-      errors.outlet = "Media outlet is required.";
-    }
-
-    if (!formValues.articleType) {
-      errors.articleType = "Choose an article type.";
-    }
-
-    if (formValues.articleType === "Other" && !formValues.articleTypeOther.trim()) {
-      errors.articleTypeOther = "Describe the other article type.";
-    }
-
-    if (formValues.recordType === "Press Coverage" && !formValues.articleUrl.trim()) {
-      errors.articleUrl = "Published article URL is required.";
-    }
-
-    if (formValues.recordType === "Press Submission") {
-      if (!formValues.dateSubmitted) {
-        errors.dateSubmitted = "Date submitted is required.";
-      }
-
-      if (!formValues.status) {
-        errors.status = "Status is required.";
-      }
-    }
-
-    setFormErrors(errors);
-    return Object.keys(errors).length === 0;
-  };
-
-  const handleSubmitRecord = async () => {
-    if (!validateForm()) {
-      setFeedback({ type: "error", message: "Please fix the highlighted fields before saving." });
-      return;
-    }
-
-    const payload = {
-      recordType: formValues.recordType,
-      articleType: formValues.articleType,
-      articleTypeOther: formValues.articleTypeOther,
-      title: formValues.title,
-      outlet: formValues.outlet,
-      publicationDate: formValues.publicationDate,
-      dateSubmitted: formValues.dateSubmitted,
-      status: formValues.status,
-      responsiblePerson: formValues.responsiblePerson,
-      followUpDate: formValues.followUpDate,
-      articleUrl: formValues.articleUrl,
-      documentUrl: formValues.documentUrl,
-      notes: formValues.notes,
-    };
-
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    setIsDeleting(true);
     try {
-      if (editingId) {
-        const response = await fetch(`/api/media/${editingId}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          throw new Error(errorData.error ?? "Unable to update record.");
-        }
-        setFeedback({ type: "success", message: "Record updated successfully." });
-      } else {
-        const response = await fetch("/api/media", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          throw new Error(errorData.error ?? "Unable to create record.");
-        }
-        setFeedback({ type: "success", message: "Record added successfully." });
+      const ids = [deleteTarget.coverage?.id, deleteTarget.submission?.id].filter(Boolean) as string[];
+      for (const id of ids) {
+        const response = await fetch(`/api/media/${id}`, { method: "DELETE" });
+        if (!response.ok && response.status !== 404) throw new Error();
       }
-
-      setIsFormOpen(false);
-      setEditingId(null);
-      setFormValues({ ...EMPTY_FORM, recordType: "Press Coverage" });
-      await loadRecords();
-    } catch (error) {
-      setFeedback({
-        type: "error",
-        message: error instanceof Error ? error.message : "Unable to save the record.",
-      });
+      setDeleteTarget(null);
+      afterSave(`${deleteTarget.outlet} removed.`);
+    } catch {
+      setActionError("Couldn't delete that. Please try again.");
+    } finally {
+      setIsDeleting(false);
     }
   };
 
-  const handleDeleteRecord = async (recordId: string) => {
+  const reopen = async (item: PressItem) => {
+    if (!item.submission) return;
     try {
-      const response = await fetch(`/api/media/${recordId}`, { method: "DELETE" });
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error ?? "Unable to delete record.");
-      }
-      setFeedback({ type: "success", message: "Record deleted." });
-      await loadRecords();
+      await sendJson(`/api/media/${item.submission.id}`, "PUT", submissionPayload(item.submission, { status: "Submitted" }));
+      afterSave(`${item.outlet} is back in progress.`);
     } catch (error) {
-      setFeedback({
-        type: "error",
-        message: error instanceof Error ? error.message : "Unable to delete record.",
-      });
-    }
-  };
-
-  const handleStatusUpdate = (recordId: string) => {
-    setStatusTargetId(recordId);
-    const record = records.find((item) => item.id === recordId);
-    if (!record) return;
-    setFormValues((current) => ({ ...current, status: record.status as SubmissionStatus }));
-    setIsStatusDialogOpen(true);
-  };
-
-  const saveStatusUpdate = async () => {
-    if (!statusTargetId) return;
-
-    try {
-      const response = await fetch(`/api/media/${statusTargetId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...toFormValues(records.find((record) => record.id === statusTargetId)),
-          status: formValues.status,
-          articleType: records.find((record) => record.id === statusTargetId)?.articleType ?? "News Article",
-          title: records.find((record) => record.id === statusTargetId)?.title ?? "",
-          outlet: records.find((record) => record.id === statusTargetId)?.outlet ?? "",
-          recordType: "Press Submission",
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error ?? "Unable to update status.");
-      }
-
-      setIsStatusDialogOpen(false);
-      setStatusTargetId(null);
-      setFeedback({ type: "success", message: "Submission status updated." });
-      await loadRecords();
-    } catch (error) {
-      setFeedback({
-        type: "error",
-        message: error instanceof Error ? error.message : "Unable to update status.",
-      });
-    }
-  };
-
-  const handleLinkCoverage = (recordId: string) => {
-    const record = records.find((item) => item.id === recordId);
-    if (!record || record.recordType !== "Press Submission") return;
-    setLinkTargetId(recordId);
-    setLinkedCoverageId(record.linkedCoverageId ?? "");
-    setIsLinkDialogOpen(true);
-  };
-
-  const saveLinkedCoverage = async () => {
-    if (!linkTargetId) return;
-
-    try {
-      const record = records.find((item) => item.id === linkTargetId);
-      const response = await fetch(`/api/media/${linkTargetId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...toFormValues(record),
-          linkedCoverageId,
-          articleType: record?.articleType ?? "News Article",
-          title: record?.title ?? "",
-          outlet: record?.outlet ?? "",
-          recordType: "Press Submission",
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error ?? "Unable to link coverage.");
-      }
-
-      setIsLinkDialogOpen(false);
-      setLinkTargetId(null);
-      setFeedback({ type: "success", message: "Coverage link saved." });
-      await loadRecords();
-    } catch (error) {
-      setFeedback({
-        type: "error",
-        message: error instanceof Error ? error.message : "Unable to link coverage.",
-      });
+      setActionError(error instanceof Error ? error.message : "Couldn't update that. Please try again.");
     }
   };
 
   const exportCsv = () => {
-    if (!filteredRecords.length) {
-      setFeedback({ type: "error", message: "No records match the current filters for export." });
-      return;
-    }
-
-    const headers = [
-      "Title",
-      "Media Outlet",
-      "Article Type",
-      "Record Type",
-      "Status",
-      "Date",
-      "Follow-up Date",
-      "Publication URL",
-      "Document URL",
-      "Notes",
-    ];
-
-    const csvRows = filteredRecords.map((record) => {
-      const dateValue = getRecordDate(record) ?? "";
-      return [
-        record.title,
-        record.outlet,
-        record.articleType === "Other" ? `${record.articleType} (${record.articleTypeOther ?? ""})` : record.articleType,
-        record.recordType,
-        record.status,
-        dateValue,
-        record.followUpDate ?? "",
-        record.articleUrl ?? "",
-        record.documentUrl ?? "",
-        record.notes ?? "",
+    const rows = view === "featured" ? visibleFeatured : view === "pipeline" ? visiblePipeline : items;
+    const header = ["Outlet", "Title", "Stage", "Status", "Type", "Date", "Follow up", "Owner", "Link", "Notes"];
+    const lines = rows.map((item) =>
+      [
+        item.outlet,
+        item.title,
+        item.stage,
+        ITEM_BADGE[item.status]?.label ?? item.status,
+        articleTypeLabel(item),
+        item.date ?? "",
+        item.followUpDate ?? "",
+        item.owner ?? "",
+        item.url ?? "",
+        item.notes ?? "",
       ]
-        .map((value) => `"${String(value).replace(/"/g, '""')}"`)
-        .join(",");
+        .map(csvCell)
+        .join(",")
+    );
+    const blob = new Blob(["﻿", [header.map(csvCell).join(","), ...lines].join("\r\n")], {
+      type: "text/csv;charset=utf-8",
     });
-
-    const csv = [headers.join(","), ...csvRows].join("\n");
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
     anchor.href = url;
-    anchor.download = "press-media-tracking.csv";
+    anchor.download = `press-${today()}.csv`;
     anchor.click();
-    URL.revokeObjectURL(url);
-    setFeedback({ type: "success", message: "CSV export downloaded." });
+    window.setTimeout(() => URL.revokeObjectURL(url), 0);
   };
+
+  const figure = (value: number) => (isLoading || loadError ? "–" : value.toLocaleString());
 
   return (
     <>
       <PageHeader
         title="Press & Media"
-        description="Manage media coverage and track press submissions in one place."
+        description="Where Zedu has been featured, and where you're working to be featured next."
         actions={
           <>
-            <Button variant="outline" onClick={exportCsv}>
+            <Button variant="outline" onClick={exportCsv} disabled={isLoading || items.length === 0}>
               <DownloadIcon data-icon="inline-start" aria-hidden="true" />
               Export
             </Button>
-            <Button onClick={handleOpenNewRecord}>
+            <Button onClick={() => openForm(null)}>
               <PlusIcon data-icon="inline-start" aria-hidden="true" />
-              Add record
+              Add press
             </Button>
           </>
         }
       />
 
       <PageContent>
-        {feedback ? (
-          <Alert variant={feedback.type === "error" ? "destructive" : undefined} className="border border-border bg-card">
-            <AlertTitle>{feedback.type === "error" ? "Action required" : "Saved"}</AlertTitle>
-            <AlertDescription>{feedback.message}</AlertDescription>
+        {notice && (
+          <Alert role="status">
+            <AlertDescription>{notice}</AlertDescription>
           </Alert>
-        ) : null}
-
-        <StatGrid>
-          <StatCard label="Total coverage" value={totalCoverage} icon={<NewspaperIcon aria-hidden="true" />} />
-          <StatCard label="Active submissions" value={activeSubmissions} icon={<SendIcon aria-hidden="true" />} />
-          <StatCard label="Published this year" value={publishedThisYear} icon={<CircleCheckIcon aria-hidden="true" />} />
-          <StatCard
-            label="Follow-ups due"
-            value={followUpsDue}
-            icon={<BellRingIcon aria-hidden="true" />}
-            hint={followUpsDue > 0 ? "Chase these today" : "All caught up"}
-            tone={followUpsDue > 0 ? "warning" : "success"}
-          />
-        </StatGrid>
-
-        <section className="rounded-2xl bg-card p-4 shadow-[0_1px_2px_rgb(21_21_31/0.04)] ring-1 ring-border sm:p-5">
-          <div className="flex flex-col gap-4">
-            <Tabs value={selectedTab} onValueChange={(value) => setSelectedTab(value as "all" | "coverage" | "submissions")}>
-              <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                <TabsList variant="line" className="w-full justify-start lg:w-auto">
-                  <TabsTrigger value="all">All Records</TabsTrigger>
-                  <TabsTrigger value="coverage">Press Coverage</TabsTrigger>
-                  <TabsTrigger value="submissions">Press Submissions</TabsTrigger>
-                </TabsList>
-
-                <div className="flex flex-wrap items-center gap-2">
-                  <div className="relative min-w-[220px] flex-1 lg:min-w-[260px]">
-                    <SearchIcon className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
-                    <Input
-                      aria-label="Search article title or media outlet"
-                      className="pl-9"
-                      placeholder="Search title or outlet"
-                      value={search}
-                      onChange={(event) => setSearch(event.target.value)}
-                    />
-                  </div>
-                  {(search || recordTypeFilter !== "all" || articleTypeFilter !== "all" || statusFilter !== "all" || dateFrom || dateTo) && (
-                    <Button variant="ghost" size="sm" onClick={clearFilters}>
-                      Reset filters
-                    </Button>
-                  )}
-                </div>
-              </div>
-
-              <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-                <Field className="min-w-0">
-                  <FieldLabel>Record type</FieldLabel>
-                  <NativeSelect value={recordTypeFilter} onChange={(event) => setRecordTypeFilter(event.target.value as "all" | RecordType)}>
-                    <NativeSelectOption value="all">All</NativeSelectOption>
-                    <NativeSelectOption value="Press Coverage">Press Coverage</NativeSelectOption>
-                    <NativeSelectOption value="Press Submission">Press Submissions</NativeSelectOption>
-                  </NativeSelect>
-                </Field>
-
-                <Field className="min-w-0">
-                  <FieldLabel>Article type</FieldLabel>
-                  <NativeSelect value={articleTypeFilter} onChange={(event) => setArticleTypeFilter(event.target.value as ArticleType | "all")}>
-                    <NativeSelectOption value="all">All</NativeSelectOption>
-                    {ARTICLE_TYPES.map((type) => (
-                      <NativeSelectOption key={type} value={type}>
-                        {type}
-                      </NativeSelectOption>
-                    ))}
-                  </NativeSelect>
-                </Field>
-
-                <Field className="min-w-0">
-                  <FieldLabel>Status</FieldLabel>
-                  <NativeSelect value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as SubmissionStatus | "all")}>
-                    <NativeSelectOption value="all">All</NativeSelectOption>
-                    {SUBMISSION_STATUSES.map((status) => (
-                      <NativeSelectOption key={status} value={status}>
-                        {status}
-                      </NativeSelectOption>
-                    ))}
-                  </NativeSelect>
-                </Field>
-
-                <Field className="min-w-0">
-                  <FieldLabel>Due date range</FieldLabel>
-                  <div className="grid grid-cols-2 gap-2">
-                    <Input
-                      type="date"
-                      aria-label="Filter from date"
-                      value={dateFrom}
-                      onChange={(event) => setDateFrom(event.target.value)}
-                    />
-                    <Input
-                      type="date"
-                      aria-label="Filter to date"
-                      value={dateTo}
-                      onChange={(event) => setDateTo(event.target.value)}
-                    />
-                  </div>
-                </Field>
-              </div>
-
-              <TabsContent value={selectedTab} className="mt-5">
-                {isLoading ? (
-                  <div className="rounded-xl border border-dashed bg-muted/30 p-10 text-center text-sm text-muted-foreground">
-                    Loading media records…
-                  </div>
-                ) : filteredRecords.length === 0 ? (
-                  <div className="rounded-xl border border-dashed bg-muted/30 p-10 text-center text-sm text-muted-foreground">
-                    No records match the current filters.
-                  </div>
-                ) : (
-                  <div className="overflow-hidden rounded-xl border">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Article Title</TableHead>
-                          <TableHead>Media Outlet</TableHead>
-                          <TableHead>Article Type</TableHead>
-                          <TableHead>Record Type</TableHead>
-                          <TableHead>Date</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead>Follow-up Date</TableHead>
-                          <TableHead className="w-[52px] text-right">Actions</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {filteredRecords.map((record) => (
-                          <TableRow key={record.id}>
-                            <TableCell className="max-w-[220px]">
-                              <div className="flex flex-col gap-1">
-                                <span className="truncate font-medium text-foreground">{record.title}</span>
-                                {record.linkedCoverageId ? (
-                                  <span className="text-xs text-muted-foreground">
-                                    Linked to {records.find((item) => item.id === record.linkedCoverageId)?.title ?? "coverage record"}
-                                  </span>
-                                ) : null}
-                              </div>
-                            </TableCell>
-                            <TableCell>{record.outlet}</TableCell>
-                            <TableCell>
-                              {record.articleType === "Other" && record.articleTypeOther
-                                ? `${record.articleType} — ${record.articleTypeOther}`
-                                : record.articleType}
-                            </TableCell>
-                            <TableCell>
-                              <Badge variant="outline">{record.recordType}</Badge>
-                            </TableCell>
-                            <TableCell className="font-mono text-xs text-foreground">
-                              {formatDate(getRecordDate(record))}
-                            </TableCell>
-                            <TableCell>
-                              <Badge variant={getSummaryVariant(record.status)}>{record.status}</Badge>
-                            </TableCell>
-                            <TableCell className="font-mono text-xs text-foreground">
-                              {record.followUpDate ? formatDate(record.followUpDate) : "—"}
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button variant="ghost" size="icon-sm" aria-label={`Actions for ${record.title}`}>
-                                    <EllipsisVerticalIcon aria-hidden="true" />
-                                  </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                  <DropdownMenuItem onSelect={() => { setSelectedRecord(record); setIsDetailDialogOpen(true); }}>
-                                    <EyeIcon aria-hidden="true" />
-                                    View details
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem onSelect={() => handleEditRecord(record)}>
-                                    <PencilIcon aria-hidden="true" />
-                                    Edit record
-                                  </DropdownMenuItem>
-                                  {record.recordType === "Press Submission" ? (
-                                    <>
-                                      <DropdownMenuItem onSelect={() => handleStatusUpdate(record.id)}>
-                                        <FileTextIcon aria-hidden="true" />
-                                        Update submission status
-                                      </DropdownMenuItem>
-                                      <DropdownMenuItem onSelect={() => handleLinkCoverage(record.id)}>
-                                        <Link2Icon aria-hidden="true" />
-                                        {record.linkedCoverageId ? "Relink coverage" : "Link to coverage"}
-                                      </DropdownMenuItem>
-                                    </>
-                                  ) : null}
-                                  <DropdownMenuItem variant="destructive" onSelect={() => handleDeleteRecord(record.id)}>
-                                    <Trash2Icon aria-hidden="true" />
-                                    Delete record
-                                  </DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                )}
-              </TabsContent>
-            </Tabs>
-          </div>
-        </section>
-
-        <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
-          <DialogContent className="max-h-[90vh] w-full max-w-2xl overflow-y-auto p-0">
-            <div className="px-6 pt-6 pb-0">
-              <DialogHeader>
-                <DialogTitle>{editingId ? "Edit record" : "Add record"}</DialogTitle>
-                <DialogDescription>
-                  Save a press coverage item or a media submission.
-                </DialogDescription>
-              </DialogHeader>
-            </div>
-
-            <div className="space-y-5 px-6 pb-6 pt-4">
-            
-  <FieldGroup>
-    <div className="space-y-2">
-      <FieldLabel>Record type</FieldLabel>
-
-      <Tabs
-        value={formValues.recordType}
-        onValueChange={(value) => {
-          updateFormValue("recordType", value as RecordType);
-        }}
-      >
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="Press Coverage">
-            Press Coverage
-          </TabsTrigger>
-          <TabsTrigger value="Press Submission">
-            Press Submission
-          </TabsTrigger>
-        </TabsList>
-      </Tabs>
-
-      {formErrors.recordType ? (
-        <FieldError>{formErrors.recordType}</FieldError>
-      ) : null}
-    </div>
-  </FieldGroup>
-
-
-              <div className="grid gap-4 md:grid-cols-2">
-                <Field data-invalid={Boolean(formErrors.title)}>
-                  <FieldLabel>Article Title</FieldLabel>
-                  <Input
-                    value={formValues.title}
-                    onChange={(event) => updateFormValue("title", event.target.value)}
-                    aria-invalid={Boolean(formErrors.title)}
-                    placeholder="Article title"
-                  />
-                  {formErrors.title ? <FieldError>{formErrors.title}</FieldError> : null}
-                </Field>
-
-                <Field data-invalid={Boolean(formErrors.outlet)}>
-                  <FieldLabel>Media Outlet</FieldLabel>
-                  <Input
-                    value={formValues.outlet}
-                    onChange={(event) => updateFormValue("outlet", event.target.value)}
-                    aria-invalid={Boolean(formErrors.outlet)}
-                    placeholder="Outlet name"
-                  />
-                  {formErrors.outlet ? <FieldError>{formErrors.outlet}</FieldError> : null}
-                </Field>
-
-                <Field data-invalid={Boolean(formErrors.articleType)}>
-                  <FieldLabel>Article Type</FieldLabel>
-                  <NativeSelect
-                    value={formValues.articleType}
-                    onChange={(event) => updateFormValue("articleType", event.target.value as ArticleType | "")}
-                    aria-invalid={Boolean(formErrors.articleType)}
-                  >
-                    <NativeSelectOption value="">Select</NativeSelectOption>
-                    {ARTICLE_TYPES.map((option) => (
-                      <NativeSelectOption key={option} value={option}>
-                        {option}
-                      </NativeSelectOption>
-                    ))}
-                  </NativeSelect>
-                  {formErrors.articleType ? <FieldError>{formErrors.articleType}</FieldError> : null}
-                </Field>
-
-                <Field>
-                  <FieldLabel>Responsible Person</FieldLabel>
-                  <Input
-                    value={formValues.responsiblePerson}
-                    onChange={(event) => updateFormValue("responsiblePerson", event.target.value)}
-                    placeholder="Optional"
-                  />
-                </Field>
-              </div>
-
-              {formValues.articleType === "Other" ? (
-                <Field data-invalid={Boolean(formErrors.articleTypeOther)}>
-                  <FieldLabel>Other article type description</FieldLabel>
-                  <Input
-                    value={formValues.articleTypeOther}
-                    onChange={(event) => updateFormValue("articleTypeOther", event.target.value)}
-                    aria-invalid={Boolean(formErrors.articleTypeOther)}
-                    placeholder="Describe the category"
-                  />
-                  {formErrors.articleTypeOther ? <FieldError>{formErrors.articleTypeOther}</FieldError> : null}
-                </Field>
-              ) : null}
-
-              {formValues.recordType === "Press Coverage" ? (
-                <div className="grid gap-4 md:grid-cols-2">
-                  <Field data-invalid={Boolean(formErrors.articleUrl)}>
-                    <FieldLabel>Published Article URL</FieldLabel>
-                    <Input
-                      type="url"
-                      value={formValues.articleUrl}
-                      onChange={(event) => updateFormValue("articleUrl", event.target.value)}
-                      aria-invalid={Boolean(formErrors.articleUrl)}
-                      placeholder="https://example.com/article"
-                    />
-                    {formErrors.articleUrl ? <FieldError>{formErrors.articleUrl}</FieldError> : null}
-                  </Field>
-
-                  <Field>
-                    <FieldLabel>Publication Date</FieldLabel>
-                    <Input
-                      type="date"
-                      value={formValues.publicationDate}
-                      onChange={(event) => updateFormValue("publicationDate", event.target.value)}
-                    />
-                  </Field>
-                </div>
+        )}
+        {(loadError || actionError) && (
+          <Alert variant="destructive">
+            <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
+              <span>{loadError || actionError}</span>
+              {loadError ? (
+                <Button type="button" variant="outline" size="sm" onClick={() => void loadRecords()}>
+                  Try again
+                </Button>
               ) : (
-                <div className="grid gap-4 md:grid-cols-2">
-                  <Field data-invalid={Boolean(formErrors.dateSubmitted)}>
-                    <FieldLabel>Date Submitted</FieldLabel>
-                    <Input
-                      type="date"
-                      value={formValues.dateSubmitted}
-                      onChange={(event) => updateFormValue("dateSubmitted", event.target.value)}
-                      aria-invalid={Boolean(formErrors.dateSubmitted)}
-                    />
-                    {formErrors.dateSubmitted ? <FieldError>{formErrors.dateSubmitted}</FieldError> : null}
-                  </Field>
-
-                  <Field data-invalid={Boolean(formErrors.status)}>
-                    <FieldLabel>Status</FieldLabel>
-                    <NativeSelect
-                      value={formValues.status}
-                      onChange={(event) => updateFormValue("status", event.target.value as SubmissionStatus | "")}
-                      aria-invalid={Boolean(formErrors.status)}
-                    >
-                      <NativeSelectOption value="">Select</NativeSelectOption>
-                      {SUBMISSION_STATUSES.map((status) => (
-                        <NativeSelectOption key={status} value={status}>
-                          {status}
-                        </NativeSelectOption>
-                      ))}
-                    </NativeSelect>
-                    {formErrors.status ? <FieldError>{formErrors.status}</FieldError> : null}
-                  </Field>
-
-                  <Field>
-                    <FieldLabel>Follow-up Date</FieldLabel>
-                    <Input
-                      type="date"
-                      value={formValues.followUpDate}
-                      onChange={(event) => updateFormValue("followUpDate", event.target.value)}
-                    />
-                  </Field>
-
-                  <Field>
-                    <FieldLabel>Draft / Document URL</FieldLabel>
-                    <Input
-                      type="url"
-                      value={formValues.documentUrl}
-                      onChange={(event) => updateFormValue("documentUrl", event.target.value)}
-                      placeholder="https://example.com/document"
-                    />
-                  </Field>
-                </div>
+                <Button type="button" variant="ghost" size="sm" onClick={() => setActionError("")}>
+                  Dismiss
+                </Button>
               )}
+            </AlertDescription>
+          </Alert>
+        )}
 
-              {formValues.recordType === "Press Submission" ? (
-                <Field>
-                  <FieldLabel>Published Article URL</FieldLabel>
-                  <Input
-                    type="url"
-                    value={formValues.articleUrl}
-                    onChange={(event) => updateFormValue("articleUrl", event.target.value)}
-                    placeholder="Optional until publication"
-                  />
-                </Field>
-              ) : null}
+        <KpiGrid>
+          <KpiCard
+            title="Outlets featured in"
+            value={figure(outletsFeatured)}
+            delta={
+              isLoading || loadError
+                ? undefined
+                : { label: `+${newOutlets}`, direction: newOutlets > 0 ? "up" : "flat", favorable: true }
+            }
+            comparison="new in the last 30 days"
+            action={{ label: "Show where Zedu has been featured", onClick: () => show("featured") }}
+          />
+          <KpiCard
+            title="Pieces of coverage"
+            value={figure(featured.length)}
+            context={isLoading || loadError ? undefined : `${coverageThisYear} published this year`}
+            action={{ label: "Show all coverage", onClick: () => show("featured") }}
+          />
+          <KpiCard
+            title="Pitches in progress"
+            value={figure(pitched.length)}
+            context={
+              isLoading || loadError ? undefined : followUpsDue > 0 ? (
+                <span className="font-semibold text-warning">
+                  {followUpsDue} {followUpsDue === 1 ? "follow-up" : "follow-ups"} due
+                </span>
+              ) : (
+                "No follow-ups due"
+              )
+            }
+            action={{ label: "Show pitches in progress", onClick: () => show("pipeline", "Pitched") }}
+          />
+          <KpiCard
+            title="Targets"
+            value={figure(targets.length)}
+            context={isLoading || loadError ? undefined : `${outletsTargeted} ${outletsTargeted === 1 ? "outlet" : "outlets"} not pitched yet`}
+            action={{ label: "Show targets", onClick: () => show("pipeline", "Target") }}
+          />
+        </KpiGrid>
 
-              <Field>
-                <FieldLabel>Notes</FieldLabel>
-                <Input
-                  value={formValues.notes}
-                  onChange={(event) => updateFormValue("notes", event.target.value)}
-                  placeholder="Summary / notes"
+        <Tabs value={view} onValueChange={(value) => setView(value as View)} className="gap-4">
+          <Toolbar>
+            <ToolbarGroup className="md:flex-1">
+              <TabsList className="h-10! shrink-0 p-1">
+                <TabsTrigger value="outlets" className="px-4">
+                  Outlets
+                </TabsTrigger>
+                <TabsTrigger value="featured" className="px-4">
+                  Featured
+                </TabsTrigger>
+                <TabsTrigger value="pipeline" className="px-4">
+                  Targets & pitches
+                </TabsTrigger>
+              </TabsList>
+            </ToolbarGroup>
+            <ToolbarGroup>
+              <SearchPill
+                value={search}
+                onChange={setSearch}
+                placeholder={view === "outlets" ? "Search outlets" : "Search outlet or story"}
+                className="md:w-60"
+              />
+              {view === "pipeline" && (
+                <PillSelect
+                  label="Stage"
+                  value={stageFilter}
+                  onChange={setStageFilter}
+                  options={[
+                    { value: "all", label: "All" },
+                    { value: "Target", label: "Target" },
+                    { value: "Pitched", label: "Pitched" },
+                    { value: "Closed", label: "Closed" },
+                  ]}
                 />
-              </Field>
-            </div>
+              )}
+              {view !== "outlets" && (
+                <PillSelect
+                  label="Type"
+                  value={typeFilter}
+                  onChange={setTypeFilter}
+                  options={[{ value: "all", label: "All" }, ...ARTICLE_TYPES.map((type) => ({ value: type, label: type }))]}
+                />
+              )}
+              {hasFilters && (
+                <Button type="button" variant="ghost" onClick={clearFilters} className="shrink-0">
+                  <XIcon data-icon="inline-start" aria-hidden="true" />
+                  Clear
+                </Button>
+              )}
+            </ToolbarGroup>
+          </Toolbar>
 
-            <DialogFooter className="px-6 pb-6">
-              <Button variant="outline" onClick={() => setIsFormOpen(false)}>
-                Cancel
-              </Button>
-              <Button onClick={handleSubmitRecord}>Save</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+          <TabsContent value="outlets">
+            <TableCard
+              title="Outlets"
+              count={isLoading ? null : `${visibleOutlets.length} ${visibleOutlets.length === 1 ? "outlet" : "outlets"}`}
+              isLoading={isLoading}
+              isEmpty={!isLoading && !loadError && visibleOutlets.length === 0}
+              empty={
+                outlets.length === 0
+                  ? { title: "No outlets yet", text: "Add the outlets you've been featured in, or want to be.", action: () => openForm(null) }
+                  : { title: "No outlets match", text: "Try a different search.", clear: clearFilters }
+              }
+            >
+              <Table variant="pill" aria-label="Outlets">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Outlet</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="hidden md:table-cell">Features</TableHead>
+                    <TableHead className="hidden lg:table-cell">In progress</TableHead>
+                    <TableHead className="hidden sm:table-cell">Last activity</TableHead>
+                    <TableHead className="w-12 px-1! sm:px-2!">
+                      <span className="sr-only">Actions</span>
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {visibleOutlets.map((outlet) => (
+                    <OutletRow
+                      key={outlet.key}
+                      outlet={outlet}
+                      onOpen={() => show(outlet.stage === "Featured" ? "featured" : "pipeline", "all", outlet.name)}
+                      onAddPitch={() => openForm(null, "Pitched", outlet.name)}
+                      onAddFeature={() => openForm(null, "Featured", outlet.name)}
+                    />
+                  ))}
+                </TableBody>
+              </Table>
+            </TableCard>
+          </TabsContent>
 
-        <Dialog open={isStatusDialogOpen} onOpenChange={setIsStatusDialogOpen}>
-          <DialogContent className="max-w-md">
+          <TabsContent value="featured">
+            <TableCard
+              title="Featured"
+              count={isLoading ? null : `${visibleFeatured.length} ${visibleFeatured.length === 1 ? "piece" : "pieces"}`}
+              isLoading={isLoading}
+              isEmpty={!isLoading && !loadError && visibleFeatured.length === 0}
+              empty={
+                featured.length === 0
+                  ? { title: "No coverage yet", text: "When Zedu gets featured, log it here.", action: () => openForm(null, "Featured") }
+                  : { title: "No coverage matches", text: "Try a different search, or clear the filters.", clear: clearFilters }
+              }
+            >
+              <Table variant="pill" aria-label="Featured coverage">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Outlet</TableHead>
+                    <TableHead className="hidden md:table-cell">Type</TableHead>
+                    <TableHead className="hidden sm:table-cell">Published</TableHead>
+                    <TableHead>Link</TableHead>
+                    <TableHead className="w-12 px-1! sm:px-2!">
+                      <span className="sr-only">Actions</span>
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {visibleFeatured.map((item) => (
+                    <TableRow key={item.id}>
+                      <TableCell>
+                        <OutletCell name={item.outlet} detail={item.title || "No headline yet"} muted={!item.title} />
+                      </TableCell>
+                      <TableCell className={cn("hidden md:table-cell", articleTypeLabel(item) ? "text-foreground" : "text-faint-foreground")}>
+                        {articleTypeLabel(item) || "–"}
+                      </TableCell>
+                      <TableCell className="hidden text-muted-foreground sm:table-cell">{formatDate(item.date)}</TableCell>
+                      <TableCell>
+                        {item.url ? (
+                          <a
+                            href={item.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-1 font-semibold text-primary-deep hover:underline"
+                          >
+                            Read
+                            <ArrowUpRightIcon className="size-3.5" aria-hidden="true" />
+                          </a>
+                        ) : (
+                          <span className="text-faint-foreground">No link</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="px-1! text-right sm:px-2!">
+                        <RowMenu item={item} onEdit={() => openForm(item)} onDelete={() => setDeleteTarget(item)} />
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableCard>
+          </TabsContent>
+
+          <TabsContent value="pipeline">
+            <TableCard
+              title="Targets & pitches"
+              count={isLoading ? null : `${visiblePipeline.length} ${visiblePipeline.length === 1 ? "item" : "items"}`}
+              isLoading={isLoading}
+              isEmpty={!isLoading && !loadError && visiblePipeline.length === 0}
+              empty={
+                items.every((item) => item.stage === "Featured")
+                  ? { title: "Nothing in the pipeline", text: "Add an outlet you'd like to be featured in.", action: () => openForm(null) }
+                  : { title: "Nothing matches", text: "Try a different search, or clear the filters.", clear: clearFilters }
+              }
+            >
+              <Table variant="pill" aria-label="Targets and pitches">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Outlet</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="hidden sm:table-cell">Follow up</TableHead>
+                    <TableHead className="hidden xl:table-cell">Owner</TableHead>
+                    <TableHead className="hidden lg:table-cell">Pitch sent</TableHead>
+                    <TableHead className="hidden md:table-cell">
+                      <span className="sr-only">Next step</span>
+                    </TableHead>
+                    <TableHead className="w-12 px-1! sm:px-2!">
+                      <span className="sr-only">Actions</span>
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {visiblePipeline.map((item) => {
+                    const due = isFollowUpDue(item);
+                    const badge = ITEM_BADGE[item.status] ?? ITEM_BADGE.Draft;
+                    return (
+                      <TableRow key={item.id}>
+                        <TableCell>
+                          <OutletCell name={item.outlet} detail={item.title || "No story yet"} muted={!item.title} />
+                        </TableCell>
+                        <TableCell>
+                          <StatusBadge {...badge} />
+                        </TableCell>
+                        <TableCell className="hidden sm:table-cell">
+                          {item.stage === "Pitched" && item.followUpDate ? (
+                            <span className={cn(due ? "font-semibold text-warning" : "text-muted-foreground")}>
+                              {item.followUpDate === today() ? "Today" : formatDate(item.followUpDate)}
+                              {due && item.followUpDate !== today() && " · overdue"}
+                            </span>
+                          ) : (
+                            <span className="text-faint-foreground">–</span>
+                          )}
+                        </TableCell>
+                        <TableCell className={cn("hidden xl:table-cell", item.owner ? "text-foreground" : "text-faint-foreground")}>
+                          {item.owner || "–"}
+                        </TableCell>
+                        <TableCell className="hidden text-muted-foreground lg:table-cell">
+                          {item.stage === "Target" ? <span className="text-faint-foreground">Not yet</span> : formatDate(item.date)}
+                        </TableCell>
+                        <TableCell className="hidden text-right md:table-cell">
+                          {item.stage === "Target" && (
+                            <Button variant="outline" size="sm" onClick={() => openForm(item, "Pitched")}>
+                              <SendIcon data-icon="inline-start" aria-hidden="true" />
+                              Mark as pitched
+                            </Button>
+                          )}
+                          {item.stage === "Pitched" && (
+                            <Button variant="outline" size="sm" onClick={() => setFeaturing(item)}>
+                              <CircleCheckIcon data-icon="inline-start" aria-hidden="true" />
+                              Mark as featured
+                            </Button>
+                          )}
+                          {item.stage === "Closed" && (
+                            <Button variant="ghost" size="sm" onClick={() => void reopen(item)}>
+                              Reopen
+                            </Button>
+                          )}
+                        </TableCell>
+                        <TableCell className="px-1! text-right sm:px-2!">
+                          <RowMenu
+                            item={item}
+                            onEdit={() => openForm(item, item.stage)}
+                            onDelete={() => setDeleteTarget(item)}
+                            onPitched={item.stage === "Target" ? () => openForm(item, "Pitched") : undefined}
+                            onFeatured={item.stage === "Pitched" ? () => setFeaturing(item) : undefined}
+                          />
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </TableCard>
+          </TabsContent>
+        </Tabs>
+
+        <PressFormDialog
+          open={form !== null}
+          onOpenChange={(open) => !open && setForm(null)}
+          item={form?.item ?? null}
+          startStage={form?.stage}
+          outlet={form?.outlet}
+          onSaved={afterSave}
+        />
+
+        <MarkFeaturedDialog item={featuring} onOpenChange={(open) => !open && setFeaturing(null)} onSaved={afterSave} />
+
+        <Dialog open={deleteTarget !== null} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+          <DialogContent className="sm:max-w-md">
             <DialogHeader>
-              <DialogTitle>Update submission status</DialogTitle>
-              <DialogDescription>Choose the latest status report from the outlet.</DialogDescription>
-            </DialogHeader>
-
-            <Field>
-              <FieldLabel>Status</FieldLabel>
-              <NativeSelect
-                value={formValues.status}
-                onChange={(event) => updateFormValue("status", event.target.value as SubmissionStatus)}
-              >
-                {SUBMISSION_STATUSES.map((status) => (
-                  <NativeSelectOption key={status} value={status}>
-                    {status}
-                  </NativeSelectOption>
-                ))}
-              </NativeSelect>
-            </Field>
-
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsStatusDialogOpen(false)}>
-                Cancel
-              </Button>
-              <Button onClick={saveStatusUpdate}>Update</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        <Dialog open={isLinkDialogOpen} onOpenChange={setIsLinkDialogOpen}>
-          <DialogContent className="max-w-lg">
-            <DialogHeader>
-              <DialogTitle>Link published submission to coverage</DialogTitle>
+              <DialogTitle className="text-xl font-extrabold tracking-[-0.03em]">Remove {deleteTarget?.outlet}?</DialogTitle>
               <DialogDescription>
-                Associate this published item with the matching coverage article.
+                {deleteTarget?.coverage && deleteTarget.submission
+                  ? "This removes the feature and the pitch that led to it. You can't undo this."
+                  : "This removes it from your press list. You can't undo this."}
               </DialogDescription>
             </DialogHeader>
-
-            {coverageOptions.length === 0 ? (
-              <div className="space-y-3 rounded-xl border border-dashed bg-muted/30 p-4 text-sm text-muted-foreground">
-                No coverage records exist yet. Create one first, then link it here.
-                <Button
-                  variant="outline"
-                  className="w-full"
-                  onClick={() => {
-                    setIsLinkDialogOpen(false);
-                    setIsFormOpen(true);
-                    setEditingId(null);
-                    setFormValues({ ...EMPTY_FORM, recordType: "Press Coverage" });
-                  }}
-                >
-                  <NewspaperIcon aria-hidden="true" />
-                  Add coverage record
-                </Button>
-              </div>
-            ) : (
-              <Field>
-                <FieldLabel>Coverage record</FieldLabel>
-                <NativeSelect value={linkedCoverageId} onChange={(event) => setLinkedCoverageId(event.target.value)}>
-                  <NativeSelectOption value="">Select a coverage record</NativeSelectOption>
-                  {coverageOptions.map((option) => (
-                    <NativeSelectOption key={option.id} value={option.id}>
-                      {option.title} — {option.outlet}
-                    </NativeSelectOption>
-                  ))}
-                </NativeSelect>
-              </Field>
-            )}
-
             <DialogFooter>
-              <Button variant="outline" onClick={() => setIsLinkDialogOpen(false)}>
+              <Button type="button" variant="ghost" disabled={isDeleting} onClick={() => setDeleteTarget(null)}>
                 Cancel
               </Button>
-              {coverageOptions.length > 0 ? (
-                <Button onClick={saveLinkedCoverage}>Save link</Button>
-              ) : null}
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        <Dialog open={isDetailDialogOpen} onOpenChange={setIsDetailDialogOpen}>
-          <DialogContent className="max-w-lg">
-            <DialogHeader>
-              <DialogTitle>{selectedRecord?.title ?? "Record details"}</DialogTitle>
-              <DialogDescription>{selectedRecord?.recordType}</DialogDescription>
-            </DialogHeader>
-
-            {selectedRecord ? (
-              <div className="space-y-3 text-sm text-muted-foreground">
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-foreground">Media outlet</span>
-                  <span>{selectedRecord.outlet}</span>
-                </div>
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-foreground">Article type</span>
-                  <span>{selectedRecord.articleType === "Other" ? `${selectedRecord.articleType} (${selectedRecord.articleTypeOther ?? "Other"})` : selectedRecord.articleType}</span>
-                </div>
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-foreground">Date</span>
-                  <span>{formatDate(getRecordDate(selectedRecord))}</span>
-                </div>
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-foreground">Status</span>
-                  <Badge variant={getSummaryVariant(selectedRecord.status)}>{selectedRecord.status}</Badge>
-                </div>
-                {selectedRecord.followUpDate ? (
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="text-foreground">Follow-up date</span>
-                    <span>{formatDate(selectedRecord.followUpDate)}</span>
-                  </div>
-                ) : null}
-                {selectedRecord.articleUrl ? (
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="text-foreground">Article URL</span>
-                    <a className="truncate text-primary-deep underline underline-offset-4" href={selectedRecord.articleUrl} target="_blank" rel="noreferrer">
-                      View
-                    </a>
-                  </div>
-                ) : null}
-                {selectedRecord.documentUrl ? (
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="text-foreground">Document URL</span>
-                    <a className="truncate text-primary-deep underline underline-offset-4" href={selectedRecord.documentUrl} target="_blank" rel="noreferrer">
-                      View
-                    </a>
-                  </div>
-                ) : null}
-                {selectedRecord.linkedCoverageId ? (
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="text-foreground">Linked coverage</span>
-                    <span>{records.find((record) => record.id === selectedRecord.linkedCoverageId)?.title ?? "Linked"}</span>
-                  </div>
-                ) : null}
-                {selectedRecord.notes ? (
-                  <div className="rounded-xl border bg-muted/20 p-3 text-sm text-foreground">
-                    {selectedRecord.notes}
-                  </div>
-                ) : null}
-              </div>
-            ) : null}
-
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsDetailDialogOpen(false)}>
-                Close
+              <Button type="button" variant="destructive" disabled={isDeleting} onClick={() => void confirmDelete()}>
+                {isDeleting ? <Spinner data-icon="inline-start" /> : <Trash2Icon data-icon="inline-start" aria-hidden="true" />}
+                {isDeleting ? "Removing…" : "Remove"}
               </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
       </PageContent>
     </>
+  );
+}
+
+function TableCard({
+  title,
+  count,
+  isLoading,
+  isEmpty,
+  empty,
+  children,
+}: {
+  title: string;
+  count: string | null;
+  isLoading: boolean;
+  isEmpty: boolean;
+  empty: { title: string; text: string; action?: () => void; clear?: () => void };
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="flex min-w-0 flex-col gap-4 rounded-[22px] border border-border bg-card p-4 sm:p-5">
+      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+        <h2 className="m-0 text-[17px] leading-tight font-bold tracking-[-0.02em] text-foreground">{title}</h2>
+        {count && <p className="m-0 text-[13px] text-muted-foreground tabular-nums">{count}</p>}
+      </div>
+      {isLoading ? (
+        <div className="flex flex-col gap-3" aria-busy="true" aria-label="Loading">
+          <Skeleton className="h-11 w-full rounded-full" />
+          {[0, 1, 2, 3].map((index) => (
+            <div key={index} className="flex items-center gap-3 px-2">
+              <Skeleton className="size-9 rounded-xl" />
+              <div className="flex flex-1 flex-col gap-1.5">
+                <Skeleton className="h-3.5 w-40" />
+                <Skeleton className="h-3 w-56" />
+              </div>
+              <Skeleton className="h-6 w-20 rounded-full" />
+            </div>
+          ))}
+        </div>
+      ) : isEmpty ? (
+        <Empty className="rounded-2xl border border-dashed py-12">
+          <EmptyHeader>
+            <EmptyTitle>{empty.title}</EmptyTitle>
+            <EmptyDescription>{empty.text}</EmptyDescription>
+          </EmptyHeader>
+          {empty.action && (
+            <Button onClick={empty.action}>
+              <PlusIcon data-icon="inline-start" aria-hidden="true" />
+              Add press
+            </Button>
+          )}
+          {empty.clear && (
+            <Button variant="outline" onClick={empty.clear}>
+              <XIcon data-icon="inline-start" aria-hidden="true" />
+              Clear filters
+            </Button>
+          )}
+        </Empty>
+      ) : (
+        children
+      )}
+    </section>
+  );
+}
+
+function OutletCell({ name, detail, muted }: { name: string; detail: string; muted?: boolean }) {
+  return (
+    <div className="flex w-[150px] min-w-0 items-center gap-2.5 sm:w-[260px] sm:gap-3 2xl:w-[340px]">
+      <Monogram name={name} />
+      <div className="min-w-0">
+        <p className="m-0 truncate font-semibold text-foreground" title={name}>
+          {name}
+        </p>
+        <p className={cn("m-0 truncate text-xs", muted ? "text-faint-foreground" : "text-muted-foreground")} title={detail}>
+          {detail}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function OutletRow({
+  outlet,
+  onOpen,
+  onAddPitch,
+  onAddFeature,
+}: {
+  outlet: OutletSummary;
+  onOpen: () => void;
+  onAddPitch: () => void;
+  onAddFeature: () => void;
+}) {
+  const badge = OUTLET_BADGE[outlet.stage];
+  const inProgress = [
+    outlet.openPitches ? `${outlet.openPitches} ${outlet.openPitches === 1 ? "pitch" : "pitches"}` : "",
+    outlet.targets ? `${outlet.targets} ${outlet.targets === 1 ? "idea" : "ideas"}` : "",
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
+  return (
+    <TableRow
+      tabIndex={0}
+      onClick={onOpen}
+      onKeyDown={(event) => {
+        if (event.target === event.currentTarget && (event.key === "Enter" || event.key === " ")) {
+          event.preventDefault();
+          onOpen();
+        }
+      }}
+      className="cursor-pointer outline-none focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
+    >
+      <TableCell>
+        <div className="flex w-[150px] min-w-0 items-center gap-2.5 sm:w-[260px] sm:gap-3">
+          <Monogram name={outlet.name} className={outlet.stage === "Featured" ? "bg-primary text-primary-foreground" : undefined} />
+          <p className="m-0 truncate font-semibold text-foreground" title={outlet.name}>
+            {outlet.name}
+          </p>
+        </div>
+      </TableCell>
+      <TableCell>
+        <StatusBadge {...badge} />
+      </TableCell>
+      <TableCell className="hidden font-semibold tabular-nums md:table-cell">
+        {outlet.features ? outlet.features : <span className="font-normal text-faint-foreground">–</span>}
+      </TableCell>
+      <TableCell className={cn("hidden lg:table-cell", inProgress ? "text-muted-foreground" : "text-faint-foreground")}>
+        {inProgress || "–"}
+      </TableCell>
+      <TableCell className="hidden text-muted-foreground sm:table-cell">{formatDate(outlet.lastActivity)}</TableCell>
+      <TableCell className="px-1! text-right sm:px-2!" onClick={(event) => event.stopPropagation()}>
+        <DropdownMenu>
+          <DropdownMenuTrigger type="button" aria-label={`Actions for ${outlet.name}`} className={actionsTrigger}>
+            <MoreHorizontalIcon aria-hidden="true" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-44">
+            <DropdownMenuItem onSelect={onOpen}>
+              <ArrowUpRightIcon aria-hidden="true" />
+              View details
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onSelect={onAddPitch}>
+              <SendIcon aria-hidden="true" />
+              Add a pitch
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={onAddFeature}>
+              <CircleCheckIcon aria-hidden="true" />
+              Log a feature
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </TableCell>
+    </TableRow>
+  );
+}
+
+function RowMenu({
+  item,
+  onEdit,
+  onDelete,
+  onPitched,
+  onFeatured,
+}: {
+  item: PressItem;
+  onEdit: () => void;
+  onDelete: () => void;
+  onPitched?: () => void;
+  onFeatured?: () => void;
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger type="button" aria-label={`Actions for ${item.outlet}`} className={actionsTrigger}>
+        <MoreHorizontalIcon aria-hidden="true" />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-44">
+        {onPitched && (
+          <DropdownMenuItem onSelect={onPitched}>
+            <SendIcon aria-hidden="true" />
+            Mark as pitched
+          </DropdownMenuItem>
+        )}
+        {onFeatured && (
+          <DropdownMenuItem onSelect={onFeatured}>
+            <CircleCheckIcon aria-hidden="true" />
+            Mark as featured
+          </DropdownMenuItem>
+        )}
+        <DropdownMenuItem onSelect={onEdit}>
+          <PencilIcon aria-hidden="true" />
+          Edit
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem variant="destructive" onSelect={onDelete}>
+          <Trash2Icon aria-hidden="true" />
+          Remove
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
