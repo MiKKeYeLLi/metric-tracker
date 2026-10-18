@@ -91,17 +91,16 @@ One family, **Manrope** (`font-sans`), used heavy. **JetBrains Mono** (`font-mon
 │              │  ┌ Chart card (2/3) ──────────────┐┌ Side card (1/3) ┐        │
 │              │  └────────────────────────────────┘└─────────────────┘        │
 │              │  ┌ Table card (2/3) ──────────────┐┌ Side card (1/3) ┐        │
-│ (?) Help     │  └────────────────────────────────┘└─────────────────┘        │
-│ ⇥  Log out   │                                                              │
+│ [AB name  ⇥] │  └────────────────────────────────┘└─────────────────┘        │
+│              │                                                              │
 └──────────────┴──────────────────────────────────────────────────────────────┘
-     232px                       content full width, px-6, gap-4
+     248px (84px collapsed)      content full width, px-6, gap-4
 ```
 
-- **Sidebar (`lg` and up):** `w-[232px]`, `bg-sidebar`, sticky and full height, padding `px-4 pt-6 pb-5`.
+- **Sidebar (`lg` and up):** `AppSidebar`, `w-[248px]` (`w-[84px]` collapsed to an icon rail), `bg-sidebar`, sticky and full height.
   - **Top:** `Wordmark tone="inverse"` with a 26px round collapse button (`‹`) on the right edge.
-  - **Middle:** nav items, with section labels only when a group has 3 or more items.
-  - **Bottom:** Help and Log out as plain nav items.
-  - The account block moves **out** of the sidebar and into the page header (see 3.2).
+  - **Middle:** Overview, a thin divider, then the channel pages. No section labels.
+  - **Bottom:** the account block (initials avatar, name, email, sign-out icon). Collapsed, it shows just the avatar and sign-out. Add a Help item only once a help page exists.
 - **Sidebar (below `lg`):** a sticky top bar (`h-14`) with the mark on the left and a horizontally scrolling row of nav pills.
 - **Main:** `min-w-0 px-4 py-5 sm:px-6 sm:py-6`, with an inner `w-full flex flex-col gap-4`.
 
@@ -350,7 +349,7 @@ Keep motion short and purposeful. Hover colour changes take 120ms. Chart series 
 |---|---|
 | Tokens (`globals.css`) | ✅ Live |
 | `Wordmark` / `BrandMark` | ✅ Exists |
-| Sidebar shell + `SidebarNavLink` | ⚠️ Exists; restyle to 4.12 (larger items, Help and Log out at the bottom, account moves to the header) |
+| Sidebar shell (`AppSidebar`) + `SidebarNavLink` | ✅ Restyled to 4.12: 44px pills, solid violet active pill, collapsible icon rail (remembered per browser), account block at the bottom. No Help link until a help page exists |
 | `PageHeader` / `PageContent` | ✅ Title + subtitle only (no eyebrow), 26px title, full width, 16px gaps. Still to add: the account pill (3.2) and toolbar slot (3.3) |
 | `Button` | ✅ Restyled to 4.9 (all variants and sizes) |
 | `Table` | ✅ `variant="pill"` built to 4.8; used on Content. Other tables switch when their page is redesigned |

@@ -138,7 +138,8 @@ src/
     PageHeader.tsx         # PageHeader + PageContent: the frame every dashboard page uses
     KpiCard.tsx            # KpiCard + KpiGrid + DeltaChip: KPI cards
     Toolbar.tsx            # Toolbar, SearchPill, PillSelect: search and filter row
-    SidebarNav.tsx         # DashboardSidebarNav (the links), SidebarNavSection, SidebarNavLink
+    AppSidebar.tsx         # Sidebar shell: brand, collapse toggle, nav, account block
+    SidebarNav.tsx         # DashboardSidebarNav (the links) and SidebarNavLink
     Wordmark.tsx           # Zedu Amp wordmark and BrandMark
     AuthButtons.tsx
   lib/
@@ -221,15 +222,13 @@ export default function CampaignsPage() {
 
 ### Add it to the sidebar
 
-Add a `SidebarNavLink` to `DashboardSidebarNav` in `src/components/SidebarNav.tsx`, inside the right `SidebarNavSection`:
+Add an entry to the `CHANNELS` list in `src/components/SidebarNav.tsx`:
 
 ```tsx
-<SidebarNavLink aria-current={current("/dashboard/campaigns")} href="/dashboard/campaigns" icon={<MegaphoneIcon aria-hidden="true" />}>
-  Campaigns
-</SidebarNavLink>
+{ href: "/dashboard/campaigns", label: "Campaigns", icon: MegaphoneIcon },
 ```
 
-`current()` compares the link with `usePathname()` and sets `aria-current="page"`, which renders the active white pill.
+The nav compares each `href` with `usePathname()` and sets `aria-current="page"` on the current one, which renders the solid violet pill. When the sidebar is collapsed, the label becomes the icon's tooltip.
 
 ### Server vs client components
 

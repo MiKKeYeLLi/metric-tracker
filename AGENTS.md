@@ -62,7 +62,7 @@ Do these yourself, without being asked, whenever the change applies. If you can'
 ### After adding a dashboard page
 
 - Put it at `src/app/dashboard/<feature>/page.tsx`. Start it with `PageHeader` and wrap the body in `PageContent` (both from `@/components/PageHeader`).
-- Add a `SidebarNavLink` for it to `DashboardSidebarNav` in `src/components/SidebarNav.tsx`, inside the right `SidebarNavSection`, with `aria-current={current("/dashboard/<feature>")}`.
+- Add it to the `CHANNELS` list in `src/components/SidebarNav.tsx` (`{ href, label, icon }`). The nav sets `aria-current="page"` for you.
 
 ### After adding an environment variable
 

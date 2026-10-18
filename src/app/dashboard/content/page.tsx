@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import {
+  ChevronLeft,
+  ChevronRight,
   Clapperboard,
   FileText,
   Lightbulb,
@@ -79,6 +81,7 @@ const CONTENT_TYPE_ICON: Record<ContentType, LucideIcon> = {
 
 const DAY_MS = 86_400_000;
 const CHART_WEEKS = 12;
+const PAGE_SIZE = 15;
 
 function growthDelta(current: number, previous: number): Delta {
   const added = current - previous;
@@ -139,6 +142,11 @@ export default function ContentTrackerPage() {
   const [topicFilter, setTopicFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [sortOrder, setSortOrder] = useState<"newest" | "oldest">("newest");
+  const [page, setPage] = useState(1);
+
+  useEffect(() => {
+    setPage(1);
+  }, [searchQuery, typeFilter, topicFilter, statusFilter, sortOrder]);
   useEffect(() => {
     let isCurrent = true;
 
@@ -222,6 +230,10 @@ export default function ContentTrackerPage() {
       return sortOrder === "newest" ? -dateDifference : dateDifference;
     });
   const availableTopics = Array.from(new Set(rowsState.flatMap((row) => row.topics))).sort();
+  const pageCount = Math.max(1, Math.ceil(filteredRows.length / PAGE_SIZE));
+  const currentPage = Math.min(page, pageCount);
+  const pageStart = (currentPage - 1) * PAGE_SIZE;
+  const pagedRows = filteredRows.slice(pageStart, pageStart + PAGE_SIZE);
 
   const monthAgo = Date.now() - 30 * DAY_MS;
   const published = rowsState.filter((row) => row.status === "Published");
@@ -301,34 +313,6 @@ export default function ContentTrackerPage() {
           />
           <KpiCard title="Views, last 30 days" value="–" context="View tracking isn't connected yet" />
         </KpiGrid>
-
-        <section
-          aria-labelledby="content-created-title"
-          className="flex min-w-0 flex-col gap-4 rounded-[22px] border border-border bg-card p-4 sm:p-5"
-        >
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex flex-col gap-1">
-              <h2 id="content-created-title" className="m-0 text-[17px] leading-tight font-bold tracking-[-0.02em] text-foreground">
-                Content created
-              </h2>
-              <p className="m-0 text-[13px] text-muted-foreground">Pieces added each week, last {CHART_WEEKS} weeks</p>
-            </div>
-            {showFigures && (
-              <p className="m-0 text-[26px] leading-none font-extrabold tracking-[-0.04em] text-foreground tabular-nums">
-                {createdInRange}
-              </p>
-            )}
-          </div>
-          {showFigures ? (
-            <WeeklyBars
-              weeks={chartWeeks}
-              counts={createdPerWeek}
-              label={`Content created per week over the last ${CHART_WEEKS} weeks`}
-            />
-          ) : (
-            <Skeleton className="h-52 w-full rounded-2xl" />
-          )}
-        </section>
 
         {loadError && (
           <Alert variant="destructive">
@@ -471,7 +455,7 @@ export default function ContentTrackerPage() {
                         <TableCell />
                       </TableRow>
                     ))
-                  : filteredRows.map((row) => {
+                  : pagedRows.map((row) => {
                       const TypeIcon = row.type ? CONTENT_TYPE_ICON[row.type] : row.status === "Idea" ? Lightbulb : FileText;
                       return (
                         <TableRow key={row.id}>
@@ -541,6 +525,67 @@ export default function ContentTrackerPage() {
                     })}
               </TableBody>
             </Table>
+          )}
+
+          {!isLoading && filteredRows.length > PAGE_SIZE && (
+            <nav aria-label="Content pages" className="flex items-center justify-between gap-3 border-t border-border pt-4">
+              <p className="m-0 text-[13px] text-muted-foreground tabular-nums">
+                {pageStart + 1}–{pageStart + pagedRows.length} of {filteredRows.length}
+              </p>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon-sm"
+                  aria-label="Previous page"
+                  disabled={currentPage === 1}
+                  onClick={() => setPage(currentPage - 1)}
+                >
+                  <ChevronLeft aria-hidden="true" />
+                </Button>
+                <span className="min-w-14 text-center text-[13px] font-semibold tabular-nums" aria-live="polite">
+                  {currentPage} / {pageCount}
+                </span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon-sm"
+                  aria-label="Next page"
+                  disabled={currentPage === pageCount}
+                  onClick={() => setPage(currentPage + 1)}
+                >
+                  <ChevronRight aria-hidden="true" />
+                </Button>
+              </div>
+            </nav>
+          )}
+        </section>
+
+        <section
+          aria-labelledby="content-created-title"
+          className="flex min-w-0 flex-col gap-4 rounded-[22px] border border-border bg-card p-4 sm:p-5"
+        >
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex flex-col gap-1">
+              <h2 id="content-created-title" className="m-0 text-[17px] leading-tight font-bold tracking-[-0.02em] text-foreground">
+                Content created
+              </h2>
+              <p className="m-0 text-[13px] text-muted-foreground">Pieces added each week, last {CHART_WEEKS} weeks</p>
+            </div>
+            {showFigures && (
+              <p className="m-0 text-[26px] leading-none font-extrabold tracking-[-0.04em] text-foreground tabular-nums">
+                {createdInRange}
+              </p>
+            )}
+          </div>
+          {showFigures ? (
+            <WeeklyBars
+              weeks={chartWeeks}
+              counts={createdPerWeek}
+              label={`Content created per week over the last ${CHART_WEEKS} weeks`}
+            />
+          ) : (
+            <Skeleton className="h-52 w-full rounded-2xl" />
           )}
         </section>
 
