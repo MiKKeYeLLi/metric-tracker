@@ -1,18 +1,19 @@
 import { z } from "@/lib/zod";
 
 const contentTypeSchema = z.enum(["Article", "Social post", "Video", "Newsletter"]);
+// An empty string means "not set yet": every field is optional so a piece can start as a bare idea.
+const optionalContentTypeSchema = z.union([contentTypeSchema, z.literal("")]);
 const contentStatusSchema = z.enum(["Idea", "Draft", "Scheduled", "Published", "Archived"]);
 const contentDateSchema = z.iso.date();
-const topicsSchema = z.array(z.string().trim().min(1).max(80)).max(30).default([]);
 
 const contentFields = {
-  title: z.string().trim().min(1).max(200),
+  title: z.string().trim().max(200),
   url: z
     .string()
     .trim()
-    .min(1)
     .max(2048)
     .refine((value) => {
+      if (value === "") return true;
       try {
         const parsed = new URL(value.includes("://") ? value : `https://${value}`);
         return (parsed.protocol === "http:" || parsed.protocol === "https:") && parsed.hostname.length > 0;
@@ -20,17 +21,30 @@ const contentFields = {
         return false;
       }
     }, "Enter a valid HTTP or HTTPS URL"),
-  type: contentTypeSchema,
-  platform: z.string().trim().min(1).max(100),
-  topics: topicsSchema,
+  type: optionalContentTypeSchema,
+  platform: z.string().trim().max(100),
+  topics: z.array(z.string().trim().min(1).max(80)).max(30),
   status: contentStatusSchema,
   createdDate: contentDateSchema,
-  publishDate: contentDateSchema.nullable().optional(),
-  updatedDate: contentDateSchema.nullable().optional(),
-  notes: z.string().max(10000).nullable().optional(),
+  publishDate: contentDateSchema.nullable(),
+  updatedDate: contentDateSchema.nullable(),
+  notes: z.string().max(10000).nullable(),
 };
 
-export const contentCreateSchema = z.object(contentFields).openapi("ContentCreate");
+export const contentCreateSchema = z
+  .object({
+    title: contentFields.title.default(""),
+    url: contentFields.url.default(""),
+    type: contentFields.type.default(""),
+    platform: contentFields.platform.default(""),
+    topics: contentFields.topics.default([]),
+    status: contentFields.status.default("Idea"),
+    createdDate: contentFields.createdDate.optional(),
+    publishDate: contentFields.publishDate.optional(),
+    updatedDate: contentFields.updatedDate.optional(),
+    notes: contentFields.notes.optional(),
+  })
+  .openapi("ContentCreate");
 
 export const contentUpdateSchema = z
   .object(contentFields)
@@ -41,10 +55,10 @@ export const contentUpdateSchema = z
 export const contentItemSchema = z
   .object({
     id: z.string(),
-    title: contentFields.title,
-    url: contentFields.url,
-    type: contentTypeSchema,
-    platform: contentFields.platform,
+    title: z.string(),
+    url: z.string(),
+    type: optionalContentTypeSchema,
+    platform: z.string(),
     topics: z.array(z.string()),
     status: contentStatusSchema,
     createdDate: contentDateSchema,

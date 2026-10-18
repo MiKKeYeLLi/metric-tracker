@@ -50,7 +50,7 @@ export async function POST(request: Request) {
       platform: data.platform,
       topics: data.topics ?? [],
       status: data.status,
-      createdDate: dateFromInput(data.createdDate),
+      createdDate: dateFromInput(data.createdDate ?? new Date().toISOString().slice(0, 10)),
       publishDate: data.publishDate ? dateFromInput(data.publishDate) : null,
       updatedDate: data.updatedDate ? dateFromInput(data.updatedDate) : null,
       notes: data.notes ?? null,

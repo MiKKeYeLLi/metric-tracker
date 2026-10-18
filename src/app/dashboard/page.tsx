@@ -104,8 +104,8 @@ export default async function DashboardPage() {
       .map((item) => ({
         id: `content-${item.id}`,
         date: item.publishDate as Date,
-        title: item.title,
-        meta: `Publish · ${item.platform || item.type}`,
+        title: item.title || "Untitled",
+        meta: `Publish · ${item.platform || item.type || "content"}`,
         overdue: false,
       })),
     ...openSubmissions
@@ -280,8 +280,8 @@ export default async function DashboardPage() {
               <TableBody>
                 {recent.map((item) => (
                   <TableRow key={item.id}>
-                    <TableCell className="max-w-[200px] truncate pl-5 font-semibold sm:max-w-[320px]">{item.title}</TableCell>
-                    <TableCell className="hidden text-muted-foreground sm:table-cell">{item.type}</TableCell>
+                    <TableCell className="max-w-[200px] truncate pl-5 font-semibold sm:max-w-[320px]">{item.title || "Untitled"}</TableCell>
+                    <TableCell className="hidden text-muted-foreground sm:table-cell">{item.type || "–"}</TableCell>
                     <TableCell>
                       <Badge variant={CONTENT_BADGE[item.status] ?? "secondary"}>{item.status}</Badge>
                     </TableCell>

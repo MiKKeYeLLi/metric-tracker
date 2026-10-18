@@ -232,13 +232,15 @@ The container for everything that isn't a KPI.
 └───────────────────────────────────────────────────────────────┘
 ```
 
+- **Opt in with `<Table variant="pill">`.** Tables without it keep the old look until their page is redesigned.
 - **Header:** a **floating pill bar** (`rounded-full bg-accent`), *not* a full-bleed grey strip. Headings are 12px semibold uppercase `text-primary-deep` with `tracking-[0.04em]`, and cells use `px-4`.
-- **Rows:** 52px tall, 14px text, `border-b border-border` except the last row, hover `bg-accent/50`, rounded hover (`rounded-xl` cells via `[&>td:first-child]:rounded-l-xl [&>td:last-child]:rounded-r-xl`).
+- **Rows:** 56px tall, 14px text, `border-b border-border` except the last row, hover `bg-accent/45` (square, so the row rules stay straight).
 - **Columns:** numbers right-aligned and `tabular-nums`. Dates are plain sans ("25 Jul 12:30"), not mono.
-- **Row actions:** a ghost 32px round button with `Ellipsis`, visible on hover or focus and always visible on touch.
-- **Leading cell:** a 28px rounded logo or icon chip before the name, when an entity has one.
+- **Row actions:** a ghost `icon-sm` round button with `MoreHorizontal`. With a mouse it appears on row hover or focus (`pointer-fine:opacity-0 pointer-fine:group-hover/row:opacity-100`); on touch it's always visible.
+- **Leading cell:** a 36px `rounded-xl bg-accent` icon chip (by type) before a semibold name and a muted second line. Give the cell's inner block a fixed width (`w-[150px] sm:w-[300px]`), because `max-w` or `truncate` on a `<td>` doesn't limit a column.
+- **Card:** the table sits in a card titled with an `h2` (17px bold), with the count ("6 pieces", "2 of 6 pieces") right-aligned in the header. Loading shows 5 `Skeleton` rows in the real column layout; empty and no-match states use `Empty` inside the card with one action pill.
 - **Pagination:** round 32px ghost buttons, right-aligned under the table.
-- **Mobile:** low-priority columns hide below `sm`, and the table scrolls horizontally inside its card.
+- **Responsive:** the name and status columns always show. Hide the rest by priority (`sm`, `md`, `lg`, `xl`, `2xl`) so the table fits its card; horizontal scroll is the last resort. Cell padding shrinks to 10px below `sm`.
 
 ### 4.9 Buttons — `Button` *(exists; restyle sizes)*
 
@@ -258,6 +260,8 @@ All buttons are pills.
 
 - **Pill:** `h-10 rounded-full border border-border bg-card pl-4 pr-9 text-sm font-medium` with a 16px chevron. Size `sm` is h-8 / 13px for use inside card headers.
 - **Period picker:** a round outline icon button (`CalendarDays`) next to a pill reading "This month". Both open the same menu.
+- **Label + value:** a `PillSelect` shows its name in muted ink and the current choice in semibold ("Type **All**"). When the value differs from its default, the pill turns `bg-accent text-accent-foreground` with a violet border, so active filters read at a glance. A ghost "× Clear" pill appears after the filters while any are active.
+- **Search pill:** `SearchPill`, `h-10 rounded-full` with a leading search icon and a round clear button once text is typed. It's `w-72` on desktop and full width on phones.
 
 ### 4.11 Badges & status — `Badge` *(exists)*
 
@@ -280,7 +284,8 @@ All buttons are pills.
 ### 4.13 Forms & dialogs *(exist; restyle)*
 
 - **Dialogs:** `rounded-3xl p-6` with a title in Card-title style. The footer holds an outline pill and the primary pill, right-aligned.
-- **Fields:** a 13px semibold label above an `h-11 rounded-xl border-input bg-card` control. Focus is a `border-primary` border plus a `ring-4 ring-primary/12` ring. Errors are 12px `text-destructive` below the field.
+- **Fields:** a 13px semibold label above an `h-11 rounded-xl border-input bg-card` control (`Input`, `NativeSelect`, `Textarea`). Focus is a `border-primary` border plus a `ring-4 ring-primary/12` ring. Errors are 12px `text-destructive` below the field.
+- **Free-form, stage-first forms:** don't mark fields required unless the record is meaningless without them. Lead with the record's stage or type as radio cards (`rounded-2xl` tiles: icon chip, label, one-line hint; checked = `border-primary bg-accent` with a filled `bg-primary` icon chip), then show only the fields that stage needs. Hidden fields keep their values when the stage changes. Focus the first text field on open. Defaults are honest (today's date, empty topics), never placeholder data like "Topic A". See `ContentFormDialog` for the reference implementation.
 
 ### 4.14 Empty, loading, error
 
@@ -348,9 +353,12 @@ Keep motion short and purposeful. Hover colour changes take 120ms. Chart series 
 | Sidebar shell + `SidebarNavLink` | ⚠️ Exists; restyle to 4.12 (larger items, Help and Log out at the bottom, account moves to the header) |
 | `PageHeader` / `PageContent` | ✅ Title + subtitle only (no eyebrow), 26px title, full width, 16px gaps. Still to add: the account pill (3.2) and toolbar slot (3.3) |
 | `Button` | ✅ Restyled to 4.9 (all variants and sizes) |
-| `Card`, `Badge`, `Table`, `Input`, `NativeSelect`, `Dialog` | ⚠️ Exist; restyle to 4.3, 4.8, 4.11 and 4.13 |
+| `Table` | ✅ `variant="pill"` built to 4.8; used on Content. Other tables switch when their page is redesigned |
+| `Skeleton` | ✅ Added (shadcn) |
+| `Input`, `NativeSelect`, `Textarea`, `Label` | ✅ Restyled to 4.13 (44px, `rounded-xl`, violet focus ring, 13px labels). `Textarea` added (shadcn) |
+| `Card`, `Badge`, `Dialog` | ⚠️ Exist; restyle to 4.3 and 4.11 |
 | `KpiCard`, `KpiGrid`, `DeltaChip` | ✅ Built in `src/components/KpiCard.tsx`. Used on Content; replaces `StatCard` page by page |
-| `PillSelect`, period picker | 🆕 To build |
+| `Toolbar`, `ToolbarGroup`, `SearchPill`, `PillSelect` | ✅ Built in `src/components/Toolbar.tsx`; used on Content. Period picker still to build |
 | `LineChartCard`, `BarChartCard`, `DonutCard` | 🆕 To build on shadcn `chart` (Recharts). This adds the `recharts` dependency when the first chart lands. |
 | `ProgressList` | 🆕 To build |
-| Pages | ⏳ Moved one at a time. Content: KPI cards done; toolbar and table next. Then Overview, Directories, Press & Media, SEO |
+| Pages | ⏳ Moved one at a time. Content: ✅ done (cards, toolbar, table, stage-first add/edit dialog). Then Overview, Directories, Press & Media, SEO |
