@@ -136,7 +136,8 @@ src/
   components/
     ui/                    # shadcn/ui components (generated, themed)
     PageHeader.tsx         # PageHeader + PageContent: the frame every dashboard page uses
-    StatCard.tsx           # StatCard + StatGrid: KPI tiles
+    KpiCard.tsx            # KpiCard + KpiGrid + DeltaChip: KPI cards
+    Toolbar.tsx            # Toolbar, SearchPill, PillSelect: search and filter row
     SidebarNav.tsx         # DashboardSidebarNav (the links), SidebarNavSection, SidebarNavLink
     Wordmark.tsx           # Zedu Amp wordmark and BrandMark
     AuthButtons.tsx
@@ -188,9 +189,8 @@ Every route under `src/app/dashboard/` automatically gets the sidebar and the si
 
 ```tsx
 // src/app/dashboard/campaigns/page.tsx  →  /dashboard/campaigns
-import { MegaphoneIcon } from "lucide-react";
 import { PageContent, PageHeader } from "@/components/PageHeader";
-import { StatCard, StatGrid } from "@/components/StatCard";
+import { KpiCard, KpiGrid } from "@/components/KpiCard";
 import { Button } from "@/components/ui/button";
 
 export default function CampaignsPage() {
@@ -203,9 +203,15 @@ export default function CampaignsPage() {
         actions={<Button>New campaign</Button>}
       />
       <PageContent>
-        <StatGrid>
-          <StatCard label="Active campaigns" value={4} icon={<MegaphoneIcon aria-hidden="true" />} hint="2 ending this week" tone="warning" />
-        </StatGrid>
+        <KpiGrid>
+          <KpiCard
+            title="Active campaigns"
+            value="4"
+            delta={{ label: "+1", direction: "up", favorable: true }}
+            comparison="vs last month"
+            action={{ label: "Open campaigns", href: "/dashboard/campaigns" }}
+          />
+        </KpiGrid>
         {/* Cards, charts and tables go here */}
       </PageContent>
     </>

@@ -105,7 +105,7 @@ The design reference is `DESIGN.md` (principles) together with `src/app/globals.
 - **Forms:** `FieldGroup` > `Field` > `FieldLabel` + control + `FieldError`. For invalid fields, set `data-invalid` on `Field` and `aria-invalid` on the control.
 - **Dialogs** always have a `DialogTitle` (use `sr-only` to hide it visually) and use `DialogFooter` for actions. Loading buttons combine `Spinner` with `data-icon="inline-start"` and `disabled`.
 - Use `Card` for panels, `Alert` for callouts and errors, `Empty` for empty states, `Badge` for statuses, `Skeleton` for loading, `Separator` for dividers, `DropdownMenu` for menus, and `Table` for tabular data.
-- Use the shared page pieces: `PageHeader` + `PageContent` for every dashboard page, and `StatCard` + `StatGrid` for KPI rows. Don't hand-roll page headers or stat tiles.
+- Use the shared page pieces: `PageHeader` + `PageContent` for every dashboard page, `KpiCard` + `KpiGrid` for KPI rows, and `Toolbar` + `SearchPill` + `PillSelect` for search and filters. Don't hand-roll page headers or stat tiles.
 - Status mapping: favorable/live/published → `success`, in review/scheduled → `info`, needs attention/draft/due → `warning`, harmful/rejected/failed → `destructive`, neutral/idea → `secondary`.
 
 ### Styling

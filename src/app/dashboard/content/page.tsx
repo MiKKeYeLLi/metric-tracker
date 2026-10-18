@@ -15,6 +15,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { ContentFormDialog, type ContentApiItem, type ContentStatus, type ContentType } from "@/components/content/ContentFormDialog";
+import { WeeklyBars, countPerWeek, lastWeeks } from "@/components/charts/WeeklyCharts";
 import { KpiCard, KpiGrid, type Delta } from "@/components/KpiCard";
 import { PageContent, PageHeader } from "@/components/PageHeader";
 import { PillSelect, SearchPill, Toolbar, ToolbarGroup } from "@/components/Toolbar";
@@ -77,6 +78,7 @@ const CONTENT_TYPE_ICON: Record<ContentType, LucideIcon> = {
 };
 
 const DAY_MS = 86_400_000;
+const CHART_WEEKS = 12;
 
 function growthDelta(current: number, previous: number): Delta {
   const added = current - previous;
@@ -228,6 +230,12 @@ export default function ContentTrackerPage() {
   const addedThisMonth = rowsState.filter((row) => parseDate(row.created) >= monthAgo).length;
   const publishedThisMonth = published.filter((row) => row.publishDate && parseDate(row.publishDate) >= monthAgo).length;
   const showFigures = !isLoading && !loadError;
+  const chartWeeks = lastWeeks(CHART_WEEKS);
+  const createdPerWeek = countPerWeek(
+    chartWeeks,
+    rowsState.map((row) => new Date(`${row.item.createdDate}T00:00:00Z`))
+  );
+  const createdInRange = createdPerWeek.reduce((sum, count) => sum + count, 0);
 
   const hasActiveFilters =
     searchQuery !== "" ||
@@ -293,6 +301,34 @@ export default function ContentTrackerPage() {
           />
           <KpiCard title="Views, last 30 days" value="–" context="View tracking isn't connected yet" />
         </KpiGrid>
+
+        <section
+          aria-labelledby="content-created-title"
+          className="flex min-w-0 flex-col gap-4 rounded-[22px] border border-border bg-card p-4 sm:p-5"
+        >
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex flex-col gap-1">
+              <h2 id="content-created-title" className="m-0 text-[17px] leading-tight font-bold tracking-[-0.02em] text-foreground">
+                Content created
+              </h2>
+              <p className="m-0 text-[13px] text-muted-foreground">Pieces added each week, last {CHART_WEEKS} weeks</p>
+            </div>
+            {showFigures && (
+              <p className="m-0 text-[26px] leading-none font-extrabold tracking-[-0.04em] text-foreground tabular-nums">
+                {createdInRange}
+              </p>
+            )}
+          </div>
+          {showFigures ? (
+            <WeeklyBars
+              weeks={chartWeeks}
+              counts={createdPerWeek}
+              label={`Content created per week over the last ${CHART_WEEKS} weeks`}
+            />
+          ) : (
+            <Skeleton className="h-52 w-full rounded-2xl" />
+          )}
+        </section>
 
         {loadError && (
           <Alert variant="destructive">

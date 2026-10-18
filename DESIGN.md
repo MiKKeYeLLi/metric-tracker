@@ -356,8 +356,9 @@ Keep motion short and purposeful. Hover colour changes take 120ms. Chart series 
 | `Table` | ✅ `variant="pill"` built to 4.8; used on Content. Other tables switch when their page is redesigned |
 | `Skeleton` | ✅ Added (shadcn) |
 | `Input`, `NativeSelect`, `Textarea`, `Label` | ✅ Restyled to 4.13 (44px, `rounded-xl`, violet focus ring, 13px labels). `Textarea` added (shadcn) |
-| `Card`, `Badge`, `Dialog` | ⚠️ Exist; restyle to 4.3 and 4.11 |
-| `KpiCard`, `KpiGrid`, `DeltaChip` | ✅ Built in `src/components/KpiCard.tsx`. Used on Content; replaces `StatCard` page by page |
+| `Card` | ✅ Restyled to 4.3 (22px radius, 1px border, no shadow, 17px title) |
+| `Badge`, `Dialog` | ⚠️ Mostly on spec; final pass to confirm 4.11 and 4.13 |
+| `KpiCard`, `KpiGrid`, `DeltaChip` | ✅ Built in `src/components/KpiCard.tsx`, used on every page. `StatCard` is removed |
 | `Toolbar`, `ToolbarGroup`, `SearchPill`, `PillSelect` | ✅ Built in `src/components/Toolbar.tsx`; used on Content. Period picker still to build |
 | `LineChartCard`, `BarChartCard`, `DonutCard` | 🆕 To build on shadcn `chart` (Recharts). This adds the `recharts` dependency when the first chart lands. |
 | `ProgressList` | 🆕 To build |
