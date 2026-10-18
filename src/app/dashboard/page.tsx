@@ -69,12 +69,10 @@ type UpcomingItem = {
 
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions);
-  const userId = (session?.user as { id?: string } | undefined)?.id ?? "";
   const firstName = session?.user?.name?.split(" ")[0];
 
   const [content, latestCheck, coverage, featuredPitches, openSubmissions, pitchStatuses] = await Promise.all([
     prisma.contentItem.findMany({
-      where: { userId },
       select: {
         id: true,
         title: true,

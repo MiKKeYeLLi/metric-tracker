@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import type { Prisma } from "@prisma/client";
 import { requireAuth } from "@/lib/api";
 import { dateFromInput, serializeContent } from "@/lib/content";
 import { prisma } from "@/lib/prisma";
@@ -9,14 +10,10 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   const { session, error } = await requireAuth();
   if (error) return error;
-  const userId = (session.user as { id?: string }).id;
-  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
   const items = await prisma.contentItem.findMany({
-    where: { userId },
     orderBy: [{ createdDate: "desc" }, { createdAt: "desc" }],
   });
-  return NextResponse.json(items.map(serializeContent));
+  return NextResponse.json(items.map((item) => serializeContent(item as typeof item & { views: number })));
 }
 
 export async function POST(request: Request) {
@@ -41,21 +38,21 @@ export async function POST(request: Request) {
   }
 
   const data = result.data;
-  const item = await prisma.contentItem.create({
-    data: {
-      userId,
-      title: data.title,
-      url: data.url,
-      type: data.type,
-      platform: data.platform,
-      topics: data.topics ?? [],
-      status: data.status,
-      createdDate: dateFromInput(data.createdDate ?? new Date().toISOString().slice(0, 10)),
-      publishDate: data.publishDate ? dateFromInput(data.publishDate) : null,
-      updatedDate: data.updatedDate ? dateFromInput(data.updatedDate) : null,
-      notes: data.notes ?? null,
-    },
-  });
+  const contentData = {
+    userId,
+    title: data.title,
+    url: data.url,
+    type: data.type,
+    platform: data.platform,
+    topics: data.topics ?? [],
+    status: data.status,
+    createdDate: dateFromInput(data.createdDate ?? new Date().toISOString().slice(0, 10)),
+    publishDate: data.publishDate ? dateFromInput(data.publishDate) : null,
+    updatedDate: data.updatedDate ? dateFromInput(data.updatedDate) : null,
+    views: data.views,
+    notes: data.notes ?? null,
+  };
+  const item = await prisma.contentItem.create({ data: contentData as unknown as Prisma.ContentItemUncheckedCreateInput });
 
-  return NextResponse.json(serializeContent(item), { status: 201 });
+  return NextResponse.json(serializeContent(item as typeof item & { views: number }), { status: 201 });
 }

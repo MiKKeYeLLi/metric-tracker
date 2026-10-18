@@ -33,19 +33,20 @@ export type ContentType = "Article" | "Social post" | "Video" | "Newsletter";
 
 export type ContentApiItem = {
   id: string;
-  title: string;
-  url: string;
-  type: ContentType | "";
-  platform: string;
+  title: string | null;
+  url: string | null;
+  type: ContentType | null;
+  platform: string | null;
   topics: string[];
   status: ContentStatus;
   createdDate: string;
   publishDate: string | null;
   updatedDate: string | null;
+  views: number;
   notes: string | null;
 };
 
-type FieldKey = "url" | "type" | "platform" | "topics" | "createdDate" | "publishDate" | "updatedDate" | "notes";
+type FieldKey = "url" | "type" | "platform" | "topics" | "createdDate" | "publishDate" | "updatedDate" | "views" | "notes";
 
 const STAGES: { value: ContentStatus; icon: LucideIcon; hint: string; fields: FieldKey[] }[] = [
   { value: "Idea", icon: LightbulbIcon, hint: "A thought to come back to", fields: ["notes"] },
@@ -65,7 +66,7 @@ const STAGES: { value: ContentStatus; icon: LucideIcon; hint: string; fields: Fi
     value: "Published",
     icon: CircleCheckIcon,
     hint: "Live somewhere",
-    fields: ["url", "type", "platform", "topics", "publishDate", "updatedDate", "createdDate", "notes"],
+    fields: ["url", "type", "platform", "topics", "publishDate", "updatedDate", "createdDate", "views", "notes"],
   },
   {
     value: "Archived",
@@ -94,6 +95,7 @@ type FormState = {
   createdDate: string;
   publishDate: string;
   updatedDate: string;
+  views: string;
   notes: string;
 };
 
@@ -110,6 +112,7 @@ function emptyForm(status: ContentStatus = "Idea"): FormState {
     createdDate: today(),
     publishDate: "",
     updatedDate: "",
+    views: "0",
     notes: "",
   };
 }
@@ -117,14 +120,15 @@ function emptyForm(status: ContentStatus = "Idea"): FormState {
 function formFromItem(item: ContentApiItem): FormState {
   return {
     status: item.status,
-    title: item.title,
-    url: item.url,
-    type: item.type,
-    platform: item.platform,
+    title: item.title ?? "",
+    url: item.url ?? "",
+    type: item.type ?? "",
+    platform: item.platform ?? "",
     topics: [...item.topics],
     createdDate: item.createdDate,
     publishDate: item.publishDate ?? "",
     updatedDate: item.updatedDate ?? "",
+    views: item.views.toString(),
     notes: item.notes ?? "",
   };
 }
@@ -215,14 +219,15 @@ function ContentForm({
 
     const payload = {
       status: form.status,
-      title: form.title.trim(),
-      url: form.url.trim(),
-      type: form.type,
-      platform: form.platform,
+      title: form.title.trim() || null,
+      url: form.url.trim() || null,
+      type: form.type || null,
+      platform: form.platform || null,
       topics,
       ...(form.createdDate && { createdDate: form.createdDate }),
       publishDate: form.publishDate || null,
       updatedDate: form.updatedDate || null,
+      views: Number(form.views),
       notes: form.notes.trim() || null,
     };
 
@@ -507,6 +512,27 @@ function ContentForm({
             </div>
           )}
 
+          {shows("views") && (
+            <Field data-invalid={Boolean(fieldErrors.views)}>
+              <FieldLabel htmlFor="content-views">Views</FieldLabel>
+              <Input
+                id="content-views"
+                type="number"
+                min="0"
+                step="1"
+                inputMode="numeric"
+                value={form.views}
+                onChange={(event) => update("views", event.target.value)}
+                aria-invalid={Boolean(fieldErrors.views)}
+                aria-describedby="content-views-help"
+              />
+              <p id="content-views-help" className="text-xs text-muted-foreground">
+                Enter the latest total from your analytics source. Views are updated manually.
+              </p>
+              <FieldError errors={errorFor("views")} />
+            </Field>
+          )}
+
           <Field data-invalid={Boolean(fieldErrors.notes)}>
             <FieldLabel htmlFor="content-notes">Notes</FieldLabel>
             <Textarea
@@ -516,8 +542,8 @@ function ContentForm({
               onChange={(event) => update("notes", event.target.value)}
               placeholder={
                 form.status === "Idea"
-                  ? "Angles, references, who it's for. Only you see this."
-                  : "Follow-ups, reminders, ideas to reuse. Only you see this."
+                  ? "Angles, references and who it is for."
+                  : "Follow-ups, reminders and ideas to reuse."
               }
               aria-invalid={Boolean(fieldErrors.notes)}
             />

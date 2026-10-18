@@ -7,7 +7,7 @@ const contentStatusSchema = z.enum(["Idea", "Draft", "Scheduled", "Published", "
 const contentDateSchema = z.iso.date();
 
 const contentFields = {
-  title: z.string().trim().max(200),
+  title: z.string().trim().max(200).nullable(),
   url: z
     .string()
     .trim()
@@ -20,28 +20,31 @@ const contentFields = {
       } catch {
         return false;
       }
-    }, "Enter a valid HTTP or HTTPS URL"),
-  type: optionalContentTypeSchema,
-  platform: z.string().trim().max(100),
+    }, "Enter a valid HTTP or HTTPS URL")
+    .nullable(),
+  type: contentTypeSchema.nullable(),
+  platform: z.string().trim().max(100).nullable(),
   topics: z.array(z.string().trim().min(1).max(80)).max(30),
   status: contentStatusSchema,
   createdDate: contentDateSchema,
   publishDate: contentDateSchema.nullable(),
   updatedDate: contentDateSchema.nullable(),
+  views: z.number().int().nonnegative(),
   notes: z.string().max(10000).nullable(),
 };
 
 export const contentCreateSchema = z
   .object({
-    title: contentFields.title.default(""),
-    url: contentFields.url.default(""),
-    type: contentFields.type.default(""),
-    platform: contentFields.platform.default(""),
+    title: contentFields.title.default(null),
+    url: contentFields.url.default(null),
+    type: contentFields.type.default(null),
+    platform: contentFields.platform.default(null),
     topics: contentFields.topics.default([]),
     status: contentFields.status.default("Idea"),
     createdDate: contentFields.createdDate.optional(),
     publishDate: contentFields.publishDate.optional(),
     updatedDate: contentFields.updatedDate.optional(),
+    views: contentFields.views.default(0),
     notes: contentFields.notes.optional(),
   })
   .openapi("ContentCreate");
@@ -55,15 +58,16 @@ export const contentUpdateSchema = z
 export const contentItemSchema = z
   .object({
     id: z.string(),
-    title: z.string(),
-    url: z.string(),
-    type: optionalContentTypeSchema,
-    platform: z.string(),
+    title: z.string().nullable(),
+    url: z.string().nullable(),
+    type: contentTypeSchema.nullable(),
+    platform: z.string().nullable(),
     topics: z.array(z.string()),
     status: contentStatusSchema,
     createdDate: contentDateSchema,
     publishDate: contentDateSchema.nullable(),
     updatedDate: contentDateSchema.nullable(),
+    views: z.number().int().nonnegative(),
     notes: z.string().nullable(),
     createdAt: z.iso.datetime(),
     updatedAt: z.iso.datetime(),

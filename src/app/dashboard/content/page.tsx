@@ -60,6 +60,7 @@ type ContentRow = {
   created: string;
   updated: string;
   publishDate: string | null;
+  views: number;
   notes: string;
   item: ContentApiItem;
 };
@@ -113,15 +114,16 @@ function formatDateForRow(value: string) {
 function contentItemToRow(item: ContentApiItem): ContentRow {
   return {
     id: item.id,
-    title: item.title,
-    url: item.url,
-    type: item.type,
-    platform: item.platform,
+    title: item.title ?? "",
+    url: item.url ?? "",
+    type: item.type ?? "",
+    platform: item.platform ?? "",
     topics: item.topics,
     status: item.status,
     created: formatDateForRow(item.createdDate),
     updated: formatDateForRow(item.updatedDate ?? item.publishDate ?? ""),
     publishDate: item.publishDate,
+    views: item.views,
     notes: item.notes ?? "",
     item,
   };
@@ -241,6 +243,7 @@ export default function ContentTrackerPage() {
   const scheduled = rowsState.filter((row) => row.status === "Scheduled").length;
   const addedThisMonth = rowsState.filter((row) => parseDate(row.created) >= monthAgo).length;
   const publishedThisMonth = published.filter((row) => row.publishDate && parseDate(row.publishDate) >= monthAgo).length;
+  const totalViews = rowsState.reduce((sum, row) => sum + row.views, 0);
   const showFigures = !isLoading && !loadError;
   const chartWeeks = lastWeeks(CHART_WEEKS);
   const createdPerWeek = countPerWeek(
@@ -268,7 +271,7 @@ export default function ContentTrackerPage() {
     <>
       <PageHeader
         title="Content"
-        description="Every article, post, video and newsletter you're working on, from idea to published. Only you can see this list."
+        description="Every article, post, video and newsletter the team is working on, from idea to published."
         actions={
           <Button onClick={openAddDialog}>
             <Plus data-icon="inline-start" aria-hidden="true" />
@@ -311,7 +314,11 @@ export default function ContentTrackerPage() {
               },
             }}
           />
-          <KpiCard title="Views, last 30 days" value="–" context="View tracking isn't connected yet" />
+          <KpiCard
+            title="Total views"
+            value={showFigures ? totalViews.toLocaleString() : "–"}
+            context={showFigures ? "Manually updated across all content" : undefined}
+          />
         </KpiGrid>
 
         {loadError && (
@@ -426,6 +433,7 @@ export default function ContentTrackerPage() {
                   <TableHead className="hidden lg:table-cell">Topics</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="hidden sm:table-cell">Created</TableHead>
+                  <TableHead className="hidden lg:table-cell text-right">Views</TableHead>
                   <TableHead className="hidden xl:table-cell">Updated</TableHead>
                   <TableHead className="hidden 2xl:table-cell">Notes</TableHead>
                   <TableHead className="w-12 px-1! sm:px-2!">
@@ -450,6 +458,7 @@ export default function ContentTrackerPage() {
                         <TableCell className="hidden lg:table-cell"><Skeleton className="h-3.5 w-20" /></TableCell>
                         <TableCell><Skeleton className="h-6 w-20 rounded-full" /></TableCell>
                         <TableCell className="hidden sm:table-cell"><Skeleton className="h-3.5 w-20" /></TableCell>
+                        <TableCell className="hidden lg:table-cell"><Skeleton className="ml-auto h-3.5 w-12" /></TableCell>
                         <TableCell className="hidden xl:table-cell"><Skeleton className="h-3.5 w-20" /></TableCell>
                         <TableCell className="hidden 2xl:table-cell"><Skeleton className="h-3.5 w-24" /></TableCell>
                         <TableCell />
@@ -487,6 +496,7 @@ export default function ContentTrackerPage() {
                             </Badge>
                           </TableCell>
                           <TableCell className="hidden text-muted-foreground sm:table-cell">{row.created}</TableCell>
+                          <TableCell className="hidden text-right tabular-nums lg:table-cell">{row.views.toLocaleString()}</TableCell>
                           <TableCell className="hidden text-muted-foreground xl:table-cell">{row.updated}</TableCell>
                           <TableCell
                             className={cn(

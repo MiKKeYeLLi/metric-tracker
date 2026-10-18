@@ -47,7 +47,7 @@ registry.registerPath({
   security: [{ sessionCookie: [] }],
   responses: {
     200: {
-      description: "Content belonging to the signed-in user",
+      description: "Content shared across the workspace",
       content: { "application/json": { schema: contentItemSchema.array() } },
     },
     401: { description: "Unauthorized" },
