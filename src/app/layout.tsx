@@ -16,8 +16,8 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Metric Tracker",
-  description: "Metric Tracker by Zeduchat",
+  title: "Zedu Amp",
+  description: "Zedu Amp: the marketing workspace for Zedu.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
