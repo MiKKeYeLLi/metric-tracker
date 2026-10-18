@@ -16,13 +16,7 @@ export interface ActivityItem {
 }
 
 export interface ChecklistState {
-  [directoryId: string]: {
-    logo: boolean;
-    screenshots: boolean;
-    tagline: boolean;
-    "long-description": boolean;
-    pricing: boolean;
-  };
+  [directoryId: string]: Record<string, boolean>;
 }
 
 interface DirectoryContextType {
@@ -35,10 +29,7 @@ interface DirectoryContextType {
   addDirectory: (directory: DirectoryItem) => void;
   updateDirectory: (id: string, updates: Partial<DirectoryItem>) => void;
   deleteDirectory: (id: string) => void;
-  toggleChecklistItem: (
-    directoryId: string,
-    itemKey: keyof ChecklistState[string],
-  ) => void;
+  toggleChecklistItem: (directoryId: string, itemKey: string) => void;
   logActivity: (
     directoryName: string,
     actionText: string,
@@ -234,10 +225,7 @@ export function DirectoryProvider({ children }: { children: React.ReactNode }) {
     setDirectories((prev) => prev.filter((item) => item.id !== id));
   };
 
-  const toggleChecklistItem = (
-    directoryId: string,
-    itemKey: keyof ChecklistState[string],
-  ) => {
+  const toggleChecklistItem = (directoryId: string, itemKey: string) => {
     setChecklistState((prev) => {
       const currentDirChecklist = prev[directoryId] || {
         logo: false,

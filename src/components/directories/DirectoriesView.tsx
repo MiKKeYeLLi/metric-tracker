@@ -7,36 +7,38 @@ import {
   ImportCsvButton,
 } from "@/components/directories/AddDirectoryModal";
 import { DirectoryTable } from "@/components/directories/DirectoryTable";
-import { SubmissionChecklist } from "@/components/directories/SubmissionChecklist";
 import { SavedCopyWidget } from "@/components/directories/SavedCopyWidget";
 import { PageContent, PageHeader } from "@/components/PageHeader";
-import { StatCard, StatGrid } from "@/components/StatCard";
+import { KpiCard, KpiGrid } from "@/components/KpiCard";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
-import {
-  CircleCheckIcon,
-  CircleDashedIcon,
-  FileSpreadsheetIcon,
-  FolderOpenIcon,
-  HourglassIcon,
-  PlusIcon,
-  TriangleAlertIcon,
-} from "lucide-react";
+import { FileSpreadsheetIcon, PlusIcon } from "lucide-react";
+import { useState } from "react";
+import type { DirectoryItem } from "@/types/directory";
+
+const DAY_MS = 86_400_000;
 
 function DirectoryDashboard() {
   const { directories } = useDirectories();
+  const [statusFilter, setStatusFilter] = useState("all");
 
-  const totalCount = directories.length;
+  const now = Date.now();
+  const submitted = directories.filter((d) => d.status !== "Not submitted");
+  const submittedDays = (d: DirectoryItem) => {
+    const timestamp = Date.parse(d.dateSubmitted);
+    return Number.isNaN(timestamp) ? null : Math.floor((now - timestamp) / DAY_MS);
+  };
+  const submittedThisMonth = submitted.filter((d) => {
+    const days = submittedDays(d);
+    return days !== null && days <= 30;
+  }).length;
   const liveCount = directories.filter((d) => d.status === "Live").length;
-  const pendingCount = directories.filter(
-    (d) => d.status === "Pending review",
-  ).length;
-  const needsAttentionCount = directories.filter(
-    (d) => d.status === "Needs changes" || d.status === "Rejected",
-  ).length;
-  const notSubmittedCount = directories.filter(
-    (d) => d.status === "Not submitted",
-  ).length;
+  const pending = directories.filter((d) => d.status === "Pending review");
+  const oldestWaiting = Math.max(0, ...pending.map((d) => submittedDays(d) ?? 0));
+  const needsChanges = directories.filter((d) => d.status === "Needs changes").length;
+  const rejected = directories.filter((d) => d.status === "Rejected").length;
+  const shortlisted = directories.length - submitted.length;
+  const liveRate = submitted.length ? Math.round((liveCount / submitted.length) * 100) : 0;
 
   return (
     <>
@@ -47,19 +49,41 @@ function DirectoryDashboard() {
       />
 
       <PageContent>
-        <StatGrid className="xl:grid-cols-5">
-          <StatCard label="Total directories" value={totalCount} icon={<FolderOpenIcon aria-hidden="true" />} />
-          <StatCard label="Live" value={liveCount} icon={<CircleCheckIcon aria-hidden="true" />} hint="Listed and visible" tone="success" />
-          <StatCard label="Pending review" value={pendingCount} icon={<HourglassIcon aria-hidden="true" />} hint="Waiting on the directory" />
-          <StatCard
-            label="Needs attention"
-            value={needsAttentionCount}
-            icon={<TriangleAlertIcon aria-hidden="true" />}
-            hint="Changes requested or rejected"
-            tone={needsAttentionCount > 0 ? "warning" : "neutral"}
+        <KpiGrid>
+          <KpiCard
+            title="Total directories"
+            value={directories.length.toLocaleString()}
+            delta={{
+              label: `+${submittedThisMonth}`,
+              direction: submittedThisMonth > 0 ? "up" : "flat",
+              favorable: true,
+            }}
+            comparison={`submitted in 30 days · ${shortlisted} on the shortlist`}
+            action={{ label: "Show all directories", onClick: () => setStatusFilter("all") }}
           />
-          <StatCard label="Not submitted" value={notSubmittedCount} icon={<CircleDashedIcon aria-hidden="true" />} hint="On the shortlist" />
-        </StatGrid>
+          <KpiCard
+            title="Live"
+            value={liveCount.toLocaleString()}
+            context={submitted.length ? `${liveRate}% of submissions are live` : "Nothing submitted yet"}
+            action={{ label: "Show live directories", onClick: () => setStatusFilter("Live") }}
+          />
+          <KpiCard
+            title="Pending review"
+            value={pending.length.toLocaleString()}
+            context={
+              pending.length
+                ? `Oldest waiting ${oldestWaiting} ${oldestWaiting === 1 ? "day" : "days"}`
+                : "Nothing waiting on a directory"
+            }
+            action={{ label: "Show directories pending review", onClick: () => setStatusFilter("Pending review") }}
+          />
+          <KpiCard
+            title="Needs attention"
+            value={(needsChanges + rejected).toLocaleString()}
+            context={`${needsChanges} need changes · ${rejected} rejected`}
+            action={{ label: "Show directories that need attention", onClick: () => setStatusFilter("attention") }}
+          />
+        </KpiGrid>
 
         {directories.length === 0 ? (
           <Empty className="mx-auto my-6 w-full max-w-3xl rounded-2xl bg-card ring-1 ring-border">
@@ -92,17 +116,14 @@ function DirectoryDashboard() {
             </EmptyContent>
           </Empty>
         ) : (
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3 lg:gap-6">
-            <div className="flex min-w-0 flex-col gap-4 lg:col-span-2">
-              <DirectoryTable />
-            </div>
+          <>
+            <DirectoryTable statusFilter={statusFilter} onStatusFilterChange={setStatusFilter} />
 
-            <div className="flex min-w-0 flex-col gap-4">
+            <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
               <ActivityFeed />
-              <SubmissionChecklist />
               <SavedCopyWidget />
             </div>
-          </div>
+          </>
         )}
       </PageContent>
     </>

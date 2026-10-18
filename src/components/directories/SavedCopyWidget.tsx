@@ -1,23 +1,27 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import {
-  CopyIcon,
-  Edit3Icon,
-  PlusIcon,
-  Trash2Icon,
-  CheckIcon,
-} from "lucide-react";
+import { useEffect, useState, type FormEvent } from "react";
+import { CheckIcon, CopyIcon, Edit3Icon, MoreHorizontalIcon, PlusIcon, Trash2Icon } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 
 export interface SavedCopyBlock {
   id: string;
@@ -26,6 +30,8 @@ export interface SavedCopyBlock {
 }
 
 const COPY_FEEDBACK_MS = 1600;
+// Roughly three lines of the tile's text at its narrowest width.
+const CLAMP_THRESHOLD = 140;
 
 export const INITIAL_COPY_BLOCKS: SavedCopyBlock[] = [
   {
@@ -45,6 +51,8 @@ export const INITIAL_COPY_BLOCKS: SavedCopyBlock[] = [
   },
 ];
 
+const characters = (text: string) => `${text.length.toLocaleString()} ${text.length === 1 ? "character" : "characters"}`;
+
 export function SavedCopyWidget({
   title = "Saved submission copy",
   helper = "Reusable text so every listing says the same thing.",
@@ -55,11 +63,9 @@ export function SavedCopyWidget({
   className?: string;
 }) {
   const [blocks, setBlocks] = useState<SavedCopyBlock[]>(INITIAL_COPY_BLOCKS);
-  const [feedback, setFeedback] = useState<
-    { id: string; ok: boolean } | undefined
-  >(undefined);
+  const [feedback, setFeedback] = useState<{ id: string; ok: boolean } | undefined>(undefined);
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
-  // Modal State for Adding/Editing
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingBlock, setEditingBlock] = useState<SavedCopyBlock | null>(null);
   const [formLabel, setFormLabel] = useState("");
@@ -67,10 +73,7 @@ export function SavedCopyWidget({
 
   useEffect(() => {
     if (feedback === undefined) return;
-    const timer = window.setTimeout(
-      () => setFeedback(undefined),
-      COPY_FEEDBACK_MS,
-    );
+    const timer = window.setTimeout(() => setFeedback(undefined), COPY_FEEDBACK_MS);
     return () => window.clearTimeout(timer);
   }, [feedback]);
 
@@ -86,6 +89,14 @@ export function SavedCopyWidget({
     }
   };
 
+  const toggleExpanded = (id: string) =>
+    setExpanded((previous) => {
+      const next = new Set(previous);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+
   const openAddModal = () => {
     setEditingBlock(null);
     setFormLabel("");
@@ -100,172 +111,179 @@ export function SavedCopyWidget({
     setIsModalOpen(true);
   };
 
-  const handleSaveBlock = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formLabel.trim() || !formText.trim()) return;
+  const canSave = formLabel.trim() !== "" && formText.trim() !== "";
+
+  const handleSaveBlock = (event: FormEvent) => {
+    event.preventDefault();
+    if (!canSave) return;
 
     if (editingBlock) {
-      setBlocks((prev) =>
-        prev.map((b) =>
-          b.id === editingBlock.id
-            ? { ...b, label: formLabel.trim(), text: formText.trim() }
-            : b,
-        ),
+      setBlocks((previous) =>
+        previous.map((block) =>
+          block.id === editingBlock.id ? { ...block, label: formLabel.trim(), text: formText.trim() } : block
+        )
       );
     } else {
-      const newBlock: SavedCopyBlock = {
-        id: `copy-${Date.now()}`,
-        label: formLabel.trim(),
-        text: formText.trim(),
-      };
-      setBlocks((prev) => [...prev, newBlock]);
+      setBlocks((previous) => [...previous, { id: `copy-${Date.now()}`, label: formLabel.trim(), text: formText.trim() }]);
     }
 
     setIsModalOpen(false);
   };
 
   const handleDeleteBlock = (id: string) => {
-    setBlocks((prev) => prev.filter((b) => b.id !== id));
+    setBlocks((previous) => previous.filter((block) => block.id !== id));
   };
 
   return (
     <section
-      aria-label={title}
-      className={cn("rounded-2xl bg-card shadow-[0_1px_2px_rgb(21_21_31/0.04)] ring-1 ring-border p-5", className)}
+      aria-labelledby="saved-copy-title"
+      className={cn("flex min-w-0 flex-col gap-4 rounded-[22px] border border-border bg-card p-4 sm:p-5", className)}
     >
-      <div className="flex items-center justify-between">
-        <div>
-          <h3 className="text-[13px] font-bold tracking-[-0.02em] text-foreground">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex min-w-0 flex-col gap-1">
+          <h2 id="saved-copy-title" className="m-0 text-[17px] leading-tight font-bold tracking-[-0.02em] text-foreground">
             {title}
-          </h3>
-          <p className="mt-0.5 text-xs text-muted-foreground">{helper}</p>
+          </h2>
+          <p className="m-0 text-[13px] text-muted-foreground">{helper}</p>
         </div>
-        <Button
-          onClick={openAddModal}
-          size="icon-xs"
-          variant="outline"
-          className="h-7 w-7 shrink-0"
-          title="Add copy snippet"
-        >
-          <PlusIcon className="size-3.5" />
+        <Button variant="outline" size="sm" onClick={openAddModal} className="shrink-0">
+          <PlusIcon data-icon="inline-start" aria-hidden="true" />
+          Add copy
         </Button>
       </div>
 
-      <div className="mt-3 flex flex-col gap-3 max-h-[420px] overflow-y-auto pr-1">
-        {blocks.map((block) => {
-          const state = feedback?.id === block.id ? feedback : undefined;
-          return (
-            <div
-              key={block.id}
-              className="group relative flex flex-col gap-1.5 rounded-lg border border-border bg-background p-3 shadow-2xs"
-            >
-              {/* Category Header & Controls */}
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-foreground">
-                  {block.label}
-                </span>
+      {blocks.length === 0 ? (
+        <p className="m-0 rounded-2xl border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">
+          Save your tagline and descriptions here to paste them into any directory.
+        </p>
+      ) : (
+        <ul className="m-0 grid list-none grid-cols-1 gap-3 p-0 md:grid-cols-2">
+          {blocks.map((block) => {
+            const state = feedback?.id === block.id ? feedback : undefined;
+            const isLong = block.text.length > CLAMP_THRESHOLD;
+            const isExpanded = expanded.has(block.id);
+            return (
+              <li key={block.id} className="flex min-w-0 flex-col gap-3 rounded-2xl bg-muted p-4">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex min-w-0 flex-col">
+                    <p className="m-0 truncate text-sm font-semibold text-foreground" title={block.label}>
+                      {block.label}
+                    </p>
+                    <p className="m-0 text-xs text-muted-foreground tabular-nums">{characters(block.text)}</p>
+                  </div>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger
+                      type="button"
+                      aria-label={`More actions for ${block.label}`}
+                      className={cn(buttonVariants({ variant: "ghost", size: "icon-sm" }), "-mt-1 -mr-1 hover:bg-card")}
+                    >
+                      <MoreHorizontalIcon aria-hidden="true" />
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-36">
+                      <DropdownMenuItem onSelect={() => openEditModal(block)}>
+                        <Edit3Icon aria-hidden="true" />
+                        Edit
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem variant="destructive" onSelect={() => handleDeleteBlock(block.id)}>
+                        <Trash2Icon aria-hidden="true" />
+                        Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
 
-                <div className="flex items-center gap-1">
-                  <button
-                    type="button"
-                    onClick={() => openEditModal(block)}
-                    className="opacity-0 group-hover:opacity-100 p-1 text-muted-foreground hover:text-foreground transition-opacity"
-                    title="Edit block"
-                  >
-                    <Edit3Icon className="size-3" />
-                  </button>
+                <p
+                  className={cn(
+                    "m-0 text-sm leading-relaxed break-words whitespace-pre-line text-foreground/85",
+                    isLong && !isExpanded && "line-clamp-3"
+                  )}
+                >
+                  {block.text}
+                </p>
 
-                  <button
+                <div className="mt-auto flex items-center gap-2">
+                  <Button
                     type="button"
-                    onClick={() => handleDeleteBlock(block.id)}
-                    className="opacity-0 group-hover:opacity-100 p-1 text-muted-foreground hover:text-destructive transition-opacity"
-                    title="Delete block"
-                  >
-                    <Trash2Icon className="size-3" />
-                  </button>
-
-                  <button
-                    type="button"
+                    size="sm"
+                    variant="outline"
                     onClick={() => copyToClipboard(block)}
-                    className={cn(
-                      "flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium transition-colors cursor-pointer ml-1",
-                      state?.ok
-                        ? "bg-success-muted text-success"
-                        : state?.ok === false
-                          ? "bg-destructive/10 text-destructive"
-                          : "bg-primary/10 text-primary-deep hover:bg-primary/20",
-                    )}
                   >
                     {state?.ok ? (
-                      <>
-                        <CheckIcon className="size-3" /> Copied!
-                      </>
-                    ) : state?.ok === false ? (
-                      "Failed"
+                      <CheckIcon data-icon="inline-start" aria-hidden="true" className="text-success" />
                     ) : (
-                      <>
-                        <CopyIcon className="size-3" /> Copy
-                      </>
+                      <CopyIcon data-icon="inline-start" aria-hidden="true" />
                     )}
-                  </button>
+                    {state?.ok ? (
+                      <span className="text-success">Copied</span>
+                    ) : state?.ok === false ? (
+                      <span className="text-destructive">Couldn&apos;t copy</span>
+                    ) : (
+                      "Copy"
+                    )}
+                  </Button>
+                  {isLong && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      aria-expanded={isExpanded}
+                      onClick={() => toggleExpanded(block.id)}
+                    >
+                      {isExpanded ? "Show less" : "Show more"}
+                    </Button>
+                  )}
                 </div>
-              </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+      <p className="sr-only" aria-live="polite">
+        {feedback?.ok ? "Copied to clipboard" : feedback?.ok === false ? "Couldn't copy to clipboard" : ""}
+      </p>
 
-              {/* Expandable/Scrollable Text Content Box */}
-              <div className="max-h-28 overflow-y-auto rounded-md border border-border/60 bg-muted/30 p-2 text-xs leading-relaxed text-muted-foreground select-all">
-                {block.text}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Modal for Adding / Editing Copy Snippets */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>
-              {editingBlock ? "Edit Copy Snippet" : "Add Submission Copy"}
-            </DialogTitle>
-          </DialogHeader>
-          <form onSubmit={handleSaveBlock} className="space-y-3.5">
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-foreground">
-                Category / Label
-              </label>
-              <Input
-                placeholder="e.g. Founder Bio, Tagline, Keywords..."
-                value={formLabel}
-                onChange={(e) => setFormLabel(e.target.value)}
-                required
-                className="h-8 text-xs"
-              />
+        <DialogContent className="flex max-h-[calc(100dvh-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-[520px]">
+          <form onSubmit={handleSaveBlock} className="flex min-h-0 flex-1 flex-col">
+            <DialogHeader className="shrink-0 gap-1 px-6 pt-6 pb-4">
+              <DialogTitle className="text-xl font-extrabold tracking-[-0.03em]">
+                {editingBlock ? "Edit copy" : "Add copy"}
+              </DialogTitle>
+              <DialogDescription>Save text you paste into directory listings again and again.</DialogDescription>
+            </DialogHeader>
+            <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-6">
+              <FieldGroup className="gap-4">
+                <Field>
+                  <FieldLabel htmlFor="copy-label">Label</FieldLabel>
+                  <Input
+                    id="copy-label"
+                    placeholder="e.g. Founder bio, Keywords, Pricing summary"
+                    value={formLabel}
+                    onChange={(event) => setFormLabel(event.target.value)}
+                    autoComplete="off"
+                    autoFocus
+                  />
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="copy-text">Text</FieldLabel>
+                  <Textarea
+                    id="copy-text"
+                    rows={6}
+                    placeholder="Paste or type the text you reuse in submissions"
+                    value={formText}
+                    onChange={(event) => setFormText(event.target.value)}
+                  />
+                  <FieldDescription className="text-xs tabular-nums">{characters(formText)}</FieldDescription>
+                </Field>
+              </FieldGroup>
             </div>
-
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-foreground">
-                Copy Content
-              </label>
-              <textarea
-                placeholder="Paste or type reusable submission text here..."
-                value={formText}
-                onChange={(e) => setFormText(e.target.value)}
-                required
-                className="min-h-28 w-full rounded-md border border-input bg-background p-2.5 text-xs text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/20"
-              />
-            </div>
-
-            <DialogFooter className="pt-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setIsModalOpen(false)}
-              >
+            <DialogFooter className="mx-0 mb-0 shrink-0 rounded-b-2xl">
+              <Button type="button" variant="ghost" onClick={() => setIsModalOpen(false)}>
                 Cancel
               </Button>
-              <Button type="submit" size="sm">
-                {editingBlock ? "Save Changes" : "Add Copy"}
+              <Button type="submit" disabled={!canSave}>
+                {editingBlock ? "Save changes" : "Add copy"}
               </Button>
             </DialogFooter>
           </form>

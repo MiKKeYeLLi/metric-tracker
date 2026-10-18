@@ -76,7 +76,7 @@ function TableHead({ className, ...props }: React.ComponentProps<"th">) {
       data-slot="table-head"
       className={cn(
         "h-10 px-3 text-left align-middle text-2xs font-bold tracking-[0.07em] whitespace-nowrap text-muted-foreground uppercase [&:has([role=checkbox])]:pr-0",
-        "group-data-[variant=pill]/table:h-11 group-data-[variant=pill]/table:bg-accent group-data-[variant=pill]/table:px-2.5 group-data-[variant=pill]/table:sm:px-4 group-data-[variant=pill]/table:text-xs group-data-[variant=pill]/table:font-semibold group-data-[variant=pill]/table:tracking-[0.04em] group-data-[variant=pill]/table:text-primary-deep group-data-[variant=pill]/table:first:rounded-l-full group-data-[variant=pill]/table:last:rounded-r-full",
+        "group-data-[variant=pill]/table:h-[52px] group-data-[variant=pill]/table:border-b-8 group-data-[variant=pill]/table:border-transparent group-data-[variant=pill]/table:bg-accent group-data-[variant=pill]/table:bg-clip-padding group-data-[variant=pill]/table:px-2.5 group-data-[variant=pill]/table:sm:px-4 group-data-[variant=pill]/table:text-xs group-data-[variant=pill]/table:font-semibold group-data-[variant=pill]/table:tracking-[0.04em] group-data-[variant=pill]/table:text-primary-deep group-data-[variant=pill]/table:first:rounded-l-full group-data-[variant=pill]/table:last:rounded-r-full",
         className
       )}
       {...props}

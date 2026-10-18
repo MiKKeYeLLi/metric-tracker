@@ -1,11 +1,21 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { CheckIcon, PlusIcon, Trash2Icon } from "lucide-react";
+import { useState, type FormEvent } from "react";
+import { CheckIcon, ListChecksIcon, PlusIcon, Trash2Icon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useDirectories } from "@/context/DirectoryContext";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 
 export const DEFAULT_CHECKLIST_ITEMS = [
   { id: "logo", label: "Logo (square and wide)" },
@@ -15,204 +25,199 @@ export const DEFAULT_CHECKLIST_ITEMS = [
   { id: "pricing", label: "Pricing details" },
 ] as const;
 
-export function SubmissionChecklist({
-  title = "Submission checklist",
-  helper = "Have these ready before submitting anywhere.",
-  className,
-}: {
-  title?: string;
-  helper?: string;
-  className?: string;
-}) {
-  const {
-    directories,
-    selectedDirectoryId,
-    checklistState,
-    toggleChecklistItem,
-  } = useDirectories();
+export type ChecklistItem = { id: string; label: string };
+export type CustomChecklistItems = Record<string, ChecklistItem[]>;
 
-  const [customItems, setCustomItems] = useState<
-    Record<string, { id: string; label: string }[]>
-  >({});
-  const [newItemText, setNewItemText] = useState("");
+function useChecklistProgress(customItems: CustomChecklistItems) {
+  const { selectedDirectoryId, checklistState } = useDirectories();
+  const items: ChecklistItem[] = [
+    ...DEFAULT_CHECKLIST_ITEMS,
+    ...((selectedDirectoryId && customItems[selectedDirectoryId]) || []),
+  ];
+  const checked = (selectedDirectoryId && checklistState[selectedDirectoryId]) || {};
+  const done = items.filter((item) => checked[item.id]).length;
+  return { items, checked, done, total: items.length };
+}
 
-  const selectedDirectory = directories.find(
-    (d) => d.id === selectedDirectoryId,
+export function ChecklistButton({ customItems, onClick }: { customItems: CustomChecklistItems; onClick: () => void }) {
+  const { selectedDirectoryId } = useDirectories();
+  const { done, total } = useChecklistProgress(customItems);
+
+  return (
+    <Button type="button" variant="outline" onClick={onClick} className="shrink-0">
+      <ListChecksIcon data-icon="inline-start" aria-hidden="true" />
+      <span className="sm:hidden">Checklist</span>
+      <span className="hidden sm:inline">Submission checklist</span>
+      {selectedDirectoryId && (
+        <span
+          className={cn(
+            "rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums",
+            done === total ? "bg-success-muted text-success" : "bg-accent text-accent-foreground"
+          )}
+        >
+          {done}/{total}
+        </span>
+      )}
+    </Button>
   );
+}
 
-  // Combine default static items with any user-added custom items for this directory
-  const activeDirectoryCustoms =
-    (selectedDirectoryId && customItems[selectedDirectoryId]) || [];
-  const allItems = [...DEFAULT_CHECKLIST_ITEMS, ...activeDirectoryCustoms];
+export function SubmissionChecklistDialog({
+  open,
+  onOpenChange,
+  customItems,
+  onCustomItemsChange: setCustomItems,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  customItems: CustomChecklistItems;
+  onCustomItemsChange: (update: (previous: CustomChecklistItems) => CustomChecklistItems) => void;
+}) {
+  const { directories, selectedDirectoryId, setSelectedDirectoryId, toggleChecklistItem } = useDirectories();
+  const [newItemText, setNewItemText] = useState("");
+  const { items, checked, done, total } = useChecklistProgress(customItems);
 
-  const currentDirChecklist = (selectedDirectoryId &&
-    checklistState[selectedDirectoryId]) || {
-    logo: false,
-    screenshots: false,
-    tagline: false,
-    "long-description": false,
-    pricing: false,
-  };
+  const selectedDirectory = directories.find((directory) => directory.id === selectedDirectoryId);
+  const percent = total ? Math.round((done / total) * 100) : 0;
 
-  const checkedSet = useMemo(() => {
-    const set = new Set<string>();
-    Object.entries(currentDirChecklist).forEach(([key, isChecked]) => {
-      if (isChecked) set.add(key);
-    });
-    return set;
-  }, [currentDirChecklist]);
-
-  const toggle = (itemKey: string) => {
-    if (!selectedDirectoryId) return;
-    toggleChecklistItem(selectedDirectoryId, itemKey as any);
-  };
-
-  const addCustomItem = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedDirectoryId || !newItemText.trim()) return;
-
-    const customId = `custom-${Date.now()}`;
-    setCustomItems((prev) => ({
-      ...prev,
-      [selectedDirectoryId]: [
-        ...(prev[selectedDirectoryId] || []),
-        { id: customId, label: newItemText.trim() },
-      ],
+  const addCustomItem = (event: FormEvent) => {
+    event.preventDefault();
+    const label = newItemText.trim();
+    if (!selectedDirectoryId || !label) return;
+    setCustomItems((previous) => ({
+      ...previous,
+      [selectedDirectoryId]: [...(previous[selectedDirectoryId] ?? []), { id: `custom-${Date.now()}`, label }],
     }));
     setNewItemText("");
   };
 
   const deleteCustomItem = (itemId: string) => {
     if (!selectedDirectoryId) return;
-    setCustomItems((prev) => ({
-      ...prev,
-      [selectedDirectoryId]: (prev[selectedDirectoryId] || []).filter(
-        (item) => item.id !== itemId,
-      ),
+    setCustomItems((previous) => ({
+      ...previous,
+      [selectedDirectoryId]: (previous[selectedDirectoryId] ?? []).filter((item) => item.id !== itemId),
     }));
   };
 
-  const done = checkedSet.size;
-  const total = allItems.length;
-
   return (
-    <section
-      aria-label={title}
-      className={cn("rounded-2xl bg-card shadow-[0_1px_2px_rgb(21_21_31/0.04)] ring-1 ring-border p-5", className)}
-    >
-      <div className="flex items-center justify-between">
-        <h3 className="text-[13px] font-bold tracking-[-0.02em] text-foreground">
-          {title}
-        </h3>
-        {selectedDirectory && (
-          <span
-            className="max-w-[120px] truncate rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground"
-            title={selectedDirectory.name}
-          >
-            {selectedDirectory.name}
-          </span>
-        )}
-      </div>
-      <p className="mt-0.5 text-xs text-muted-foreground">{helper}</p>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="flex max-h-[calc(100dvh-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-[480px]">
+        <DialogHeader className="shrink-0 gap-1 px-6 pt-6 pb-4">
+          <DialogTitle className="text-xl font-extrabold tracking-[-0.03em]">Submission checklist</DialogTitle>
+          <DialogDescription>Have these ready before you submit to a directory.</DialogDescription>
+        </DialogHeader>
 
-      <ul className="mt-3 flex flex-col gap-0.5 max-h-52 overflow-y-auto pr-1">
-        {allItems.map((item) => {
-          const isChecked = checkedSet.has(item.id);
-          const isCustom = !DEFAULT_CHECKLIST_ITEMS.some(
-            (d) => d.id === item.id,
-          );
-
-          return (
-            <li
-              key={item.id}
-              className="group/item flex items-center justify-between rounded-md hover:bg-muted px-1"
+        <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-6 pb-6">
+          <Field>
+            <FieldLabel htmlFor="checklist-directory">Directory</FieldLabel>
+            <NativeSelect
+              id="checklist-directory"
+              className="w-full"
+              value={selectedDirectoryId ?? ""}
+              onChange={(event) => setSelectedDirectoryId(event.target.value)}
             >
-              <label
-                className={cn(
-                  "flex min-h-8 flex-1 cursor-pointer items-center gap-2.5 py-1",
-                  !selectedDirectoryId && "opacity-50 cursor-not-allowed",
-                )}
-              >
-                <input
-                  type="checkbox"
-                  className="peer sr-only"
-                  checked={isChecked}
-                  disabled={!selectedDirectoryId}
-                  onChange={() => toggle(item.id)}
-                />
-                <span
-                  aria-hidden="true"
-                  className={cn(
-                    "flex size-4.5 shrink-0 items-center justify-center rounded-[6px] border transition-colors",
-                    "peer-focus-visible:ring-3 peer-focus-visible:ring-ring/50",
-                    isChecked
-                      ? "border-primary bg-primary text-primary-foreground"
-                      : "border-border-strong bg-card group-hover/item:border-muted-foreground/60",
-                  )}
-                >
-                  {isChecked && (
-                    <CheckIcon className="size-3" strokeWidth={3} />
-                  )}
-                </span>
-                <span className="text-[13px] text-foreground truncate">
-                  {item.label}
-                </span>
-              </label>
-
-              {isCustom && selectedDirectoryId && (
-                <button
-                  type="button"
-                  onClick={() => deleteCustomItem(item.id)}
-                  className="opacity-0 group-hover/item:opacity-100 text-muted-foreground hover:text-destructive p-1 transition-opacity"
-                  title="Delete custom requirement"
-                >
-                  <Trash2Icon className="size-3.5" />
-                </button>
+              {!selectedDirectoryId && (
+                <NativeSelectOption value="" disabled>
+                  Choose a directory
+                </NativeSelectOption>
               )}
-            </li>
-          );
-        })}
-      </ul>
+              {directories.map((directory) => (
+                <NativeSelectOption key={directory.id} value={directory.id}>
+                  {directory.name}
+                </NativeSelectOption>
+              ))}
+            </NativeSelect>
+          </Field>
 
-      {/* Add custom checklist item form */}
-      {selectedDirectoryId && (
-        <form
-          onSubmit={addCustomItem}
-          className="mt-2.5 flex items-center gap-1.5 pt-2 border-t border-border"
-        >
-          <Input
-            type="text"
-            placeholder="Add requirement..."
-            value={newItemText}
-            onChange={(e) => setNewItemText(e.target.value)}
-            className="h-7 text-xs px-2"
-          />
-          <Button
-            type="submit"
-            size="icon-xs"
-            variant="outline"
-            className="h-7 w-7 shrink-0"
-          >
-            <PlusIcon className="size-3.5" />
+          {selectedDirectory ? (
+            <>
+              <div className="flex flex-col gap-2">
+                <div className="flex items-baseline justify-between gap-3">
+                  <p className="m-0 text-sm font-semibold text-foreground" aria-live="polite">
+                    {done} of {total} ready
+                  </p>
+                  <p className={cn("m-0 text-sm font-bold tabular-nums", done === total ? "text-success" : "text-primary-deep")}>
+                    {percent}%
+                  </p>
+                </div>
+                <div className="h-2.5 overflow-hidden rounded-full bg-chart-track" aria-hidden="true">
+                  <div
+                    className={cn("h-full rounded-full transition-[width] duration-300", done === total ? "bg-success" : "bg-primary")}
+                    style={{ width: `${percent}%` }}
+                  />
+                </div>
+              </div>
+
+              <ul className="m-0 flex list-none flex-col gap-1 p-0">
+                {items.map((item) => {
+                  const isChecked = Boolean(checked[item.id]);
+                  const isCustom = !DEFAULT_CHECKLIST_ITEMS.some((defaultItem) => defaultItem.id === item.id);
+                  return (
+                    <li key={item.id} className="group/item flex items-center gap-1 rounded-xl transition-colors hover:bg-muted">
+                      <label className="flex min-h-11 flex-1 cursor-pointer items-center gap-3 px-3">
+                        <input
+                          type="checkbox"
+                          className="peer sr-only"
+                          checked={isChecked}
+                          onChange={() => toggleChecklistItem(selectedDirectory.id, item.id)}
+                        />
+                        <span
+                          aria-hidden="true"
+                          className={cn(
+                            "flex size-5 shrink-0 items-center justify-center rounded-md border transition-colors peer-focus-visible:ring-3 peer-focus-visible:ring-ring/50",
+                            isChecked
+                              ? "border-primary bg-primary text-primary-foreground"
+                              : "border-border-strong bg-card group-hover/item:border-muted-foreground/60"
+                          )}
+                        >
+                          {isChecked && <CheckIcon className="size-3.5" strokeWidth={3} />}
+                        </span>
+                        <span className={cn("text-sm", isChecked ? "text-muted-foreground line-through" : "text-foreground")}>
+                          {item.label}
+                        </span>
+                      </label>
+                      {isCustom && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          aria-label={`Remove ${item.label}`}
+                          onClick={() => deleteCustomItem(item.id)}
+                          className="mr-1 pointer-fine:opacity-0 pointer-fine:group-hover/item:opacity-100 focus-visible:opacity-100"
+                        >
+                          <Trash2Icon aria-hidden="true" />
+                        </Button>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+
+              <form onSubmit={addCustomItem} className="flex items-center gap-2">
+                <Input
+                  aria-label={`Add a requirement for ${selectedDirectory.name}`}
+                  placeholder="Add a requirement for this directory"
+                  value={newItemText}
+                  onChange={(event) => setNewItemText(event.target.value)}
+                />
+                <Button type="submit" variant="outline" size="icon-lg" aria-label="Add requirement" disabled={!newItemText.trim()}>
+                  <PlusIcon aria-hidden="true" />
+                </Button>
+              </form>
+            </>
+          ) : (
+            <p className="m-0 rounded-2xl border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">
+              Choose a directory to see what&apos;s ready for its submission.
+            </p>
+          )}
+        </div>
+
+        <DialogFooter className="mx-0 mb-0 shrink-0 rounded-b-2xl">
+          <Button type="button" onClick={() => onOpenChange(false)}>
+            Done
           </Button>
-        </form>
-      )}
-
-      <div className="mt-2 flex items-center justify-between border-t border-border pt-2">
-        <p
-          className="font-mono text-2xs text-muted-foreground"
-          aria-live="polite"
-        >
-          {done} of {total} ready
-        </p>
-        {!selectedDirectoryId && (
-          <span className="text-[10px] text-warning">
-            Select a row first
-          </span>
-        )}
-      </div>
-    </section>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
-
-export default SubmissionChecklist;
