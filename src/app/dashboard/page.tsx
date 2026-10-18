@@ -4,6 +4,7 @@ import {
   ArrowUpRightIcon,
   CircleCheckIcon,
   FileTextIcon,
+  FolderOpenIcon,
   NewspaperIcon,
   ScanSearchIcon,
   SparklesIcon,
@@ -27,6 +28,8 @@ export const dynamic = "force-dynamic";
 const DAY = 86_400_000;
 const WEEKS = 8;
 const CLOSED_SUBMISSION = ["Published", "Rejected", "Withdrawn"] as const;
+/** A directory still pending review after this many days needs a nudge. */
+const DIRECTORY_REVIEW_DAYS = 14;
 
 const shortDate = (value: Date) =>
   value.toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
@@ -45,7 +48,7 @@ function hostOf(url: string) {
 
 type AttentionItem = {
   id: string;
-  channel: "Press" | "SEO" | "Content";
+  channel: "Press" | "SEO" | "Content" | "Directories";
   tone: "warning" | "destructive";
   title: string;
   detail: string;
@@ -57,6 +60,7 @@ const CHANNEL_ICON: Record<AttentionItem["channel"], LucideIcon> = {
   Press: NewspaperIcon,
   SEO: ScanSearchIcon,
   Content: FileTextIcon,
+  Directories: FolderOpenIcon,
 };
 
 type UpcomingItem = {
@@ -64,14 +68,13 @@ type UpcomingItem = {
   date: Date;
   title: string;
   meta: string;
-  overdue: boolean;
 };
 
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions);
   const firstName = session?.user?.name?.split(" ")[0];
 
-  const [content, latestCheck, coverage, featuredPitches, openSubmissions, pitchStatuses] = await Promise.all([
+  const [content, latestCheck, coverage, featuredPitches, openSubmissions, pitchStatuses, directories] = await Promise.all([
     prisma.contentItem.findMany({
       select: {
         id: true,
@@ -97,6 +100,7 @@ export default async function DashboardPage() {
       select: { id: true, title: true, outlet: true, status: true, followUpDate: true },
     }),
     prisma.pressSubmission.groupBy({ by: ["status"], where: { coverageId: null }, _count: { _all: true } }),
+    prisma.directory.findMany({ select: { id: true, name: true, status: true, dateSubmitted: true } }),
   ]);
 
   const previousCheck = latestCheck
@@ -135,7 +139,13 @@ export default async function DashboardPage() {
   ];
   const funnelMax = Math.max(1, ...funnel.map((step) => step.count));
   const closedPitches = pitchCount("Rejected", "Withdrawn");
-  const followUpsDue = openSubmissions.filter((item) => item.followUpDate && item.followUpDate <= today).length;
+  // Targets haven't been pitched, so only pitches can have a follow-up due (matches the Press page).
+  const pitches = openSubmissions.filter((item) => item.status !== "Draft");
+  const followUpsDue = pitches.filter((item) => item.followUpDate && item.followUpDate <= today).length;
+
+  const directoriesLive = directories.filter((item) => item.status === "Live").length;
+  const directoriesPending = directories.filter((item) => item.status === "PendingReview").length;
+  const directoriesNeedChanges = directories.filter((item) => item.status === "NeedsChanges").length;
 
   const weeks = lastWeeks(WEEKS, today);
   const createdInRange = countPerWeek(weeks, content.map((item) => item.createdDate)).reduce((sum, n) => sum + n, 0);
@@ -158,16 +168,15 @@ export default async function DashboardPage() {
         date: item.publishDate as Date,
         title: item.title || "Untitled",
         meta: `Publish · ${item.platform || item.type || "content"}`,
-        overdue: false,
       })),
-    ...openSubmissions
-      .filter((item) => item.followUpDate)
+    // Overdue follow-ups are listed under "Needs attention", so only upcoming ones show here.
+    ...pitches
+      .filter((item) => item.followUpDate && item.followUpDate >= today)
       .map((item) => ({
         id: `press-${item.id}`,
         date: item.followUpDate as Date,
-        title: item.title,
+        title: item.title || "Pitch",
         meta: `Follow up · ${item.outlet}`,
-        overdue: (item.followUpDate as Date) < today,
       })),
   ]
     .sort((a, b) => a.date.getTime() - b.date.getTime())
@@ -177,15 +186,15 @@ export default async function DashboardPage() {
 
   const daysSince = (date: Date) => Math.floor((today.getTime() - startOfUtcDay(date).getTime()) / DAY);
   const attention: AttentionItem[] = [];
-  for (const pitch of openSubmissions) {
-    if (pitch.status !== "Draft" && pitch.followUpDate && pitch.followUpDate < today) {
+  for (const pitch of pitches) {
+    if (pitch.followUpDate && pitch.followUpDate <= today) {
       const late = daysSince(pitch.followUpDate);
       attention.push({
         id: `follow-up-${pitch.id}`,
         channel: "Press",
         tone: "warning",
         title: `Follow up with ${pitch.outlet}`,
-        detail: `${pitch.title || "Pitch"} · ${late} ${late === 1 ? "day" : "days"} overdue`,
+        detail: `${pitch.title || "Pitch"} · ${late === 0 ? "due today" : `${late} ${late === 1 ? "day" : "days"} overdue`}`,
         href: "/dashboard/media",
         rank: 0,
       });
@@ -255,6 +264,31 @@ export default async function DashboardPage() {
       });
     }
   }
+  for (const directory of directories) {
+    if (directory.status === "NeedsChanges") {
+      attention.push({
+        id: `directory-changes-${directory.id}`,
+        channel: "Directories",
+        tone: "warning",
+        title: `${directory.name} asked for changes`,
+        detail: "Update the listing and resubmit",
+        href: "/dashboard/directories",
+        rank: 1,
+      });
+    }
+    const waiting = directory.dateSubmitted ? daysSince(directory.dateSubmitted) : 0;
+    if (directory.status === "PendingReview" && waiting >= DIRECTORY_REVIEW_DAYS) {
+      attention.push({
+        id: `directory-pending-${directory.id}`,
+        channel: "Directories",
+        tone: "warning",
+        title: `${directory.name} still pending review`,
+        detail: `Submitted ${waiting} days ago`,
+        href: "/dashboard/directories",
+        rank: 2,
+      });
+    }
+  }
   attention.sort((a, b) => a.rank - b.rank);
   const attentionShown = attention.slice(0, 8);
 
@@ -273,7 +307,7 @@ export default async function DashboardPage() {
       />
 
       <PageContent>
-        <KpiGrid>
+        <KpiGrid className="sm:grid-cols-3 xl:grid-cols-5">
           <KpiCard
             title="Content published"
             value={published.length.toLocaleString()}
@@ -326,6 +360,23 @@ export default async function DashboardPage() {
             }
             action={{ label: "Open Press & Media", href: "/dashboard/media" }}
           />
+          <KpiCard
+            title="Directories live"
+            value={directoriesLive.toLocaleString()}
+            className="col-span-2 sm:col-span-1"
+            context={
+              directoriesNeedChanges > 0 ? (
+                <span className="font-semibold text-warning">
+                  {directoriesNeedChanges} {directoriesNeedChanges === 1 ? "needs" : "need"} changes
+                </span>
+              ) : directories.length > 0 ? (
+                `${directoriesPending} pending review · ${directories.length} in total`
+              ) : (
+                "No directories added yet"
+              )
+            }
+            action={{ label: "Open directories", href: "/dashboard/directories" }}
+          />
         </KpiGrid>
 
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1.7fr)_minmax(280px,1fr)]">
@@ -374,12 +425,7 @@ export default async function DashboardPage() {
                 <ul className="m-0 flex list-none flex-col gap-1 p-0">
                   {upcoming.map((item) => (
                     <li key={item.id} className="flex items-center gap-3 rounded-xl px-1 py-2">
-                      <span
-                        className={cn(
-                          "flex size-11 shrink-0 flex-col items-center justify-center rounded-xl leading-none",
-                          item.overdue ? "bg-warning-muted text-warning" : "bg-accent text-accent-foreground"
-                        )}
-                      >
+                      <span className="flex size-11 shrink-0 flex-col items-center justify-center rounded-xl bg-accent leading-none text-accent-foreground">
                         <span className="text-[15px] font-extrabold tabular-nums">{item.date.getUTCDate()}</span>
                         <span className="mt-0.5 text-2xs font-bold uppercase">
                           {item.date.toLocaleDateString("en-GB", { month: "short", timeZone: "UTC" })}
@@ -389,7 +435,6 @@ export default async function DashboardPage() {
                         <p className="m-0 truncate text-[13px] font-semibold text-foreground">{item.title}</p>
                         <p className="m-0 truncate text-xs text-muted-foreground">{item.meta}</p>
                       </div>
-                      {item.overdue && <Badge variant="warning">Overdue</Badge>}
                     </li>
                   ))}
                 </ul>
@@ -402,7 +447,7 @@ export default async function DashboardPage() {
           <Card>
             <CardHeader>
               <CardTitle>Needs attention</CardTitle>
-              <CardDescription>What&apos;s slipping across content, SEO and press</CardDescription>
+              <CardDescription>What&apos;s slipping across content, SEO, directories and press</CardDescription>
               {attention.length > 0 && (
                 <CardAction>
                   <Badge variant="warning">
