@@ -7,54 +7,20 @@ import {
   FolderOpenIcon,
   NewspaperIcon,
   ScanSearchIcon,
-  SparklesIcon,
   type LucideIcon,
 } from "lucide-react";
-import { ChartLegend, GroupedWeeklyBars, countPerWeek, lastWeeks } from "@/components/charts/WeeklyCharts";
+import { ChartLegend, GroupedWeeklyBars } from "@/components/charts/WeeklyCharts";
 import { KpiCard, KpiGrid } from "@/components/KpiCard";
+import { AiSummaryButton } from "@/components/overview/AiSummaryButton";
 import { PageContent, PageHeader } from "@/components/PageHeader";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { authOptions } from "@/lib/auth";
-import { outletKey } from "@/components/media/press-model";
-import { prisma } from "@/lib/prisma";
-import { todoList } from "@/lib/seo/scoring";
-import type { CheckResult } from "@/lib/seo/types";
+import { OVERVIEW_WEEKS as WEEKS, getOverview, shortDate, type AttentionItem } from "@/lib/overview";
 import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
-
-const DAY = 86_400_000;
-const WEEKS = 8;
-const CLOSED_SUBMISSION = ["Published", "Rejected", "Withdrawn"] as const;
-/** A directory still pending review after this many days needs a nudge. */
-const DIRECTORY_REVIEW_DAYS = 14;
-
-const shortDate = (value: Date) =>
-  value.toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
-
-function startOfUtcDay(value: Date) {
-  return new Date(Date.UTC(value.getUTCFullYear(), value.getUTCMonth(), value.getUTCDate()));
-}
-
-function hostOf(url: string) {
-  try {
-    return new URL(url).host;
-  } catch {
-    return url;
-  }
-}
-
-type AttentionItem = {
-  id: string;
-  channel: "Press" | "SEO" | "Content" | "Directories";
-  tone: "warning" | "destructive";
-  title: string;
-  detail: string;
-  href: string;
-  rank: number;
-};
 
 const CHANNEL_ICON: Record<AttentionItem["channel"], LucideIcon> = {
   Press: NewspaperIcon,
@@ -63,254 +29,40 @@ const CHANNEL_ICON: Record<AttentionItem["channel"], LucideIcon> = {
   Directories: FolderOpenIcon,
 };
 
-type UpcomingItem = {
-  id: string;
-  date: Date;
-  title: string;
-  meta: string;
-};
-
 export default async function DashboardPage() {
-  const session = await getServerSession(authOptions);
+  const [session, overview] = await Promise.all([getServerSession(authOptions), getOverview()]);
   const firstName = session?.user?.name?.split(" ")[0];
 
-  const [content, latestCheck, coverage, featuredPitches, openSubmissions, pitchStatuses, directories] = await Promise.all([
-    prisma.contentItem.findMany({
-      select: {
-        id: true,
-        title: true,
-        type: true,
-        platform: true,
-        status: true,
-        createdDate: true,
-        publishDate: true,
-        updatedAt: true,
-      },
-      orderBy: [{ createdDate: "desc" }, { createdAt: "desc" }],
-    }),
-    prisma.seoCheck.findFirst({
-      orderBy: { createdAt: "desc" },
-      select: { score: true, url: true, normalizedUrl: true, createdAt: true, results: true },
-    }),
-    prisma.pressCoverage.findMany({ select: { outlet: true, publicationDate: true } }),
-    // Older pitches marked Published without their own coverage record still count as features.
-    prisma.pressSubmission.findMany({ where: { status: "Published", coverageId: null }, select: { outlet: true } }),
-    prisma.pressSubmission.findMany({
-      where: { status: { notIn: [...CLOSED_SUBMISSION] } },
-      select: { id: true, title: true, outlet: true, status: true, followUpDate: true },
-    }),
-    prisma.pressSubmission.groupBy({ by: ["status"], where: { coverageId: null }, _count: { _all: true } }),
-    prisma.directory.findMany({ select: { id: true, name: true, status: true, dateSubmitted: true } }),
-  ]);
+  const { published, publishedThisMonth, inPipeline, scheduledAhead, createdInRange } = overview.content;
+  const { seo, weeks, publishedPerWeek, coveragePerWeek, upcoming, attention } = overview;
+  const { outletsFeatured, piecesOfCoverage, followUpsDue } = overview.press;
+  const directories = overview.directories;
 
-  const previousCheck = latestCheck
-    ? await prisma.seoCheck.findFirst({
-        where: { normalizedUrl: latestCheck.normalizedUrl, createdAt: { lt: latestCheck.createdAt } },
-        orderBy: { createdAt: "desc" },
-        select: { score: true },
-      })
-    : null;
-
-  const today = startOfUtcDay(new Date());
-  const monthAgo = new Date(today.getTime() - 30 * DAY);
-  const published = content.filter((item) => item.status === "Published");
-  const publishedThisMonth = published.filter((item) => item.publishDate && item.publishDate >= monthAgo).length;
-  const inPipeline = content.filter((item) => item.status === "Draft" || item.status === "Scheduled").length;
-  const scheduledAhead = content.filter(
-    (item) => item.status === "Scheduled" && item.publishDate && item.publishDate >= today
-  ).length;
-  const outletsFeatured = new Set(
-    [...coverage, ...featuredPitches].map((item) => outletKey(item.outlet)).filter(Boolean)
-  ).size;
-  const piecesOfCoverage = coverage.length + featuredPitches.length;
-  const scoreChange = latestCheck && previousCheck ? latestCheck.score - previousCheck.score : null;
-
-  const pitchCount = (...statuses: string[]) =>
-    pitchStatuses.filter((group) => statuses.includes(group.status)).reduce((sum, group) => sum + group._count._all, 0);
   const funnel = [
-    { stage: "Targets", hint: "Not pitched yet", count: pitchCount("Draft"), bar: "bg-chart-2" },
-    {
-      stage: "Pitched",
-      hint: "Waiting on the outlet",
-      count: pitchCount("Submitted", "UnderReview", "ChangesRequested", "Accepted"),
-      bar: "bg-primary/60",
-    },
-    { stage: "Featured", hint: "Published", count: piecesOfCoverage, bar: "bg-primary" },
+    { stage: "Targets", hint: "Not pitched yet", count: overview.press.funnel.targets, bar: "bg-chart-2" },
+    { stage: "Pitched", hint: "Waiting on the outlet", count: overview.press.funnel.pitched, bar: "bg-primary/60" },
+    { stage: "Featured", hint: "Published", count: overview.press.funnel.featured, bar: "bg-primary" },
   ];
   const funnelMax = Math.max(1, ...funnel.map((step) => step.count));
-  const closedPitches = pitchCount("Rejected", "Withdrawn");
-  // Targets haven't been pitched, so only pitches can have a follow-up due (matches the Press page).
-  const pitches = openSubmissions.filter((item) => item.status !== "Draft");
-  const followUpsDue = pitches.filter((item) => item.followUpDate && item.followUpDate <= today).length;
-
-  const directoriesLive = directories.filter((item) => item.status === "Live").length;
-  const directoriesPending = directories.filter((item) => item.status === "PendingReview").length;
-  const directoriesNeedChanges = directories.filter((item) => item.status === "NeedsChanges").length;
-
-  const weeks = lastWeeks(WEEKS, today);
-  const createdInRange = countPerWeek(weeks, content.map((item) => item.createdDate)).reduce((sum, n) => sum + n, 0);
-  const publishedPerWeek = countPerWeek(
-    weeks,
-    published.flatMap((item) => (item.publishDate ? [item.publishDate] : []))
-  );
-  const coveragePerWeek = countPerWeek(
-    weeks,
-    coverage.flatMap((item) => (item.publicationDate ? [item.publicationDate] : []))
-  );
+  const closedPitches = overview.press.funnel.closed;
   const shippedInRange = publishedPerWeek.reduce((sum, n) => sum + n, 0);
   const coverageInRange = coveragePerWeek.reduce((sum, n) => sum + n, 0);
-
-  const upcoming: UpcomingItem[] = [
-    ...content
-      .filter((item) => item.publishDate && item.publishDate >= today && item.status !== "Published")
-      .map((item) => ({
-        id: `content-${item.id}`,
-        date: item.publishDate as Date,
-        title: item.title || "Untitled",
-        meta: `Publish · ${item.platform || item.type || "content"}`,
-      })),
-    // Overdue follow-ups are listed under "Needs attention", so only upcoming ones show here.
-    ...pitches
-      .filter((item) => item.followUpDate && item.followUpDate >= today)
-      .map((item) => ({
-        id: `press-${item.id}`,
-        date: item.followUpDate as Date,
-        title: item.title || "Pitch",
-        meta: `Follow up · ${item.outlet}`,
-      })),
-  ]
-    .sort((a, b) => a.date.getTime() - b.date.getTime())
-    .slice(0, 6);
-
-  const seoHost = latestCheck ? hostOf(latestCheck.url) : null;
-
-  const daysSince = (date: Date) => Math.floor((today.getTime() - startOfUtcDay(date).getTime()) / DAY);
-  const attention: AttentionItem[] = [];
-  for (const pitch of pitches) {
-    if (pitch.followUpDate && pitch.followUpDate <= today) {
-      const late = daysSince(pitch.followUpDate);
-      attention.push({
-        id: `follow-up-${pitch.id}`,
-        channel: "Press",
-        tone: "warning",
-        title: `Follow up with ${pitch.outlet}`,
-        detail: `${pitch.title || "Pitch"} · ${late === 0 ? "due today" : `${late} ${late === 1 ? "day" : "days"} overdue`}`,
-        href: "/dashboard/media",
-        rank: 0,
-      });
-    }
-    if (pitch.status === "ChangesRequested") {
-      attention.push({
-        id: `changes-${pitch.id}`,
-        channel: "Press",
-        tone: "warning",
-        title: `${pitch.outlet} asked for changes`,
-        detail: pitch.title || "Pitch",
-        href: "/dashboard/media",
-        rank: 1,
-      });
-    }
-  }
-  if (latestCheck && seoHost) {
-    const errors = todoList(latestCheck.results as unknown as CheckResult[]).filter(
-      (result) => result.severity === "error" && result.outcome === "fail"
-    );
-    errors.slice(0, 2).forEach((result, index) =>
-      attention.push({
-        id: `seo-${result.id}`,
-        channel: "SEO",
-        tone: "destructive",
-        title: result.label,
-        detail: `${seoHost} · SEO error ${index + 1} of ${errors.length}`,
-        href: "/dashboard/seo",
-        rank: 0,
-      })
-    );
-    const age = daysSince(latestCheck.createdAt);
-    if (age >= 7) {
-      attention.push({
-        id: "seo-stale",
-        channel: "SEO",
-        tone: "warning",
-        title: `SEO check is ${age} days old`,
-        detail: `Run a fresh check of ${seoHost}`,
-        href: "/dashboard/seo",
-        rank: 2,
-      });
-    }
-  }
-  for (const item of content) {
-    if (item.status === "Scheduled" && item.publishDate && item.publishDate < today) {
-      attention.push({
-        id: `missed-${item.id}`,
-        channel: "Content",
-        tone: "destructive",
-        title: `Missed publish date: ${item.title || "Untitled"}`,
-        detail: `Was scheduled for ${shortDate(item.publishDate)}`,
-        href: "/dashboard/content",
-        rank: 0,
-      });
-    }
-    const idle = daysSince(item.updatedAt);
-    if (item.status === "Draft" && idle >= 30) {
-      attention.push({
-        id: `stale-${item.id}`,
-        channel: "Content",
-        tone: "warning",
-        title: `Draft untouched for ${idle} days`,
-        detail: item.title || "Untitled",
-        href: "/dashboard/content",
-        rank: 2,
-      });
-    }
-  }
-  for (const directory of directories) {
-    if (directory.status === "NeedsChanges") {
-      attention.push({
-        id: `directory-changes-${directory.id}`,
-        channel: "Directories",
-        tone: "warning",
-        title: `${directory.name} asked for changes`,
-        detail: "Update the listing and resubmit",
-        href: "/dashboard/directories",
-        rank: 1,
-      });
-    }
-    const waiting = directory.dateSubmitted ? daysSince(directory.dateSubmitted) : 0;
-    if (directory.status === "PendingReview" && waiting >= DIRECTORY_REVIEW_DAYS) {
-      attention.push({
-        id: `directory-pending-${directory.id}`,
-        channel: "Directories",
-        tone: "warning",
-        title: `${directory.name} still pending review`,
-        detail: `Submitted ${waiting} days ago`,
-        href: "/dashboard/directories",
-        rank: 2,
-      });
-    }
-  }
-  attention.sort((a, b) => a.rank - b.rank);
   const attentionShown = attention.slice(0, 8);
+
 
   return (
     <>
       <PageHeader
         title={firstName ? `Welcome back, ${firstName}` : "Overview"}
         description="Content, SEO, directories and press for Zedu at a glance."
-        actions={
-          <Button aria-disabled="true" title="AI summaries are coming soon">
-            <SparklesIcon data-icon="inline-start" aria-hidden="true" />
-            Generate AI summary
-            <span className="rounded-full bg-primary-foreground/20 px-2 py-0.5 text-[11px] font-semibold">Soon</span>
-          </Button>
-        }
+        actions={<AiSummaryButton />}
       />
 
       <PageContent>
         <KpiGrid className="sm:grid-cols-3 xl:grid-cols-5">
           <KpiCard
             title="Content published"
-            value={published.length.toLocaleString()}
+            value={published.toLocaleString()}
             delta={{
               label: `+${publishedThisMonth}`,
               direction: publishedThisMonth > 0 ? "up" : "flat",
@@ -331,19 +83,19 @@ export default async function DashboardPage() {
           />
           <KpiCard
             title="SEO score"
-            value={latestCheck ? `${latestCheck.score}` : "–"}
-            decimals={latestCheck ? "%" : undefined}
+            value={seo ? `${seo.score}` : "–"}
+            decimals={seo ? "%" : undefined}
             delta={
-              scoreChange === null
+              !seo || seo.change === null
                 ? undefined
                 : {
-                    label: `${scoreChange > 0 ? "+" : scoreChange < 0 ? "−" : ""}${Math.abs(scoreChange)} pts`,
-                    direction: scoreChange > 0 ? "up" : scoreChange < 0 ? "down" : "flat",
-                    favorable: scoreChange >= 0,
+                    label: `${seo.change > 0 ? "+" : seo.change < 0 ? "−" : ""}${Math.abs(seo.change)} pts`,
+                    direction: seo.change > 0 ? "up" : seo.change < 0 ? "down" : "flat",
+                    favorable: seo.change >= 0,
                   }
             }
             comparison="since the last check"
-            context={seoHost ? `${seoHost} · checked ${shortDate(latestCheck!.createdAt)}` : "No pages checked yet"}
+            context={seo ? `${seo.host} · checked ${shortDate(seo.checkedAt)}` : "No pages checked yet"}
             action={{ label: "Open the SEO checker", href: "/dashboard/seo" }}
           />
           <KpiCard
@@ -362,15 +114,15 @@ export default async function DashboardPage() {
           />
           <KpiCard
             title="Directories live"
-            value={directoriesLive.toLocaleString()}
+            value={directories.live.toLocaleString()}
             className="col-span-2 sm:col-span-1"
             context={
-              directoriesNeedChanges > 0 ? (
+              directories.needChanges > 0 ? (
                 <span className="font-semibold text-warning">
-                  {directoriesNeedChanges} {directoriesNeedChanges === 1 ? "needs" : "need"} changes
+                  {directories.needChanges} {directories.needChanges === 1 ? "needs" : "need"} changes
                 </span>
-              ) : directories.length > 0 ? (
-                `${directoriesPending} pending review · ${directories.length} in total`
+              ) : directories.total > 0 ? (
+                `${directories.pending} pending review · ${directories.total} in total`
               ) : (
                 "No directories added yet"
               )

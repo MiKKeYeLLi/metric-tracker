@@ -28,6 +28,7 @@ import {
   outletSchema,
   outletUpdateSchema,
 } from "@/lib/schemas/media";
+import { overviewErrorSchema, overviewSummarySchema } from "@/lib/schemas/overview";
 
 // Register request/response schemas and paths here; they appear at /docs.
 export const registry = new OpenAPIRegistry();
@@ -439,6 +440,25 @@ registry.registerPath({
     204: { description: "Copy deleted" },
     401: { description: "Unauthorized" },
     404: { description: "Not found" },
+  },
+});
+
+// ── Overview ──
+const overviewError = { content: { "application/json": { schema: overviewErrorSchema } } };
+
+registry.registerPath({
+  method: "post",
+  path: "/api/overview/summary",
+  operationId: "generateOverviewSummary",
+  tags: ["Overview"],
+  summary: "Generate an AI summary of the overview (content, SEO, directories and press)",
+  description: "Sends counts and item titles to the configured AI model (no notes or contact details). Nothing is stored.",
+  security: [{ sessionCookie: [] }],
+  responses: {
+    200: { description: "The summary", content: { "application/json": { schema: overviewSummarySchema } } },
+    401: { description: "Unauthorized" },
+    502: { description: "The AI service failed or returned an unusable reply", ...overviewError },
+    503: { description: "AI_PROVIDER_API_KEY or AI_MODEL is not configured (AI_BASE_URL picks the provider)", ...overviewError },
   },
 });
 
