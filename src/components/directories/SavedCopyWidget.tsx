@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { CheckIcon, CopyIcon, Edit3Icon, MoreHorizontalIcon, PlusIcon, Trash2Icon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Dialog,
@@ -22,12 +23,15 @@ import {
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
 import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 
 export interface SavedCopyBlock {
   id: string;
   label: string;
   text: string;
+  position: number;
 }
 
 const COPY_FEEDBACK_MS = 1600;
@@ -46,6 +50,11 @@ export function SavedCopyWidget({
   className?: string;
 }) {
   const [blocks, setBlocks] = useState<SavedCopyBlock[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+  const [actionError, setActionError] = useState("");
+  const [formError, setFormError] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
   const [feedback, setFeedback] = useState<{ id: string; ok: boolean } | undefined>(undefined);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
@@ -53,6 +62,24 @@ export function SavedCopyWidget({
   const [editingBlock, setEditingBlock] = useState<SavedCopyBlock | null>(null);
   const [formLabel, setFormLabel] = useState("");
   const [formText, setFormText] = useState("");
+
+  const loadBlocks = useCallback(async () => {
+    setIsLoading(true);
+    setLoadError("");
+    try {
+      const response = await fetch("/api/directories/copy", { cache: "no-store" });
+      if (!response.ok) throw new Error();
+      setBlocks((await response.json()) as SavedCopyBlock[]);
+    } catch {
+      setLoadError("Couldn't load saved copy.");
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadBlocks();
+  }, [loadBlocks]);
 
   useEffect(() => {
     if (feedback === undefined) return;
@@ -81,6 +108,7 @@ export function SavedCopyWidget({
     });
 
   const openAddModal = () => {
+    setFormError("");
     setEditingBlock(null);
     setFormLabel("");
     setFormText("");
@@ -88,6 +116,7 @@ export function SavedCopyWidget({
   };
 
   const openEditModal = (block: SavedCopyBlock) => {
+    setFormError("");
     setEditingBlock(block);
     setFormLabel(block.label);
     setFormText(block.text);
@@ -96,25 +125,46 @@ export function SavedCopyWidget({
 
   const canSave = formLabel.trim() !== "" && formText.trim() !== "";
 
-  const handleSaveBlock = (event: FormEvent) => {
+  const handleSaveBlock = async (event: FormEvent) => {
     event.preventDefault();
     if (!canSave) return;
-
-    if (editingBlock) {
+    setIsSaving(true);
+    setFormError("");
+    try {
+      const response = await fetch(editingBlock ? `/api/directories/copy/${editingBlock.id}` : "/api/directories/copy", {
+        method: editingBlock ? "PATCH" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ label: formLabel.trim(), text: formText.trim() }),
+      });
+      const body = (await response.json().catch(() => null)) as
+        | (SavedCopyBlock & { error?: string; details?: Record<string, string[]> })
+        | null;
+      if (!response.ok) {
+        const detail = body?.details ? Object.values(body.details).flat()[0] : undefined;
+        throw new Error(detail ?? body?.error ?? "Couldn't save. Please try again.");
+      }
+      const saved = body as SavedCopyBlock;
       setBlocks((previous) =>
-        previous.map((block) =>
-          block.id === editingBlock.id ? { ...block, label: formLabel.trim(), text: formText.trim() } : block
-        )
+        editingBlock ? previous.map((block) => (block.id === saved.id ? saved : block)) : [...previous, saved]
       );
-    } else {
-      setBlocks((previous) => [...previous, { id: `copy-${Date.now()}`, label: formLabel.trim(), text: formText.trim() }]);
+      setIsModalOpen(false);
+    } catch (saveError) {
+      setFormError(saveError instanceof Error ? saveError.message : "Couldn't save. Please try again.");
+    } finally {
+      setIsSaving(false);
     }
-
-    setIsModalOpen(false);
   };
 
-  const handleDeleteBlock = (id: string) => {
-    setBlocks((previous) => previous.filter((block) => block.id !== id));
+  const handleDeleteBlock = async (block: SavedCopyBlock) => {
+    setActionError("");
+    setBlocks((previous) => previous.filter((item) => item.id !== block.id));
+    try {
+      const response = await fetch(`/api/directories/copy/${block.id}`, { method: "DELETE" });
+      if (!response.ok && response.status !== 404) throw new Error();
+    } catch {
+      setBlocks((previous) => [...previous, block].sort((a, b) => a.position - b.position));
+      setActionError(`Couldn't delete "${block.label}". Please try again.`);
+    }
   };
 
   return (
@@ -135,7 +185,28 @@ export function SavedCopyWidget({
         </Button>
       </div>
 
-      {blocks.length === 0 ? (
+      {actionError && (
+        <Alert variant="destructive">
+          <AlertDescription>{actionError}</AlertDescription>
+        </Alert>
+      )}
+
+      {isLoading ? (
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2" aria-busy="true" aria-label="Loading saved copy">
+          {[0, 1].map((index) => (
+            <Skeleton key={index} className="h-36 rounded-2xl" />
+          ))}
+        </div>
+      ) : loadError ? (
+        <Alert variant="destructive">
+          <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
+            <span>{loadError}</span>
+            <Button type="button" variant="outline" size="sm" onClick={() => void loadBlocks()}>
+              Try again
+            </Button>
+          </AlertDescription>
+        </Alert>
+      ) : blocks.length === 0 ? (
         <Empty className="rounded-2xl border border-dashed py-10">
           <EmptyHeader>
             <EmptyTitle>No saved copy yet</EmptyTitle>
@@ -175,7 +246,7 @@ export function SavedCopyWidget({
                         Edit
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
-                      <DropdownMenuItem variant="destructive" onSelect={() => handleDeleteBlock(block.id)}>
+                      <DropdownMenuItem variant="destructive" onSelect={() => void handleDeleteBlock(block)}>
                         <Trash2Icon aria-hidden="true" />
                         Delete
                       </DropdownMenuItem>
@@ -235,7 +306,7 @@ export function SavedCopyWidget({
 
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
         <DialogContent className="flex max-h-[calc(100dvh-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-[520px]">
-          <form onSubmit={handleSaveBlock} className="flex min-h-0 flex-1 flex-col">
+          <form onSubmit={(event) => void handleSaveBlock(event)} className="flex min-h-0 flex-1 flex-col">
             <DialogHeader className="shrink-0 gap-1 px-6 pt-6 pb-4">
               <DialogTitle className="text-xl font-extrabold tracking-[-0.03em]">
                 {editingBlock ? "Edit copy" : "Add copy"}
@@ -243,6 +314,11 @@ export function SavedCopyWidget({
               <DialogDescription>Save text you paste into directory listings again and again.</DialogDescription>
             </DialogHeader>
             <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-6">
+              {formError && (
+                <Alert variant="destructive" className="mb-4">
+                  <AlertDescription>{formError}</AlertDescription>
+                </Alert>
+              )}
               <FieldGroup className="gap-4">
                 <Field>
                   <FieldLabel htmlFor="copy-label">Label</FieldLabel>
@@ -272,8 +348,9 @@ export function SavedCopyWidget({
               <Button type="button" variant="ghost" onClick={() => setIsModalOpen(false)}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={!canSave}>
-                {editingBlock ? "Save changes" : "Add copy"}
+              <Button type="submit" disabled={!canSave || isSaving}>
+                {isSaving && <Spinner data-icon="inline-start" />}
+                {isSaving ? "Saving…" : editingBlock ? "Save changes" : "Add copy"}
               </Button>
             </DialogFooter>
           </form>

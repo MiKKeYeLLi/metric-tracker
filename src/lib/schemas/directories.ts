@@ -114,3 +114,26 @@ export const directoryErrorSchema = z
     details: z.record(z.string(), z.array(z.string())).optional(),
   })
   .openapi("DirectoryError");
+
+export const savedCopySchema = z
+  .object({
+    id: z.string(),
+    label: z.string(),
+    text: z.string(),
+    position: z.number().int(),
+    createdAt: z.iso.datetime(),
+    updatedAt: z.iso.datetime(),
+  })
+  .openapi("SavedCopy");
+
+export const savedCopyCreateSchema = z
+  .object({
+    label: z.string().trim().min(1, "Give the copy a label.").max(120),
+    text: z.string().trim().min(1, "Add the text you want to reuse.").max(10000),
+  })
+  .openapi("SavedCopyCreate");
+
+export const savedCopyUpdateSchema = savedCopyCreateSchema
+  .partial()
+  .refine((value) => Object.keys(value).length > 0, "Provide at least one field to update")
+  .openapi("SavedCopyUpdate");

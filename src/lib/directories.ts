@@ -4,6 +4,7 @@ import type {
   DirectoryChecklistItem,
   DirectoryPriority,
   DirectoryStatus,
+  SavedCopy,
 } from "@prisma/client";
 import { directoryStatusValues } from "@/lib/schemas/directories";
 
@@ -104,3 +105,14 @@ export function serializeActivity(activity: DirectoryActivity) {
 }
 
 export const withChecklist = { checklistItems: { orderBy: { position: "asc" as const } } };
+
+export function serializeSavedCopy(copy: SavedCopy) {
+  return {
+    id: copy.id,
+    label: copy.label,
+    text: copy.text,
+    position: copy.position,
+    createdAt: copy.createdAt.toISOString(),
+    updatedAt: copy.updatedAt.toISOString(),
+  };
+}

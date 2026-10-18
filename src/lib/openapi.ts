@@ -15,6 +15,9 @@ import {
   directoryErrorSchema,
   directorySchema,
   directoryUpdateSchema,
+  savedCopyCreateSchema,
+  savedCopySchema,
+  savedCopyUpdateSchema,
 } from "@/lib/schemas/directories";
 import { mediaInputSchema, mediaListResponseSchema } from "@/lib/schemas/media";
 
@@ -300,6 +303,64 @@ registry.registerPath({
   request: { params: checklistItemParams },
   responses: {
     204: { description: "Item deleted" },
+    401: { description: "Unauthorized" },
+    404: { description: "Not found" },
+  },
+});
+
+const savedCopyParams = z.object({ id: z.string().openapi({ description: "Saved copy id" }) });
+
+registry.registerPath({
+  method: "get",
+  path: "/api/directories/copy",
+  operationId: "listSavedCopy",
+  tags: ["Directories"],
+  summary: "Team-wide saved submission copy",
+  security: [{ sessionCookie: [] }],
+  responses: {
+    200: { description: "Saved copy in display order", content: { "application/json": { schema: savedCopySchema.array() } } },
+    401: { description: "Unauthorized" },
+  },
+});
+
+registry.registerPath({
+  method: "post",
+  path: "/api/directories/copy",
+  operationId: "createSavedCopy",
+  tags: ["Directories"],
+  security: [{ sessionCookie: [] }],
+  request: { body: { content: { "application/json": { schema: savedCopyCreateSchema } } } },
+  responses: {
+    201: { description: "Copy saved", content: { "application/json": { schema: savedCopySchema } } },
+    400: { description: "Validation failed", ...directoryError },
+    401: { description: "Unauthorized" },
+  },
+});
+
+registry.registerPath({
+  method: "patch",
+  path: "/api/directories/copy/{id}",
+  operationId: "updateSavedCopy",
+  tags: ["Directories"],
+  security: [{ sessionCookie: [] }],
+  request: { params: savedCopyParams, body: { content: { "application/json": { schema: savedCopyUpdateSchema } } } },
+  responses: {
+    200: { description: "Copy updated", content: { "application/json": { schema: savedCopySchema } } },
+    400: { description: "Validation failed", ...directoryError },
+    401: { description: "Unauthorized" },
+    404: { description: "Not found" },
+  },
+});
+
+registry.registerPath({
+  method: "delete",
+  path: "/api/directories/copy/{id}",
+  operationId: "deleteSavedCopy",
+  tags: ["Directories"],
+  security: [{ sessionCookie: [] }],
+  request: { params: savedCopyParams },
+  responses: {
+    204: { description: "Copy deleted" },
     401: { description: "Unauthorized" },
     404: { description: "Not found" },
   },

@@ -202,3 +202,15 @@ model DirectoryChecklistItem {
 
   @@index([directoryId, position])
 }
+
+/// Team-wide reusable text for directory submissions (taglines, descriptions).
+model SavedCopy {
+  id        String   @id @default(cuid())
+  label     String
+  text      String
+  position  Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([position])
+}
