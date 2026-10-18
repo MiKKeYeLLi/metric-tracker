@@ -58,7 +58,7 @@ function initialState(item: PressItem | null, stage: Stage, outlet: string): For
     stage: item?.stage === "Featured" ? "Featured" : stage,
     outlet: item?.outlet ?? outlet,
     title: item?.title ?? "",
-    articleType: item && !(item.articleType === "Other" && !item.articleTypeOther) ? item.articleType : "",
+    articleType: item?.articleType ?? "",
     articleTypeOther: item?.articleTypeOther ?? "",
     pitchStatus: item && item.stage === "Pitched" ? item.status : "Submitted",
     closedStatus: item?.status === "Withdrawn" ? "Withdrawn" : "Rejected",
@@ -78,6 +78,7 @@ export function PressFormDialog({
   item,
   startStage = "Target",
   outlet = "",
+  knownOutlets = [],
   onSaved,
 }: {
   open: boolean;
@@ -85,6 +86,7 @@ export function PressFormDialog({
   item: PressItem | null;
   startStage?: Stage;
   outlet?: string;
+  knownOutlets?: string[];
   onSaved: (message: string) => void;
 }) {
   return (
@@ -96,6 +98,7 @@ export function PressFormDialog({
             item={item}
             startStage={startStage}
             outlet={outlet}
+            knownOutlets={knownOutlets}
             onCancel={() => onOpenChange(false)}
             onSaved={onSaved}
           />
@@ -109,12 +112,14 @@ function PressForm({
   item,
   startStage,
   outlet,
+  knownOutlets,
   onCancel,
   onSaved,
 }: {
   item: PressItem | null;
   startStage: Stage;
   outlet: string;
+  knownOutlets: string[];
   onCancel: () => void;
   onSaved: (message: string) => void;
 }) {
@@ -148,7 +153,7 @@ function PressForm({
     const shared = {
       outlet: form.outlet.trim(),
       title: form.title.trim(),
-      articleType: form.articleType || "Other",
+      articleType: form.articleType,
       articleTypeOther: form.articleType === "Other" ? form.articleTypeOther.trim() : "",
       notes: form.notes.trim(),
     };
@@ -182,7 +187,7 @@ function PressForm({
           ...shared,
           recordType: "Press Submission",
           status,
-          dateSubmitted: form.stage === "Target" ? item?.date ?? "" : form.dateSubmitted,
+          dateSubmitted: form.stage === "Target" ? "" : form.dateSubmitted,
           followUpDate: form.stage === "Pitched" ? form.followUpDate : item?.followUpDate ?? "",
           responsiblePerson: form.owner.trim(),
           documentUrl: form.draftUrl.trim(),
@@ -259,8 +264,14 @@ function PressForm({
               onChange={(event) => update("outlet", event.target.value)}
               placeholder="e.g. TechCabal, BBC Africa, Techpoint"
               autoComplete="off"
+              list="press-known-outlets"
               autoFocus
             />
+            <datalist id="press-known-outlets">
+              {knownOutlets.map((name) => (
+                <option key={name} value={name} />
+              ))}
+            </datalist>
           </Field>
 
           <Field>

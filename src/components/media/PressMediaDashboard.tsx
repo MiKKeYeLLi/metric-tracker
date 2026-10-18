@@ -48,6 +48,7 @@ import {
   formatDate,
   groupByOutlet,
   isFollowUpDue,
+  outletKey,
   parseDate,
   submissionPayload,
   today,
@@ -169,7 +170,7 @@ export function PressMediaDashboard() {
   const monthAgo = new Date(Date.now() - 30 * 86_400_000);
   const firstFeature = new Map<string, Date>();
   for (const item of featured) {
-    const key = item.outlet.trim().toLocaleLowerCase();
+    const key = outletKey(item.outlet);
     const date = parseDate(item.date);
     if (date && (!firstFeature.has(key) || date < (firstFeature.get(key) as Date))) firstFeature.set(key, date);
   }
@@ -604,6 +605,7 @@ export function PressMediaDashboard() {
           item={form?.item ?? null}
           startStage={form?.stage}
           outlet={form?.outlet}
+          knownOutlets={outlets.map((outlet) => outlet.name)}
           onSaved={afterSave}
         />
 

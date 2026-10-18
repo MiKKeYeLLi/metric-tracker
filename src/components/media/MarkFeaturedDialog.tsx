@@ -15,7 +15,7 @@ import {
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
-import { sendJson, submissionPayload, today, type ApiRecord, type PressItem } from "./press-model";
+import { sendJson, today, type PressItem } from "./press-model";
 
 export function MarkFeaturedDialog({
   item,
@@ -56,26 +56,11 @@ function MarkFeaturedForm({
     setIsSaving(true);
     setError("");
     try {
-      const coverage = await sendJson<ApiRecord>("/api/media", "POST", {
-        recordType: "Press Coverage",
-        outlet: item.outlet,
+      await sendJson(`/api/media/${item.submission.id}/feature`, "POST", {
         title: headline.trim(),
-        articleType: item.articleType,
-        articleTypeOther: item.articleTypeOther ?? "",
         articleUrl: url.trim(),
-        publicationDate: publishedOn,
-        notes: "",
+        publicationDate: publishedOn || undefined,
       });
-      await sendJson(
-        `/api/media/${item.submission.id}`,
-        "PUT",
-        submissionPayload(item.submission, {
-          status: "Published",
-          title: headline.trim() || item.submission.title,
-          articleUrl: url.trim(),
-          linkedCoverageId: coverage.id,
-        })
-      );
       onSaved(`Featured in ${item.outlet}!`);
       onCancel();
     } catch (saveError) {

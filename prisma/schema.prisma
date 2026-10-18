@@ -30,9 +30,9 @@ enum SubmissionStatus {
 }
 
 model User {
-  id            String    @id @default(cuid())
+  id            String        @id @default(cuid())
   name          String?
-  email         String?   @unique
+  email         String?       @unique
   emailVerified DateTime?
   image         String?
   accounts      Account[]
@@ -42,57 +42,63 @@ model User {
 }
 
 model ContentItem {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   userId      String
   title       String
   url         String
   type        String
   platform    String
-  topics      String[] @default([])
+  topics      String[]  @default([])
   status      String
-  createdDate DateTime @db.Date
+  createdDate DateTime  @db.Date
   publishDate DateTime? @db.Date
   updatedDate DateTime? @db.Date
   notes       String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdDate])
   @@index([userId, status])
 }
 
 model PressCoverage {
-  id                  String           @id @default(cuid())
-  title              String
-  outlet             String
-  articleType        ArticleType
-  articleTypeOther   String?
+  id                  String            @id @default(cuid())
+  title               String
+  outlet              String
+  articleType         ArticleType?
+  articleTypeOther    String?
   publishedArticleUrl String?
-  publicationDate    DateTime?
-  summary            String?
-  createdAt          DateTime         @default(now())
-  updatedAt          DateTime         @updatedAt
-  submissions        PressSubmission[]
+  publicationDate     DateTime?
+  summary             String?
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+  submissions         PressSubmission[]
+  outletId            String?
+  pressOutlet         PressOutlet?      @relation(fields: [outletId], references: [id], onDelete: SetNull)
+
+  @@index([outletId])
 }
 
 model PressSubmission {
   id                  String           @id @default(cuid())
-  title              String
-  outlet             String
-  articleType        ArticleType
-  articleTypeOther   String?
-  status             SubmissionStatus @default(Draft)
-  dateSubmitted      DateTime
-  responsiblePerson  String?
-  followUpDate       DateTime?
-  draftUrl           String?
+  title               String
+  outlet              String
+  articleType         ArticleType?
+  articleTypeOther    String?
+  status              SubmissionStatus @default(Draft)
+  dateSubmitted       DateTime?
+  responsiblePerson   String?
+  followUpDate        DateTime?
+  draftUrl            String?
   publishedArticleUrl String?
-  notes              String?
-  coverageId         String?
-  coverage           PressCoverage?   @relation(fields: [coverageId], references: [id], onDelete: SetNull)
-  createdAt          DateTime         @default(now())
-  updatedAt          DateTime         @updatedAt
+  notes               String?
+  coverageId          String?
+  coverage            PressCoverage?   @relation(fields: [coverageId], references: [id], onDelete: SetNull)
+  outletId            String?
+  pressOutlet         PressOutlet?     @relation(fields: [outletId], references: [id], onDelete: SetNull)
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
 }
 
 model Account {
@@ -213,4 +219,27 @@ model SavedCopy {
   updatedAt DateTime @updatedAt
 
   @@index([position])
+}
+
+enum OutletTier {
+  Tier1
+  Tier2
+  Tier3
+}
+
+/// One media outlet, shared by every piece of coverage and pitch for it. `key` is the name with case,
+/// spaces and punctuation removed, so "TechCabal" and "Tech Cabal" are one outlet.
+model PressOutlet {
+  id           String            @id @default(cuid())
+  name         String
+  key          String            @unique
+  website      String?
+  contactName  String?
+  contactEmail String?
+  tier         OutletTier?
+  notes        String?
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  coverage     PressCoverage[]
+  submissions  PressSubmission[]
 }

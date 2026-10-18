@@ -19,7 +19,15 @@ import {
   savedCopySchema,
   savedCopyUpdateSchema,
 } from "@/lib/schemas/directories";
-import { mediaInputSchema, mediaListResponseSchema } from "@/lib/schemas/media";
+import {
+  mediaFeatureResponseSchema,
+  mediaFeatureSchema,
+  mediaInputSchema,
+  mediaListResponseSchema,
+  mediaRecordSchema,
+  outletSchema,
+  outletUpdateSchema,
+} from "@/lib/schemas/media";
 
 // Register request/response schemas and paths here; they appear at /docs.
 export const registry = new OpenAPIRegistry();
@@ -166,6 +174,74 @@ registry.registerPath({
         },
       },
     },
+  },
+});
+
+const mediaIdParams = z.object({ id: z.string().openapi({ description: "Coverage or submission id" }) });
+
+registry.registerPath({
+  method: "put",
+  path: "/api/media/{id}",
+  summary: "Update a coverage or submission record (its record type can't change)",
+  security: [{ sessionCookie: [] }],
+  request: { params: mediaIdParams, body: { content: { "application/json": { schema: mediaInputSchema } } } },
+  responses: {
+    200: { description: "The updated record", content: { "application/json": { schema: mediaRecordSchema } } },
+    400: { description: "Validation failed, or the record type doesn't match" },
+    401: { description: "Unauthorized" },
+    404: { description: "Not found" },
+  },
+});
+
+registry.registerPath({
+  method: "delete",
+  path: "/api/media/{id}",
+  summary: "Delete a coverage or submission record",
+  security: [{ sessionCookie: [] }],
+  request: { params: mediaIdParams },
+  responses: {
+    204: { description: "Deleted" },
+    401: { description: "Unauthorized" },
+    404: { description: "Not found" },
+  },
+});
+
+registry.registerPath({
+  method: "post",
+  path: "/api/media/{id}/feature",
+  summary: "Mark a pitch as featured: creates the coverage and links the pitch in one transaction",
+  security: [{ sessionCookie: [] }],
+  request: { params: mediaIdParams, body: { content: { "application/json": { schema: mediaFeatureSchema } } } },
+  responses: {
+    201: { description: "Coverage created and pitch linked", content: { "application/json": { schema: mediaFeatureResponseSchema } } },
+    400: { description: "Validation failed, or the pitch is already featured" },
+    401: { description: "Unauthorized" },
+    404: { description: "Not found" },
+  },
+});
+
+registry.registerPath({
+  method: "get",
+  path: "/api/media/outlets",
+  summary: "List press outlets with their details",
+  security: [{ sessionCookie: [] }],
+  responses: {
+    200: { description: "Outlets by name", content: { "application/json": { schema: outletSchema.array() } } },
+    401: { description: "Unauthorized" },
+  },
+});
+
+registry.registerPath({
+  method: "patch",
+  path: "/api/media/outlets/{id}",
+  summary: "Update an outlet's details; renaming also renames it on its coverage and pitches",
+  security: [{ sessionCookie: [] }],
+  request: { params: mediaIdParams, body: { content: { "application/json": { schema: outletUpdateSchema } } } },
+  responses: {
+    200: { description: "The updated outlet", content: { "application/json": { schema: outletSchema } } },
+    400: { description: "Validation failed, or another outlet already uses that name" },
+    401: { description: "Unauthorized" },
+    404: { description: "Not found" },
   },
 });
 

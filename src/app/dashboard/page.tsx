@@ -16,6 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { authOptions } from "@/lib/auth";
+import { outletKey } from "@/components/media/press-model";
 import { prisma } from "@/lib/prisma";
 import { todoList } from "@/lib/seo/scoring";
 import type { CheckResult } from "@/lib/seo/types";
@@ -117,7 +118,7 @@ export default async function DashboardPage() {
     (item) => item.status === "Scheduled" && item.publishDate && item.publishDate >= today
   ).length;
   const outletsFeatured = new Set(
-    [...coverage, ...featuredPitches].map((item) => item.outlet.trim().toLocaleLowerCase()).filter(Boolean)
+    [...coverage, ...featuredPitches].map((item) => outletKey(item.outlet)).filter(Boolean)
   ).size;
   const piecesOfCoverage = coverage.length + featuredPitches.length;
   const scoreChange = latestCheck && previousCheck ? latestCheck.score - previousCheck.score : null;

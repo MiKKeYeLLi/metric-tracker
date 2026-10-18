@@ -1,3 +1,5 @@
+import { outletKey } from "@/lib/outlet-key";
+
 export type RecordType = "Press Coverage" | "Press Submission";
 
 export const ARTICLE_TYPES = [
@@ -20,7 +22,7 @@ export type SubmissionStatus = "Draft" | PitchStatus | "Published" | "Rejected" 
 export type ApiRecord = {
   id: string;
   recordType: RecordType;
-  articleType: ArticleType;
+  articleType: ArticleType | "";
   articleTypeOther?: string;
   title: string;
   outlet: string;
@@ -33,6 +35,18 @@ export type ApiRecord = {
   documentUrl?: string;
   notes?: string;
   linkedCoverageId?: string;
+  outletId?: string;
+};
+
+/** Outlet details as `/api/media/outlets` returns them. */
+export type OutletDetails = {
+  id: string;
+  name: string;
+  website: string | null;
+  contactName: string | null;
+  contactEmail: string | null;
+  tier: "Tier 1" | "Tier 2" | "Tier 3" | null;
+  notes: string | null;
 };
 
 /** Where an outlet or story is on the way to being featured. */
@@ -43,7 +57,7 @@ export type PressItem = {
   stage: Stage;
   outlet: string;
   title: string;
-  articleType: ArticleType;
+  articleType: ArticleType | "";
   articleTypeOther?: string;
   status: SubmissionStatus;
   date?: string;
@@ -83,9 +97,11 @@ export function formatDate(value?: string) {
 }
 
 export function articleTypeLabel(item: Pick<PressItem, "articleType" | "articleTypeOther">) {
-  if (item.articleType === "Other") return item.articleTypeOther?.trim() || "";
+  if (item.articleType === "Other") return item.articleTypeOther?.trim() || "Other";
   return item.articleType;
 }
+
+export { outletKey };
 
 function stageForSubmission(status: SubmissionStatus): Stage {
   if (status === "Draft") return "Target";
@@ -155,7 +171,7 @@ export function deriveItems(records: ApiRecord[]): PressItem[] {
 export function groupByOutlet(items: PressItem[]): OutletSummary[] {
   const groups = new Map<string, OutletSummary>();
   for (const item of items) {
-    const key = item.outlet.trim().toLocaleLowerCase();
+    const key = outletKey(item.outlet);
     if (!key) continue;
     const group = groups.get(key) ?? {
       key,
@@ -186,7 +202,7 @@ export function submissionPayload(record: ApiRecord, overrides: Partial<ApiRecor
   const merged = { ...record, ...overrides };
   return {
     recordType: "Press Submission" as const,
-    articleType: merged.articleType,
+    articleType: merged.articleType ?? "",
     articleTypeOther: merged.articleTypeOther ?? "",
     title: merged.title,
     outlet: merged.outlet,
