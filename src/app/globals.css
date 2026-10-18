@@ -25,6 +25,7 @@
   --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
+  --color-faint-foreground: var(--faint-foreground);
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
@@ -49,9 +50,12 @@
   --color-chart-3: var(--chart-3);
   --color-chart-4: var(--chart-4);
   --color-chart-5: var(--chart-5);
+  --color-chart-track: var(--chart-track);
+  --color-chart-grid: var(--chart-grid);
 
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-muted-foreground: var(--sidebar-muted-foreground);
   --color-sidebar-primary: var(--sidebar-primary);
   --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
   --color-sidebar-accent: var(--sidebar-accent);
@@ -75,56 +79,60 @@
   }
 }
 
-/* Metric Tracker palette — violet brand on warm neutrals. */
+/* Zedu Amp palette: FinSet-style white workspace, Zedu violet data, deep violet navigation. */
 :root {
-  --background: #fafaf9;
-  --foreground: #1a1917;
+  --background: #ffffff;
+  --foreground: #16151d;
   --card: #ffffff;
-  --card-foreground: #1a1917;
+  --card-foreground: #16151d;
   --popover: #ffffff;
-  --popover-foreground: #1a1917;
-  --primary: #8e6afa;
+  --popover-foreground: #16151d;
+  --primary: #7d68f9;
   --primary-foreground: #ffffff;
-  --primary-deep: #7551e8;
-  --secondary: #f4f3f0;
-  --secondary-foreground: #1a1917;
-  --muted: #f4f3f0;
-  --muted-foreground: #706e69;
-  --accent: #f0ecff;
-  --accent-foreground: #7551e8;
-  --destructive: #dc2626;
-  --destructive-muted: #fee2e2;
-  --border: #e5e3df;
-  --border-strong: #cac8c3;
-  --input: #e5e3df;
-  --ring: #8e6afa;
+  --primary-deep: #5b45e0;
+  --secondary: #f5f4f9;
+  --secondary-foreground: #16151d;
+  --muted: #f5f4f9;
+  --muted-foreground: #6b6880;
+  --faint-foreground: #c9c7d3;
+  --accent: #f3efff;
+  --accent-foreground: #5b45e0;
+  --destructive: #c9302c;
+  --destructive-muted: #ffebec;
+  --border: #e8e7ee;
+  --border-strong: #d2d0dc;
+  --input: #e3e1ea;
+  --ring: #7d68f9;
 
-  --success: #16a34a;
-  --success-muted: #dcfce7;
-  --warning: #d97706;
-  --warning-muted: #fef3c7;
-  --info: #2563eb;
-  --info-muted: #dbeafe;
+  --success: #0f7b47;
+  --success-muted: #e4f8ea;
+  --warning: #9a5800;
+  --warning-muted: #fff2db;
+  --info: #1d5fd1;
+  --info-muted: #e4eeff;
 
-  --brand-wash: #eeecf5;
-  --brand-wash-strong: #e0daf3;
+  --brand-wash: #f3efff;
+  --brand-wash-strong: #e2dbff;
 
-  --chart-1: #8e6afa;
-  --chart-2: #16a34a;
-  --chart-3: #d97706;
-  --chart-4: #2563eb;
-  --chart-5: #dc2626;
+  --chart-1: #7d68f9;
+  --chart-2: #c1b7ff;
+  --chart-3: #12a05c;
+  --chart-4: #f2a93b;
+  --chart-5: #1d5fd1;
+  --chart-track: #edeaff;
+  --chart-grid: #eceaf3;
 
-  --radius: 0.5rem;
+  --radius: 0.75rem;
 
-  --sidebar: #f3f1ee;
-  --sidebar-foreground: #1a1917;
-  --sidebar-primary: #8e6afa;
+  --sidebar: #24145f;
+  --sidebar-foreground: #ffffff;
+  --sidebar-muted-foreground: #bdb3e8;
+  --sidebar-primary: #7d68f9;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: rgb(255 255 255 / 0.64);
-  --sidebar-accent-foreground: #1a1917;
-  --sidebar-border: #e5e3df;
-  --sidebar-ring: #8e6afa;
+  --sidebar-accent: rgb(255 255 255 / 0.08);
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: rgb(255 255 255 / 0.1);
+  --sidebar-ring: #c1b7ff;
 
   color-scheme: light;
 }

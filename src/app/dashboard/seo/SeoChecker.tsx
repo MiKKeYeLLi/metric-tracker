@@ -15,12 +15,11 @@ import { cn } from "@/lib/utils";
 import { openCheck, runCheck, type ActionResult } from "./actions";
 import type { SeoView } from "./data";
 
-const card = "rounded-xl border bg-card p-5 sm:p-6";
-const h2 = "m-0 text-base font-bold tracking-[-0.02em]";
+const card = "rounded-2xl bg-card p-5 shadow-[0_1px_2px_rgb(21_21_31/0.04)] ring-1 ring-border sm:p-6";
+const h2 = "m-0 text-[15px] font-bold tracking-[-0.02em]";
 const hint = "text-xs text-muted-foreground";
 
-// Darker text shades than the brand tokens, so small text stays readable on white.
-const TONE = { ok: "text-green-700", warn: "text-amber-700", err: "text-red-700", tip: "text-primary-deep" };
+const TONE = { ok: "text-success", warn: "text-warning", err: "text-destructive", tip: "text-primary-deep" };
 
 const OUTCOME: Record<Outcome, { text: string; cls: string }> = {
   pass: { text: "✓ Pass", cls: TONE.ok },
@@ -79,11 +78,7 @@ export function SeoChecker({ initial }: { initial: SeoView | null }) {
   const delta = c && view?.previous ? c.score - view.previous.score : null;
 
   return (
-    <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
-      <p className="m-0 max-w-[65ch] text-[13px] text-muted-foreground">
-        Check how well a single page is set up for search engines. Only the page’s HTML is read, so content added by JavaScript isn’t seen.
-      </p>
-
+    <div className="flex w-full flex-col gap-6">
       <form onSubmit={submit} className={cn(card, "flex flex-wrap items-end gap-3")}>
         <div className="flex min-w-[260px] flex-1 flex-col gap-1.5">
           <Label htmlFor="seo-url">Page address</Label>
@@ -133,7 +128,7 @@ export function SeoChecker({ initial }: { initial: SeoView | null }) {
               <div className="mt-5 flex flex-wrap items-center gap-x-8 gap-y-5">
                 <div
                   className="flex size-36 shrink-0 items-center justify-center rounded-full"
-                  style={{ background: `conic-gradient(var(--primary) 0 ${c.score}%, var(--muted) 0)` }}
+                  style={{ background: `conic-gradient(var(--primary) 0 ${c.score}%, var(--chart-track) 0)` }}
                 >
                   <div className="flex size-26 flex-col items-center justify-center rounded-full bg-card">
                     <span className="text-3xl leading-none font-bold tracking-[-0.03em] tabular-nums">{c.score}%</span>
@@ -151,7 +146,7 @@ export function SeoChecker({ initial }: { initial: SeoView | null }) {
                   {CATEGORY_ORDER.map((k) => (
                     <div key={k} className="grid grid-cols-[110px_1fr_40px] items-center gap-3">
                       <span>{CATEGORY_LABELS[k]}</span>
-                      <div className="h-2.5 rounded-full bg-muted" aria-hidden="true">
+                      <div className="h-2.5 rounded-full bg-chart-track" aria-hidden="true">
                         <div className="h-2.5 rounded-full bg-primary" style={{ width: `${c.categoryScores[k] ?? 0}%` }} />
                       </div>
                       <span className="text-right font-semibold tabular-nums">{c.categoryScores[k] === null ? "—" : `${c.categoryScores[k]}%`}</span>
@@ -178,7 +173,7 @@ export function SeoChecker({ initial }: { initial: SeoView | null }) {
                       className="grid min-h-9 w-full cursor-pointer grid-cols-[52px_1fr_40px] items-center gap-3 rounded-lg px-2 text-left text-[13px] outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50 aria-[current=true]:bg-accent"
                     >
                       <span className="text-muted-foreground">{date(h.createdAt)}</span>
-                      <span className="h-2.5 rounded-full bg-muted" aria-hidden="true">
+                      <span className="h-2.5 rounded-full bg-chart-track" aria-hidden="true">
                         <span className="block h-2.5 rounded-full bg-primary/50" style={{ width: `${h.score}%` }} />
                       </span>
                       <span className="text-right font-semibold tabular-nums">{h.score}%</span>

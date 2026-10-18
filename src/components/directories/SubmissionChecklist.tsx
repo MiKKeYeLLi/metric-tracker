@@ -98,7 +98,7 @@ export function SubmissionChecklist({
   return (
     <section
       aria-label={title}
-      className={cn("rounded-xl border bg-card p-4 shadow-sm", className)}
+      className={cn("rounded-2xl bg-card shadow-[0_1px_2px_rgb(21_21_31/0.04)] ring-1 ring-border p-5", className)}
     >
       <div className="flex items-center justify-between">
         <h3 className="text-[13px] font-bold tracking-[-0.02em] text-foreground">
@@ -206,7 +206,7 @@ export function SubmissionChecklist({
           {done} of {total} ready
         </p>
         {!selectedDirectoryId && (
-          <span className="text-[10px] text-amber-600 dark:text-amber-400">
+          <span className="text-[10px] text-warning">
             Select a row first
           </span>
         )}

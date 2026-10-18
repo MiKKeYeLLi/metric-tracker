@@ -1,3 +1,4 @@
+import { PageContent, PageHeader } from "@/components/PageHeader";
 import { getLatestView } from "./data";
 import { SeoChecker } from "./SeoChecker";
 
@@ -8,12 +9,13 @@ export default async function SeoPage() {
   const initial = await getLatestView();
   return (
     <>
-      <header className="sticky top-0 z-10 flex h-14 shrink-0 items-center border-b bg-background/90 px-4 backdrop-blur-sm sm:px-[clamp(20px,4vw,48px)]">
-        <h1 className="m-0 text-base leading-none font-bold tracking-[-0.03em] text-foreground">SEO checker</h1>
-      </header>
-      <div className="px-4 py-6 sm:px-[clamp(20px,4vw,48px)]">
+      <PageHeader
+        title="SEO checker"
+        description="Check how well a single page is set up for search engines. Only the page’s HTML is read, so content added by JavaScript isn’t seen."
+      />
+      <PageContent>
         <SeoChecker initial={initial} />
-      </div>
+      </PageContent>
     </>
   );
 }

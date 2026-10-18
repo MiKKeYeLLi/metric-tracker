@@ -9,10 +9,10 @@ export function ActivityFeed() {
   const { activities = [], directories } = useDirectories();
 
   return (
-    <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
+    <div className="rounded-2xl bg-card shadow-[0_1px_2px_rgb(21_21_31/0.04)] ring-1 ring-border p-5">
       <div className="mb-4 flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <div className="flex size-8 items-center justify-center rounded-md bg-primary/10 text-primary">
+          <div className="flex size-8 items-center justify-center rounded-lg bg-accent text-primary-deep">
             <ActivityIcon className="size-4" aria-hidden="true" />
           </div>
           <div>
@@ -35,7 +35,7 @@ export function ActivityFeed() {
           No activity yet. Add a directory to get started.
         </p>
       ) : (
-        <ul className="space-y-3">
+        <ul className="m-0 flex list-none flex-col gap-2 p-0">
           {activities.slice(0, 8).map((entry) => {
             const matchedDir = directories.find(
               (d) => d.name === entry.directoryName,
@@ -46,7 +46,7 @@ export function ActivityFeed() {
             return (
               <li
                 key={entry.id}
-                className="rounded-lg border border-border bg-background px-3 py-2"
+                className="rounded-xl bg-muted/60 px-3 py-2.5"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div>

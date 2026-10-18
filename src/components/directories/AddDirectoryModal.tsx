@@ -283,9 +283,8 @@ export function AddDirectoryModal({
         <Button
           type="button"
           variant={triggerVariant === "outline" ? "outline" : "default"}
-          className={triggerVariant === "outline" ? "" : "inline-flex items-center gap-2"}
         >
-          <PlusIcon className="size-4" aria-hidden="true" />
+          <PlusIcon data-icon="inline-start" aria-hidden="true" />
           {triggerLabel}
         </Button>
       </DialogTrigger>
@@ -443,7 +442,7 @@ export function AddDirectoryModal({
                 onChange={(event) =>
                   handleFieldChange("addToChecklist", event.target.checked)
                 }
-                className="size-4 rounded border-border text-primary focus:ring-primary"
+                className="size-4 rounded border-border text-primary-deep focus:ring-primary"
               />
               Add to review checklist
             </label>

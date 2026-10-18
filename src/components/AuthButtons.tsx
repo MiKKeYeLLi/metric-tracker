@@ -1,7 +1,7 @@
 "use client";
 
 import { signIn, signOut } from "next-auth/react";
-import { ChevronRightIcon } from "lucide-react";
+import { ChevronRightIcon, LogOutIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export function SignInButton() {
@@ -23,8 +23,15 @@ export function SignInButton() {
 
 export function SignOutButton() {
   return (
-    <Button variant="outline" className="w-full" onClick={() => signOut()}>
-      Sign out
+    <Button
+      variant="ghost"
+      size="icon-sm"
+      aria-label="Sign out"
+      title="Sign out"
+      className="text-sidebar-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+      onClick={() => signOut()}
+    >
+      <LogOutIcon aria-hidden="true" />
     </Button>
   );
 }

@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
+  BellRingIcon,
+  CircleCheckIcon,
   DownloadIcon,
   EllipsisVerticalIcon,
   EyeIcon,
@@ -11,8 +13,11 @@ import {
   PencilIcon,
   PlusIcon,
   SearchIcon,
+  SendIcon,
   Trash2Icon,
 } from "lucide-react";
+import { PageContent, PageHeader } from "@/components/PageHeader";
+import { StatCard, StatGrid } from "@/components/StatCard";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -630,600 +635,586 @@ export function PressMediaDashboard() {
   };
 
   return (
-    <div className="space-y-6">
-      <header className="flex flex-col gap-4 rounded-2xl border bg-card p-4 sm:flex-row sm:items-center sm:justify-between sm:p-6">
-        <div className="space-y-2">
-          <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-muted-foreground">
-            Media desk
-          </p>
-          <div>
-            <h1 className="text-2xl font-bold tracking-[-0.03em] text-foreground sm:text-3xl">
-              Press &amp; Media Tracking
-            </h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Manage media coverage and track press submissions in one place.
-            </p>
-          </div>
-        </div>
+    <>
+      <PageHeader
+        title="Press & Media"
+        description="Manage media coverage and track press submissions in one place."
+        actions={
+          <>
+            <Button variant="outline" onClick={exportCsv}>
+              <DownloadIcon data-icon="inline-start" aria-hidden="true" />
+              Export
+            </Button>
+            <Button onClick={handleOpenNewRecord}>
+              <PlusIcon data-icon="inline-start" aria-hidden="true" />
+              Add record
+            </Button>
+          </>
+        }
+      />
 
-        <div className="flex flex-col gap-2 sm:flex-row">
-          <Button variant="outline" onClick={exportCsv}>
-            <DownloadIcon data-icon="inline-start" aria-hidden="true" />
-            Export
-          </Button>
-          <Button onClick={handleOpenNewRecord}>
-            <PlusIcon data-icon="inline-start" aria-hidden="true" />
-            Add Record
-          </Button>
-        </div>
-      </header>
+      <PageContent>
+        {feedback ? (
+          <Alert variant={feedback.type === "error" ? "destructive" : undefined} className="border border-border bg-card">
+            <AlertTitle>{feedback.type === "error" ? "Action required" : "Saved"}</AlertTitle>
+            <AlertDescription>{feedback.message}</AlertDescription>
+          </Alert>
+        ) : null}
 
-      {feedback ? (
-        <Alert variant={feedback.type === "error" ? "destructive" : undefined} className="border border-border bg-card">
-          <AlertTitle>{feedback.type === "error" ? "Action required" : "Saved"}</AlertTitle>
-          <AlertDescription>{feedback.message}</AlertDescription>
-        </Alert>
-      ) : null}
+        <StatGrid>
+          <StatCard label="Total coverage" value={totalCoverage} icon={<NewspaperIcon aria-hidden="true" />} />
+          <StatCard label="Active submissions" value={activeSubmissions} icon={<SendIcon aria-hidden="true" />} />
+          <StatCard label="Published this year" value={publishedThisYear} icon={<CircleCheckIcon aria-hidden="true" />} />
+          <StatCard
+            label="Follow-ups due"
+            value={followUpsDue}
+            icon={<BellRingIcon aria-hidden="true" />}
+            hint={followUpsDue > 0 ? "Chase these today" : "All caught up"}
+            tone={followUpsDue > 0 ? "warning" : "success"}
+          />
+        </StatGrid>
 
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <div className="rounded-2xl border bg-card p-4">
-          <p className="text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground">Total Coverage</p>
-          <p className="mt-3 font-mono text-3xl font-bold tracking-[-0.05em] text-foreground">{totalCoverage}</p>
-        </div>
-        <div className="rounded-2xl border bg-card p-4">
-          <p className="text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground">Active Submissions</p>
-          <p className="mt-3 font-mono text-3xl font-bold tracking-[-0.05em] text-foreground">{activeSubmissions}</p>
-        </div>
-        <div className="rounded-2xl border bg-card p-4">
-          <p className="text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground">Published This Year</p>
-          <p className="mt-3 font-mono text-3xl font-bold tracking-[-0.05em] text-foreground">{publishedThisYear}</p>
-        </div>
-        <div className="rounded-2xl border bg-card p-4">
-          <p className="text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground">Follow-ups Due</p>
-          <p className="mt-3 font-mono text-3xl font-bold tracking-[-0.05em] text-foreground">{followUpsDue}</p>
-        </div>
-      </section>
+        <section className="rounded-2xl bg-card p-4 shadow-[0_1px_2px_rgb(21_21_31/0.04)] ring-1 ring-border sm:p-5">
+          <div className="flex flex-col gap-4">
+            <Tabs value={selectedTab} onValueChange={(value) => setSelectedTab(value as "all" | "coverage" | "submissions")}>
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                <TabsList variant="line" className="w-full justify-start lg:w-auto">
+                  <TabsTrigger value="all">All Records</TabsTrigger>
+                  <TabsTrigger value="coverage">Press Coverage</TabsTrigger>
+                  <TabsTrigger value="submissions">Press Submissions</TabsTrigger>
+                </TabsList>
 
-      <section className="rounded-2xl border bg-card p-4 sm:p-5">
-        <div className="flex flex-col gap-4">
-          <Tabs value={selectedTab} onValueChange={(value) => setSelectedTab(value as "all" | "coverage" | "submissions")}>
-            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-              <TabsList variant="line" className="w-full justify-start lg:w-auto">
-                <TabsTrigger value="all">All Records</TabsTrigger>
-                <TabsTrigger value="coverage">Press Coverage</TabsTrigger>
-                <TabsTrigger value="submissions">Press Submissions</TabsTrigger>
-              </TabsList>
-
-              <div className="flex flex-wrap items-center gap-2">
-                <div className="relative min-w-[220px] flex-1 lg:min-w-[260px]">
-                  <SearchIcon className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
-                  <Input
-                    aria-label="Search article title or media outlet"
-                    className="pl-9"
-                    placeholder="Search title or outlet"
-                    value={search}
-                    onChange={(event) => setSearch(event.target.value)}
-                  />
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="relative min-w-[220px] flex-1 lg:min-w-[260px]">
+                    <SearchIcon className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+                    <Input
+                      aria-label="Search article title or media outlet"
+                      className="pl-9"
+                      placeholder="Search title or outlet"
+                      value={search}
+                      onChange={(event) => setSearch(event.target.value)}
+                    />
+                  </div>
+                  {(search || recordTypeFilter !== "all" || articleTypeFilter !== "all" || statusFilter !== "all" || dateFrom || dateTo) && (
+                    <Button variant="ghost" size="sm" onClick={clearFilters}>
+                      Reset filters
+                    </Button>
+                  )}
                 </div>
-                {(search || recordTypeFilter !== "all" || articleTypeFilter !== "all" || statusFilter !== "all" || dateFrom || dateTo) && (
-                  <Button variant="ghost" size="sm" onClick={clearFilters}>
-                    Reset filters
-                  </Button>
-                )}
               </div>
-            </div>
 
-            <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-              <Field className="min-w-0">
-                <FieldLabel>Record type</FieldLabel>
-                <NativeSelect value={recordTypeFilter} onChange={(event) => setRecordTypeFilter(event.target.value as "all" | RecordType)}>
-                  <NativeSelectOption value="all">All</NativeSelectOption>
-                  <NativeSelectOption value="Press Coverage">Press Coverage</NativeSelectOption>
-                  <NativeSelectOption value="Press Submission">Press Submissions</NativeSelectOption>
-                </NativeSelect>
-              </Field>
-
-              <Field className="min-w-0">
-                <FieldLabel>Article type</FieldLabel>
-                <NativeSelect value={articleTypeFilter} onChange={(event) => setArticleTypeFilter(event.target.value as ArticleType | "all")}>
-                  <NativeSelectOption value="all">All</NativeSelectOption>
-                  {ARTICLE_TYPES.map((type) => (
-                    <NativeSelectOption key={type} value={type}>
-                      {type}
-                    </NativeSelectOption>
-                  ))}
-                </NativeSelect>
-              </Field>
-
-              <Field className="min-w-0">
-                <FieldLabel>Status</FieldLabel>
-                <NativeSelect value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as SubmissionStatus | "all")}>
-                  <NativeSelectOption value="all">All</NativeSelectOption>
-                  {SUBMISSION_STATUSES.map((status) => (
-                    <NativeSelectOption key={status} value={status}>
-                      {status}
-                    </NativeSelectOption>
-                  ))}
-                </NativeSelect>
-              </Field>
-
-              <Field className="min-w-0">
-                <FieldLabel>Due date range</FieldLabel>
-                <div className="grid grid-cols-2 gap-2">
-                  <Input
-                    type="date"
-                    aria-label="Filter from date"
-                    value={dateFrom}
-                    onChange={(event) => setDateFrom(event.target.value)}
-                  />
-                  <Input
-                    type="date"
-                    aria-label="Filter to date"
-                    value={dateTo}
-                    onChange={(event) => setDateTo(event.target.value)}
-                  />
-                </div>
-              </Field>
-            </div>
-
-            <TabsContent value={selectedTab} className="mt-5">
-              {isLoading ? (
-                <div className="rounded-xl border border-dashed bg-muted/30 p-10 text-center text-sm text-muted-foreground">
-                  Loading media records…
-                </div>
-              ) : filteredRecords.length === 0 ? (
-                <div className="rounded-xl border border-dashed bg-muted/30 p-10 text-center text-sm text-muted-foreground">
-                  No records match the current filters.
-                </div>
-              ) : (
-                <div className="overflow-hidden rounded-xl border">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Article Title</TableHead>
-                        <TableHead>Media Outlet</TableHead>
-                        <TableHead>Article Type</TableHead>
-                        <TableHead>Record Type</TableHead>
-                        <TableHead>Date</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Follow-up Date</TableHead>
-                        <TableHead className="w-[52px] text-right">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filteredRecords.map((record) => (
-                        <TableRow key={record.id}>
-                          <TableCell className="max-w-[220px]">
-                            <div className="flex flex-col gap-1">
-                              <span className="truncate font-medium text-foreground">{record.title}</span>
-                              {record.linkedCoverageId ? (
-                                <span className="text-xs text-muted-foreground">
-                                  Linked to {records.find((item) => item.id === record.linkedCoverageId)?.title ?? "coverage record"}
-                                </span>
-                              ) : null}
-                            </div>
-                          </TableCell>
-                          <TableCell>{record.outlet}</TableCell>
-                          <TableCell>
-                            {record.articleType === "Other" && record.articleTypeOther
-                              ? `${record.articleType} — ${record.articleTypeOther}`
-                              : record.articleType}
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant="outline">{record.recordType}</Badge>
-                          </TableCell>
-                          <TableCell className="font-mono text-xs text-foreground">
-                            {formatDate(getRecordDate(record))}
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant={getSummaryVariant(record.status)}>{record.status}</Badge>
-                          </TableCell>
-                          <TableCell className="font-mono text-xs text-foreground">
-                            {record.followUpDate ? formatDate(record.followUpDate) : "—"}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon-sm" aria-label={`Actions for ${record.title}`}>
-                                  <EllipsisVerticalIcon aria-hidden="true" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem onSelect={() => { setSelectedRecord(record); setIsDetailDialogOpen(true); }}>
-                                  <EyeIcon aria-hidden="true" />
-                                  View details
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onSelect={() => handleEditRecord(record)}>
-                                  <PencilIcon aria-hidden="true" />
-                                  Edit record
-                                </DropdownMenuItem>
-                                {record.recordType === "Press Submission" ? (
-                                  <>
-                                    <DropdownMenuItem onSelect={() => handleStatusUpdate(record.id)}>
-                                      <FileTextIcon aria-hidden="true" />
-                                      Update submission status
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem onSelect={() => handleLinkCoverage(record.id)}>
-                                      <Link2Icon aria-hidden="true" />
-                                      {record.linkedCoverageId ? "Relink coverage" : "Link to coverage"}
-                                    </DropdownMenuItem>
-                                  </>
-                                ) : null}
-                                <DropdownMenuItem variant="destructive" onSelect={() => handleDeleteRecord(record.id)}>
-                                  <Trash2Icon aria-hidden="true" />
-                                  Delete record
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              )}
-            </TabsContent>
-          </Tabs>
-        </div>
-      </section>
-
-      <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
-        <DialogContent className="max-h-[90vh] w-full max-w-2xl overflow-y-auto p-0">
-          <div className="px-6 pt-6 pb-0">
-            <DialogHeader>
-              <DialogTitle>{editingId ? "Edit record" : "Add record"}</DialogTitle>
-              <DialogDescription>
-                Save a press coverage item or a media submission.
-              </DialogDescription>
-            </DialogHeader>
-          </div>
-
-          <div className="space-y-5 px-6 pb-6 pt-4">
-            
-<FieldGroup>
-  <div className="space-y-2">
-    <FieldLabel>Record type</FieldLabel>
-
-    <Tabs
-      value={formValues.recordType}
-      onValueChange={(value) => {
-        updateFormValue("recordType", value as RecordType);
-      }}
-    >
-      <TabsList className="grid w-full grid-cols-2">
-        <TabsTrigger value="Press Coverage">
-          Press Coverage
-        </TabsTrigger>
-        <TabsTrigger value="Press Submission">
-          Press Submission
-        </TabsTrigger>
-      </TabsList>
-    </Tabs>
-
-    {formErrors.recordType ? (
-      <FieldError>{formErrors.recordType}</FieldError>
-    ) : null}
-  </div>
-</FieldGroup>
-
-
-            <div className="grid gap-4 md:grid-cols-2">
-              <Field data-invalid={Boolean(formErrors.title)}>
-                <FieldLabel>Article Title</FieldLabel>
-                <Input
-                  value={formValues.title}
-                  onChange={(event) => updateFormValue("title", event.target.value)}
-                  aria-invalid={Boolean(formErrors.title)}
-                  placeholder="Article title"
-                />
-                {formErrors.title ? <FieldError>{formErrors.title}</FieldError> : null}
-              </Field>
-
-              <Field data-invalid={Boolean(formErrors.outlet)}>
-                <FieldLabel>Media Outlet</FieldLabel>
-                <Input
-                  value={formValues.outlet}
-                  onChange={(event) => updateFormValue("outlet", event.target.value)}
-                  aria-invalid={Boolean(formErrors.outlet)}
-                  placeholder="Outlet name"
-                />
-                {formErrors.outlet ? <FieldError>{formErrors.outlet}</FieldError> : null}
-              </Field>
-
-              <Field data-invalid={Boolean(formErrors.articleType)}>
-                <FieldLabel>Article Type</FieldLabel>
-                <NativeSelect
-                  value={formValues.articleType}
-                  onChange={(event) => updateFormValue("articleType", event.target.value as ArticleType | "")}
-                  aria-invalid={Boolean(formErrors.articleType)}
-                >
-                  <NativeSelectOption value="">Select</NativeSelectOption>
-                  {ARTICLE_TYPES.map((option) => (
-                    <NativeSelectOption key={option} value={option}>
-                      {option}
-                    </NativeSelectOption>
-                  ))}
-                </NativeSelect>
-                {formErrors.articleType ? <FieldError>{formErrors.articleType}</FieldError> : null}
-              </Field>
-
-              <Field>
-                <FieldLabel>Responsible Person</FieldLabel>
-                <Input
-                  value={formValues.responsiblePerson}
-                  onChange={(event) => updateFormValue("responsiblePerson", event.target.value)}
-                  placeholder="Optional"
-                />
-              </Field>
-            </div>
-
-            {formValues.articleType === "Other" ? (
-              <Field data-invalid={Boolean(formErrors.articleTypeOther)}>
-                <FieldLabel>Other article type description</FieldLabel>
-                <Input
-                  value={formValues.articleTypeOther}
-                  onChange={(event) => updateFormValue("articleTypeOther", event.target.value)}
-                  aria-invalid={Boolean(formErrors.articleTypeOther)}
-                  placeholder="Describe the category"
-                />
-                {formErrors.articleTypeOther ? <FieldError>{formErrors.articleTypeOther}</FieldError> : null}
-              </Field>
-            ) : null}
-
-            {formValues.recordType === "Press Coverage" ? (
-              <div className="grid gap-4 md:grid-cols-2">
-                <Field data-invalid={Boolean(formErrors.articleUrl)}>
-                  <FieldLabel>Published Article URL</FieldLabel>
-                  <Input
-                    type="url"
-                    value={formValues.articleUrl}
-                    onChange={(event) => updateFormValue("articleUrl", event.target.value)}
-                    aria-invalid={Boolean(formErrors.articleUrl)}
-                    placeholder="https://example.com/article"
-                  />
-                  {formErrors.articleUrl ? <FieldError>{formErrors.articleUrl}</FieldError> : null}
+              <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                <Field className="min-w-0">
+                  <FieldLabel>Record type</FieldLabel>
+                  <NativeSelect value={recordTypeFilter} onChange={(event) => setRecordTypeFilter(event.target.value as "all" | RecordType)}>
+                    <NativeSelectOption value="all">All</NativeSelectOption>
+                    <NativeSelectOption value="Press Coverage">Press Coverage</NativeSelectOption>
+                    <NativeSelectOption value="Press Submission">Press Submissions</NativeSelectOption>
+                  </NativeSelect>
                 </Field>
 
-                <Field>
-                  <FieldLabel>Publication Date</FieldLabel>
-                  <Input
-                    type="date"
-                    value={formValues.publicationDate}
-                    onChange={(event) => updateFormValue("publicationDate", event.target.value)}
-                  />
-                </Field>
-              </div>
-            ) : (
-              <div className="grid gap-4 md:grid-cols-2">
-                <Field data-invalid={Boolean(formErrors.dateSubmitted)}>
-                  <FieldLabel>Date Submitted</FieldLabel>
-                  <Input
-                    type="date"
-                    value={formValues.dateSubmitted}
-                    onChange={(event) => updateFormValue("dateSubmitted", event.target.value)}
-                    aria-invalid={Boolean(formErrors.dateSubmitted)}
-                  />
-                  {formErrors.dateSubmitted ? <FieldError>{formErrors.dateSubmitted}</FieldError> : null}
+                <Field className="min-w-0">
+                  <FieldLabel>Article type</FieldLabel>
+                  <NativeSelect value={articleTypeFilter} onChange={(event) => setArticleTypeFilter(event.target.value as ArticleType | "all")}>
+                    <NativeSelectOption value="all">All</NativeSelectOption>
+                    {ARTICLE_TYPES.map((type) => (
+                      <NativeSelectOption key={type} value={type}>
+                        {type}
+                      </NativeSelectOption>
+                    ))}
+                  </NativeSelect>
                 </Field>
 
-                <Field data-invalid={Boolean(formErrors.status)}>
+                <Field className="min-w-0">
                   <FieldLabel>Status</FieldLabel>
-                  <NativeSelect
-                    value={formValues.status}
-                    onChange={(event) => updateFormValue("status", event.target.value as SubmissionStatus | "")}
-                    aria-invalid={Boolean(formErrors.status)}
-                  >
-                    <NativeSelectOption value="">Select</NativeSelectOption>
+                  <NativeSelect value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as SubmissionStatus | "all")}>
+                    <NativeSelectOption value="all">All</NativeSelectOption>
                     {SUBMISSION_STATUSES.map((status) => (
                       <NativeSelectOption key={status} value={status}>
                         {status}
                       </NativeSelectOption>
                     ))}
                   </NativeSelect>
-                  {formErrors.status ? <FieldError>{formErrors.status}</FieldError> : null}
                 </Field>
 
-                <Field>
-                  <FieldLabel>Follow-up Date</FieldLabel>
+                <Field className="min-w-0">
+                  <FieldLabel>Due date range</FieldLabel>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Input
+                      type="date"
+                      aria-label="Filter from date"
+                      value={dateFrom}
+                      onChange={(event) => setDateFrom(event.target.value)}
+                    />
+                    <Input
+                      type="date"
+                      aria-label="Filter to date"
+                      value={dateTo}
+                      onChange={(event) => setDateTo(event.target.value)}
+                    />
+                  </div>
+                </Field>
+              </div>
+
+              <TabsContent value={selectedTab} className="mt-5">
+                {isLoading ? (
+                  <div className="rounded-xl border border-dashed bg-muted/30 p-10 text-center text-sm text-muted-foreground">
+                    Loading media records…
+                  </div>
+                ) : filteredRecords.length === 0 ? (
+                  <div className="rounded-xl border border-dashed bg-muted/30 p-10 text-center text-sm text-muted-foreground">
+                    No records match the current filters.
+                  </div>
+                ) : (
+                  <div className="overflow-hidden rounded-xl border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Article Title</TableHead>
+                          <TableHead>Media Outlet</TableHead>
+                          <TableHead>Article Type</TableHead>
+                          <TableHead>Record Type</TableHead>
+                          <TableHead>Date</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Follow-up Date</TableHead>
+                          <TableHead className="w-[52px] text-right">Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredRecords.map((record) => (
+                          <TableRow key={record.id}>
+                            <TableCell className="max-w-[220px]">
+                              <div className="flex flex-col gap-1">
+                                <span className="truncate font-medium text-foreground">{record.title}</span>
+                                {record.linkedCoverageId ? (
+                                  <span className="text-xs text-muted-foreground">
+                                    Linked to {records.find((item) => item.id === record.linkedCoverageId)?.title ?? "coverage record"}
+                                  </span>
+                                ) : null}
+                              </div>
+                            </TableCell>
+                            <TableCell>{record.outlet}</TableCell>
+                            <TableCell>
+                              {record.articleType === "Other" && record.articleTypeOther
+                                ? `${record.articleType} — ${record.articleTypeOther}`
+                                : record.articleType}
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="outline">{record.recordType}</Badge>
+                            </TableCell>
+                            <TableCell className="font-mono text-xs text-foreground">
+                              {formatDate(getRecordDate(record))}
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant={getSummaryVariant(record.status)}>{record.status}</Badge>
+                            </TableCell>
+                            <TableCell className="font-mono text-xs text-foreground">
+                              {record.followUpDate ? formatDate(record.followUpDate) : "—"}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="icon-sm" aria-label={`Actions for ${record.title}`}>
+                                    <EllipsisVerticalIcon aria-hidden="true" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem onSelect={() => { setSelectedRecord(record); setIsDetailDialogOpen(true); }}>
+                                    <EyeIcon aria-hidden="true" />
+                                    View details
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onSelect={() => handleEditRecord(record)}>
+                                    <PencilIcon aria-hidden="true" />
+                                    Edit record
+                                  </DropdownMenuItem>
+                                  {record.recordType === "Press Submission" ? (
+                                    <>
+                                      <DropdownMenuItem onSelect={() => handleStatusUpdate(record.id)}>
+                                        <FileTextIcon aria-hidden="true" />
+                                        Update submission status
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem onSelect={() => handleLinkCoverage(record.id)}>
+                                        <Link2Icon aria-hidden="true" />
+                                        {record.linkedCoverageId ? "Relink coverage" : "Link to coverage"}
+                                      </DropdownMenuItem>
+                                    </>
+                                  ) : null}
+                                  <DropdownMenuItem variant="destructive" onSelect={() => handleDeleteRecord(record.id)}>
+                                    <Trash2Icon aria-hidden="true" />
+                                    Delete record
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </TabsContent>
+            </Tabs>
+          </div>
+        </section>
+
+        <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
+          <DialogContent className="max-h-[90vh] w-full max-w-2xl overflow-y-auto p-0">
+            <div className="px-6 pt-6 pb-0">
+              <DialogHeader>
+                <DialogTitle>{editingId ? "Edit record" : "Add record"}</DialogTitle>
+                <DialogDescription>
+                  Save a press coverage item or a media submission.
+                </DialogDescription>
+              </DialogHeader>
+            </div>
+
+            <div className="space-y-5 px-6 pb-6 pt-4">
+            
+  <FieldGroup>
+    <div className="space-y-2">
+      <FieldLabel>Record type</FieldLabel>
+
+      <Tabs
+        value={formValues.recordType}
+        onValueChange={(value) => {
+          updateFormValue("recordType", value as RecordType);
+        }}
+      >
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="Press Coverage">
+            Press Coverage
+          </TabsTrigger>
+          <TabsTrigger value="Press Submission">
+            Press Submission
+          </TabsTrigger>
+        </TabsList>
+      </Tabs>
+
+      {formErrors.recordType ? (
+        <FieldError>{formErrors.recordType}</FieldError>
+      ) : null}
+    </div>
+  </FieldGroup>
+
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <Field data-invalid={Boolean(formErrors.title)}>
+                  <FieldLabel>Article Title</FieldLabel>
                   <Input
-                    type="date"
-                    value={formValues.followUpDate}
-                    onChange={(event) => updateFormValue("followUpDate", event.target.value)}
+                    value={formValues.title}
+                    onChange={(event) => updateFormValue("title", event.target.value)}
+                    aria-invalid={Boolean(formErrors.title)}
+                    placeholder="Article title"
                   />
+                  {formErrors.title ? <FieldError>{formErrors.title}</FieldError> : null}
+                </Field>
+
+                <Field data-invalid={Boolean(formErrors.outlet)}>
+                  <FieldLabel>Media Outlet</FieldLabel>
+                  <Input
+                    value={formValues.outlet}
+                    onChange={(event) => updateFormValue("outlet", event.target.value)}
+                    aria-invalid={Boolean(formErrors.outlet)}
+                    placeholder="Outlet name"
+                  />
+                  {formErrors.outlet ? <FieldError>{formErrors.outlet}</FieldError> : null}
+                </Field>
+
+                <Field data-invalid={Boolean(formErrors.articleType)}>
+                  <FieldLabel>Article Type</FieldLabel>
+                  <NativeSelect
+                    value={formValues.articleType}
+                    onChange={(event) => updateFormValue("articleType", event.target.value as ArticleType | "")}
+                    aria-invalid={Boolean(formErrors.articleType)}
+                  >
+                    <NativeSelectOption value="">Select</NativeSelectOption>
+                    {ARTICLE_TYPES.map((option) => (
+                      <NativeSelectOption key={option} value={option}>
+                        {option}
+                      </NativeSelectOption>
+                    ))}
+                  </NativeSelect>
+                  {formErrors.articleType ? <FieldError>{formErrors.articleType}</FieldError> : null}
                 </Field>
 
                 <Field>
-                  <FieldLabel>Draft / Document URL</FieldLabel>
+                  <FieldLabel>Responsible Person</FieldLabel>
                   <Input
-                    type="url"
-                    value={formValues.documentUrl}
-                    onChange={(event) => updateFormValue("documentUrl", event.target.value)}
-                    placeholder="https://example.com/document"
+                    value={formValues.responsiblePerson}
+                    onChange={(event) => updateFormValue("responsiblePerson", event.target.value)}
+                    placeholder="Optional"
                   />
                 </Field>
               </div>
-            )}
 
-            {formValues.recordType === "Press Submission" ? (
+              {formValues.articleType === "Other" ? (
+                <Field data-invalid={Boolean(formErrors.articleTypeOther)}>
+                  <FieldLabel>Other article type description</FieldLabel>
+                  <Input
+                    value={formValues.articleTypeOther}
+                    onChange={(event) => updateFormValue("articleTypeOther", event.target.value)}
+                    aria-invalid={Boolean(formErrors.articleTypeOther)}
+                    placeholder="Describe the category"
+                  />
+                  {formErrors.articleTypeOther ? <FieldError>{formErrors.articleTypeOther}</FieldError> : null}
+                </Field>
+              ) : null}
+
+              {formValues.recordType === "Press Coverage" ? (
+                <div className="grid gap-4 md:grid-cols-2">
+                  <Field data-invalid={Boolean(formErrors.articleUrl)}>
+                    <FieldLabel>Published Article URL</FieldLabel>
+                    <Input
+                      type="url"
+                      value={formValues.articleUrl}
+                      onChange={(event) => updateFormValue("articleUrl", event.target.value)}
+                      aria-invalid={Boolean(formErrors.articleUrl)}
+                      placeholder="https://example.com/article"
+                    />
+                    {formErrors.articleUrl ? <FieldError>{formErrors.articleUrl}</FieldError> : null}
+                  </Field>
+
+                  <Field>
+                    <FieldLabel>Publication Date</FieldLabel>
+                    <Input
+                      type="date"
+                      value={formValues.publicationDate}
+                      onChange={(event) => updateFormValue("publicationDate", event.target.value)}
+                    />
+                  </Field>
+                </div>
+              ) : (
+                <div className="grid gap-4 md:grid-cols-2">
+                  <Field data-invalid={Boolean(formErrors.dateSubmitted)}>
+                    <FieldLabel>Date Submitted</FieldLabel>
+                    <Input
+                      type="date"
+                      value={formValues.dateSubmitted}
+                      onChange={(event) => updateFormValue("dateSubmitted", event.target.value)}
+                      aria-invalid={Boolean(formErrors.dateSubmitted)}
+                    />
+                    {formErrors.dateSubmitted ? <FieldError>{formErrors.dateSubmitted}</FieldError> : null}
+                  </Field>
+
+                  <Field data-invalid={Boolean(formErrors.status)}>
+                    <FieldLabel>Status</FieldLabel>
+                    <NativeSelect
+                      value={formValues.status}
+                      onChange={(event) => updateFormValue("status", event.target.value as SubmissionStatus | "")}
+                      aria-invalid={Boolean(formErrors.status)}
+                    >
+                      <NativeSelectOption value="">Select</NativeSelectOption>
+                      {SUBMISSION_STATUSES.map((status) => (
+                        <NativeSelectOption key={status} value={status}>
+                          {status}
+                        </NativeSelectOption>
+                      ))}
+                    </NativeSelect>
+                    {formErrors.status ? <FieldError>{formErrors.status}</FieldError> : null}
+                  </Field>
+
+                  <Field>
+                    <FieldLabel>Follow-up Date</FieldLabel>
+                    <Input
+                      type="date"
+                      value={formValues.followUpDate}
+                      onChange={(event) => updateFormValue("followUpDate", event.target.value)}
+                    />
+                  </Field>
+
+                  <Field>
+                    <FieldLabel>Draft / Document URL</FieldLabel>
+                    <Input
+                      type="url"
+                      value={formValues.documentUrl}
+                      onChange={(event) => updateFormValue("documentUrl", event.target.value)}
+                      placeholder="https://example.com/document"
+                    />
+                  </Field>
+                </div>
+              )}
+
+              {formValues.recordType === "Press Submission" ? (
+                <Field>
+                  <FieldLabel>Published Article URL</FieldLabel>
+                  <Input
+                    type="url"
+                    value={formValues.articleUrl}
+                    onChange={(event) => updateFormValue("articleUrl", event.target.value)}
+                    placeholder="Optional until publication"
+                  />
+                </Field>
+              ) : null}
+
               <Field>
-                <FieldLabel>Published Article URL</FieldLabel>
+                <FieldLabel>Notes</FieldLabel>
                 <Input
-                  type="url"
-                  value={formValues.articleUrl}
-                  onChange={(event) => updateFormValue("articleUrl", event.target.value)}
-                  placeholder="Optional until publication"
+                  value={formValues.notes}
+                  onChange={(event) => updateFormValue("notes", event.target.value)}
+                  placeholder="Summary / notes"
                 />
               </Field>
-            ) : null}
-
-            <Field>
-              <FieldLabel>Notes</FieldLabel>
-              <Input
-                value={formValues.notes}
-                onChange={(event) => updateFormValue("notes", event.target.value)}
-                placeholder="Summary / notes"
-              />
-            </Field>
-          </div>
-
-          <DialogFooter className="px-6 pb-6">
-            <Button variant="outline" onClick={() => setIsFormOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleSubmitRecord}>Save</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={isStatusDialogOpen} onOpenChange={setIsStatusDialogOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Update submission status</DialogTitle>
-            <DialogDescription>Choose the latest status report from the outlet.</DialogDescription>
-          </DialogHeader>
-
-          <Field>
-            <FieldLabel>Status</FieldLabel>
-            <NativeSelect
-              value={formValues.status}
-              onChange={(event) => updateFormValue("status", event.target.value as SubmissionStatus)}
-            >
-              {SUBMISSION_STATUSES.map((status) => (
-                <NativeSelectOption key={status} value={status}>
-                  {status}
-                </NativeSelectOption>
-              ))}
-            </NativeSelect>
-          </Field>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsStatusDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={saveStatusUpdate}>Update</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={isLinkDialogOpen} onOpenChange={setIsLinkDialogOpen}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Link published submission to coverage</DialogTitle>
-            <DialogDescription>
-              Associate this published item with the matching coverage article.
-            </DialogDescription>
-          </DialogHeader>
-
-          {coverageOptions.length === 0 ? (
-            <div className="space-y-3 rounded-xl border border-dashed bg-muted/30 p-4 text-sm text-muted-foreground">
-              No coverage records exist yet. Create one first, then link it here.
-              <Button
-                variant="outline"
-                className="w-full"
-                onClick={() => {
-                  setIsLinkDialogOpen(false);
-                  setIsFormOpen(true);
-                  setEditingId(null);
-                  setFormValues({ ...EMPTY_FORM, recordType: "Press Coverage" });
-                }}
-              >
-                <NewspaperIcon aria-hidden="true" />
-                Add coverage record
-              </Button>
             </div>
-          ) : (
+
+            <DialogFooter className="px-6 pb-6">
+              <Button variant="outline" onClick={() => setIsFormOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleSubmitRecord}>Save</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={isStatusDialogOpen} onOpenChange={setIsStatusDialogOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Update submission status</DialogTitle>
+              <DialogDescription>Choose the latest status report from the outlet.</DialogDescription>
+            </DialogHeader>
+
             <Field>
-              <FieldLabel>Coverage record</FieldLabel>
-              <NativeSelect value={linkedCoverageId} onChange={(event) => setLinkedCoverageId(event.target.value)}>
-                <NativeSelectOption value="">Select a coverage record</NativeSelectOption>
-                {coverageOptions.map((option) => (
-                  <NativeSelectOption key={option.id} value={option.id}>
-                    {option.title} — {option.outlet}
+              <FieldLabel>Status</FieldLabel>
+              <NativeSelect
+                value={formValues.status}
+                onChange={(event) => updateFormValue("status", event.target.value as SubmissionStatus)}
+              >
+                {SUBMISSION_STATUSES.map((status) => (
+                  <NativeSelectOption key={status} value={status}>
+                    {status}
                   </NativeSelectOption>
                 ))}
               </NativeSelect>
             </Field>
-          )}
 
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsLinkDialogOpen(false)}>
-              Cancel
-            </Button>
-            {coverageOptions.length > 0 ? (
-              <Button onClick={saveLinkedCoverage}>Save link</Button>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsStatusDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={saveStatusUpdate}>Update</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={isLinkDialogOpen} onOpenChange={setIsLinkDialogOpen}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Link published submission to coverage</DialogTitle>
+              <DialogDescription>
+                Associate this published item with the matching coverage article.
+              </DialogDescription>
+            </DialogHeader>
+
+            {coverageOptions.length === 0 ? (
+              <div className="space-y-3 rounded-xl border border-dashed bg-muted/30 p-4 text-sm text-muted-foreground">
+                No coverage records exist yet. Create one first, then link it here.
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => {
+                    setIsLinkDialogOpen(false);
+                    setIsFormOpen(true);
+                    setEditingId(null);
+                    setFormValues({ ...EMPTY_FORM, recordType: "Press Coverage" });
+                  }}
+                >
+                  <NewspaperIcon aria-hidden="true" />
+                  Add coverage record
+                </Button>
+              </div>
+            ) : (
+              <Field>
+                <FieldLabel>Coverage record</FieldLabel>
+                <NativeSelect value={linkedCoverageId} onChange={(event) => setLinkedCoverageId(event.target.value)}>
+                  <NativeSelectOption value="">Select a coverage record</NativeSelectOption>
+                  {coverageOptions.map((option) => (
+                    <NativeSelectOption key={option.id} value={option.id}>
+                      {option.title} — {option.outlet}
+                    </NativeSelectOption>
+                  ))}
+                </NativeSelect>
+              </Field>
+            )}
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsLinkDialogOpen(false)}>
+                Cancel
+              </Button>
+              {coverageOptions.length > 0 ? (
+                <Button onClick={saveLinkedCoverage}>Save link</Button>
+              ) : null}
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={isDetailDialogOpen} onOpenChange={setIsDetailDialogOpen}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>{selectedRecord?.title ?? "Record details"}</DialogTitle>
+              <DialogDescription>{selectedRecord?.recordType}</DialogDescription>
+            </DialogHeader>
+
+            {selectedRecord ? (
+              <div className="space-y-3 text-sm text-muted-foreground">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-foreground">Media outlet</span>
+                  <span>{selectedRecord.outlet}</span>
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-foreground">Article type</span>
+                  <span>{selectedRecord.articleType === "Other" ? `${selectedRecord.articleType} (${selectedRecord.articleTypeOther ?? "Other"})` : selectedRecord.articleType}</span>
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-foreground">Date</span>
+                  <span>{formatDate(getRecordDate(selectedRecord))}</span>
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-foreground">Status</span>
+                  <Badge variant={getSummaryVariant(selectedRecord.status)}>{selectedRecord.status}</Badge>
+                </div>
+                {selectedRecord.followUpDate ? (
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-foreground">Follow-up date</span>
+                    <span>{formatDate(selectedRecord.followUpDate)}</span>
+                  </div>
+                ) : null}
+                {selectedRecord.articleUrl ? (
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-foreground">Article URL</span>
+                    <a className="truncate text-primary-deep underline underline-offset-4" href={selectedRecord.articleUrl} target="_blank" rel="noreferrer">
+                      View
+                    </a>
+                  </div>
+                ) : null}
+                {selectedRecord.documentUrl ? (
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-foreground">Document URL</span>
+                    <a className="truncate text-primary-deep underline underline-offset-4" href={selectedRecord.documentUrl} target="_blank" rel="noreferrer">
+                      View
+                    </a>
+                  </div>
+                ) : null}
+                {selectedRecord.linkedCoverageId ? (
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-foreground">Linked coverage</span>
+                    <span>{records.find((record) => record.id === selectedRecord.linkedCoverageId)?.title ?? "Linked"}</span>
+                  </div>
+                ) : null}
+                {selectedRecord.notes ? (
+                  <div className="rounded-xl border bg-muted/20 p-3 text-sm text-foreground">
+                    {selectedRecord.notes}
+                  </div>
+                ) : null}
+              </div>
             ) : null}
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
-      <Dialog open={isDetailDialogOpen} onOpenChange={setIsDetailDialogOpen}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>{selectedRecord?.title ?? "Record details"}</DialogTitle>
-            <DialogDescription>{selectedRecord?.recordType}</DialogDescription>
-          </DialogHeader>
-
-          {selectedRecord ? (
-            <div className="space-y-3 text-sm text-muted-foreground">
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-foreground">Media outlet</span>
-                <span>{selectedRecord.outlet}</span>
-              </div>
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-foreground">Article type</span>
-                <span>{selectedRecord.articleType === "Other" ? `${selectedRecord.articleType} (${selectedRecord.articleTypeOther ?? "Other"})` : selectedRecord.articleType}</span>
-              </div>
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-foreground">Date</span>
-                <span>{formatDate(getRecordDate(selectedRecord))}</span>
-              </div>
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-foreground">Status</span>
-                <Badge variant={getSummaryVariant(selectedRecord.status)}>{selectedRecord.status}</Badge>
-              </div>
-              {selectedRecord.followUpDate ? (
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-foreground">Follow-up date</span>
-                  <span>{formatDate(selectedRecord.followUpDate)}</span>
-                </div>
-              ) : null}
-              {selectedRecord.articleUrl ? (
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-foreground">Article URL</span>
-                  <a className="truncate text-primary underline underline-offset-4" href={selectedRecord.articleUrl} target="_blank" rel="noreferrer">
-                    View
-                  </a>
-                </div>
-              ) : null}
-              {selectedRecord.documentUrl ? (
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-foreground">Document URL</span>
-                  <a className="truncate text-primary underline underline-offset-4" href={selectedRecord.documentUrl} target="_blank" rel="noreferrer">
-                    View
-                  </a>
-                </div>
-              ) : null}
-              {selectedRecord.linkedCoverageId ? (
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-foreground">Linked coverage</span>
-                  <span>{records.find((record) => record.id === selectedRecord.linkedCoverageId)?.title ?? "Linked"}</span>
-                </div>
-              ) : null}
-              {selectedRecord.notes ? (
-                <div className="rounded-xl border bg-muted/20 p-3 text-sm text-foreground">
-                  {selectedRecord.notes}
-                </div>
-              ) : null}
-            </div>
-          ) : null}
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDetailDialogOpen(false)}>
-              Close
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsDetailDialogOpen(false)}>
+                Close
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </PageContent>
+    </>
   );
 }

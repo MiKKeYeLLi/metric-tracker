@@ -1,17 +1,24 @@
 {
   "version": 1,
-  "world": "Research Desk",
+  "world": "Zedu Amp: FinSet-style workspace",
   "tokens": {
-    "signal": "#8E6AFA",
-    "signal-deep": "#7551E8",
-    "signal-tint": "#F0ECFF",
-    "paper": "#FAFAF9",
-    "sidebar": "#F3F1EE",
-    "sheet": "#FFFFFF",
-    "ink": "#1A1917",
-    "muted": "#706E69",
-    "line": "#E5E3DF",
-    "line-strong": "#CAC8C3",
-    "radius": "8px"
+    "brand": "#7D68F9",
+    "brand-text": "#5B45E0",
+    "brand-tint": "#F3EFFF",
+    "workspace": "#FFFFFF",
+    "card": "#FFFFFF",
+    "sidebar": "#24145F",
+    "sidebar-active": "#7D68F9",
+    "ink": "#16151D",
+    "muted": "#6B6880",
+    "faint": "#C9C7D3",
+    "line": "#E8E7EE",
+    "line-strong": "#D2D0DC",
+    "chart-soft": "#C1B7FF",
+    "chart-track": "#EDEAFF",
+    "chart-grid": "#ECEAF3",
+    "card-radius": "22px",
+    "gap": "16px",
+    "content-width": "full"
   }
 }

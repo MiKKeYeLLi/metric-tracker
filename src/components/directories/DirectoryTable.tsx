@@ -38,10 +38,9 @@ import { DirectoryStatusBadge } from "@/components/directories/DirectoryStatusBa
 const teamMembers = ["Denise", "Rabiah", "Kanyisola", "Roy"] as const;
 
 const priorityStyles: Record<Priority, string> = {
-  High: "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900 dark:bg-rose-950/40 dark:text-rose-300",
-  Medium:
-    "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300",
-  Low: "border-slate-200 bg-slate-100 text-slate-600 dark:border-slate-700 dark:bg-slate-800/50 dark:text-slate-300",
+  High: "border-destructive/20 bg-destructive-muted text-destructive",
+  Medium: "border-warning/20 bg-warning-muted text-warning",
+  Low: "border-border bg-secondary text-muted-foreground",
 };
 
 function websiteHref(website: string) {
@@ -268,7 +267,7 @@ export function DirectoryTable() {
   }, [directories, memberFilter, priorityFilter, search, statusFilter]);
 
   return (
-    <section className="rounded-xl border border-border bg-card shadow-sm">
+    <section className="rounded-2xl bg-card shadow-[0_1px_2px_rgb(21_21_31/0.04)] ring-1 ring-border">
       <div className="grid grid-cols-1 gap-2 border-b border-border p-3 lg:grid-cols-[minmax(0,1.5fr)_repeat(3,minmax(0,1fr))]">
         <div className="relative min-w-0">
           <SearchIcon
@@ -376,7 +375,7 @@ export function DirectoryTable() {
                   onClick={() => setSelectedDirectoryId(directory.id)}
                   className={`h-[58px] cursor-pointer text-xs transition-colors ${
                     isSelected
-                      ? "bg-emerald-500/5 font-medium dark:bg-emerald-950/20"
+                      ? "bg-success-muted/50 font-medium"
                       : "hover:bg-muted/50"
                   }`}
                 >
@@ -389,7 +388,7 @@ export function DirectoryTable() {
                     </div>
                     <div className="mt-1 flex min-w-0 items-center gap-1 text-[10px] leading-tight text-muted-foreground">
                       <a
-                        className="min-w-0 truncate hover:text-primary hover:underline"
+                        className="min-w-0 truncate hover:text-primary-deep hover:underline"
                         href={websiteHref(directory.website)}
                         rel="noreferrer"
                         target="_blank"
@@ -438,7 +437,7 @@ export function DirectoryTable() {
                   <TableCell className="px-2 py-2 align-middle text-[10px]">
                     {directory.listingUrl ? (
                       <a
-                        className="block truncate font-medium text-primary hover:underline"
+                        className="block truncate font-medium text-primary-deep hover:underline"
                         href={directory.listingUrl}
                         rel="noreferrer"
                         target="_blank"

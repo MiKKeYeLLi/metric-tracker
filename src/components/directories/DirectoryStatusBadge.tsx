@@ -7,35 +7,12 @@ interface BadgeProps {
 }
 
 export function DirectoryStatusBadge({ status, className }: BadgeProps) {
-  const styles: Record<
-    DirectoryStatus,
-    { bg: string; text: string; dot: string }
-  > = {
-    Live: {
-      bg: "bg-emerald-50 dark:bg-emerald-950/40",
-      text: "text-emerald-700 dark:text-emerald-400",
-      dot: "bg-emerald-500",
-    },
-    "Pending review": {
-      bg: "bg-amber-50 dark:bg-amber-950/40",
-      text: "text-amber-700 dark:text-amber-400",
-      dot: "bg-amber-500",
-    },
-    "Needs changes": {
-      bg: "bg-rose-50 dark:bg-rose-950/40",
-      text: "text-rose-700 dark:text-rose-400",
-      dot: "bg-rose-500",
-    },
-    Rejected: {
-      bg: "bg-red-50 dark:bg-red-950/40",
-      text: "text-red-700 dark:text-red-400",
-      dot: "bg-red-500",
-    },
-    "Not submitted": {
-      bg: "bg-slate-100 dark:bg-slate-800/50",
-      text: "text-slate-600 dark:text-slate-400",
-      dot: "bg-slate-400",
-    },
+  const styles: Record<DirectoryStatus, { bg: string; text: string; dot: string }> = {
+    Live: { bg: "bg-success-muted", text: "text-success", dot: "bg-success" },
+    "Pending review": { bg: "bg-info-muted", text: "text-info", dot: "bg-info" },
+    "Needs changes": { bg: "bg-warning-muted", text: "text-warning", dot: "bg-warning" },
+    Rejected: { bg: "bg-destructive-muted", text: "text-destructive", dot: "bg-destructive" },
+    "Not submitted": { bg: "bg-secondary", text: "text-muted-foreground", dot: "bg-border-strong" },
   };
 
   const style = styles[status] || styles["Not submitted"];
@@ -43,14 +20,14 @@ export function DirectoryStatusBadge({ status, className }: BadgeProps) {
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium border border-transparent transition-colors",
+        "inline-flex items-center gap-1.5 rounded-full border border-transparent px-2.5 py-0.5 text-xs font-semibold transition-colors",
         style.bg,
         style.text,
         className,
       )}
     >
       <span
-        className={cn("w-1.5 h-1.5 rounded-full", style.dot)}
+        className={cn("size-1.5 rounded-full", style.dot)}
         aria-hidden="true"
       />
       {status}

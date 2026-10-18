@@ -161,9 +161,9 @@ export function getOpenApiDocument() {
   return generator.generateDocument({
     openapi: "3.1.0",
     info: {
-      title: "Metric Tracker API",
+      title: "Zedu Amp API",
       version: "1.0.0",
-      description: "REST API for Metric Tracker. Endpoints require an active NextAuth session unless noted.",
+      description: "REST API for Zedu Amp. Endpoints require an active NextAuth session unless noted.",
     },
     servers: [{ url: process.env.NEXTAUTH_URL ?? "http://localhost:3000", description: "Current environment" }],
   });

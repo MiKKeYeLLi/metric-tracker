@@ -1,14 +1,31 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { FolderGit2Icon, NewspaperIcon, SearchIcon } from "lucide-react";
+import {
+  FileTextIcon,
+  FolderOpenIcon,
+  LayoutDashboardIcon,
+  NewspaperIcon,
+  ScanSearchIcon,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function SidebarNavList({
   className,
   ...props
 }: React.ComponentProps<"nav">) {
-  return <nav className={cn("flex shrink-0 gap-1 lg:flex-col lg:gap-0", className)} {...props} />;
+  return <nav className={cn("flex shrink-0 gap-1 lg:flex-col lg:gap-0.5", className)} {...props} />;
+}
+
+export function SidebarNavSection({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="contents lg:mt-5 lg:flex lg:flex-col lg:gap-0.5 lg:first:mt-0">
+      <p className="hidden px-3 pb-1.5 text-2xs font-bold tracking-[0.09em] text-sidebar-muted-foreground/80 uppercase lg:block">
+        {label}
+      </p>
+      {children}
+    </div>
+  );
 }
 
 interface SidebarNavLinkProps extends React.ComponentProps<"a"> {
@@ -20,9 +37,8 @@ export function SidebarNavLink({ icon, badge, children, className, ...props }: S
   return (
     <a
       className={cn(
-        "group/nav flex shrink-0 items-center gap-2 overflow-hidden rounded-[7px] px-2.5 py-1.75 text-[13px] font-medium whitespace-nowrap text-muted-foreground no-underline transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground [&_svg]:size-3.5 [&_svg]:shrink-0",
-        "aria-[current=page]:bg-transparent aria-[current=page]:font-semibold aria-[current=page]:text-primary-deep",
-        "lg:aria-[current=page]:rounded-none lg:aria-[current=page]:pl-2.5 lg:aria-[current=page]:shadow-[inset_2px_0_0_var(--primary)]",
+        "group/nav flex shrink-0 items-center gap-2.5 rounded-full px-3 py-2 text-[13px] font-medium whitespace-nowrap text-sidebar-muted-foreground no-underline transition-colors outline-none hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 focus-visible:ring-sidebar-ring [&_svg]:size-4 [&_svg]:shrink-0 lg:rounded-xl lg:py-2.25",
+        "aria-[current=page]:bg-sidebar-primary aria-[current=page]:font-semibold aria-[current=page]:text-sidebar-primary-foreground aria-[current=page]:shadow-[0_6px_18px_rgb(10_4_40/0.35)]",
         className
       )}
       {...props}
@@ -30,7 +46,7 @@ export function SidebarNavLink({ icon, badge, children, className, ...props }: S
       {icon}
       <span className="min-w-0 flex-1 truncate">{children}</span>
       {badge != null && (
-        <span className="shrink-0 rounded-full bg-muted px-1.5 font-mono text-2xs/[1.7] font-medium text-muted-foreground group-aria-[current=page]/nav:bg-accent group-aria-[current=page]/nav:text-primary-deep">
+        <span className="shrink-0 rounded-full bg-sidebar-accent px-1.5 font-mono text-2xs/[1.7] font-medium text-sidebar-foreground group-aria-[current=page]/nav:bg-accent group-aria-[current=page]/nav:text-primary-deep">
           {badge}
         </span>
       )}
@@ -40,24 +56,30 @@ export function SidebarNavLink({ icon, badge, children, className, ...props }: S
 
 export function DashboardSidebarNav() {
   const pathname = usePathname();
+  const current = (href: string) =>
+    (href === "/dashboard" ? pathname === href : pathname.startsWith(href)) ? "page" : undefined;
 
   return (
     <SidebarNavList aria-label="Main navigation">
-      <SidebarNavLink aria-current={pathname === "/dashboard" ? "page" : undefined} href="/dashboard" icon={<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M4 12.5V6.5a2 2 0 0 1 2-2h3.5a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2Zm9 5V9.5a2 2 0 0 1 2-2H18a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-3a2 2 0 0 1-2-2ZM4 18.5v-3.5a2 2 0 0 1 2-2h3.5a2 2 0 0 1 2 2v3.5a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2Z" /></svg>}>
-        Overview
-      </SidebarNavLink>
-      <SidebarNavLink aria-current={pathname.startsWith("/dashboard/content") ? "page" : undefined} href="/dashboard/content" icon={<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M7 4.5h7l4 4V18a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6.5a2 2 0 0 1 2-2Zm7 0v4h4" /><path d="M8.5 12h7M8.5 15.5h7" /></svg>}>
-        Content
-      </SidebarNavLink>
-      <SidebarNavLink aria-current={pathname.startsWith("/dashboard/directories") ? "page" : undefined} href="/dashboard/directories" icon={<FolderGit2Icon aria-hidden="true" />}>
-        Directories
-      </SidebarNavLink>
-      <SidebarNavLink aria-current={pathname.startsWith("/dashboard/seo") ? "page" : undefined} href="/dashboard/seo" icon={<SearchIcon aria-hidden="true" />}>
-        SEO checker
-      </SidebarNavLink>
-      <SidebarNavLink aria-current={pathname.startsWith("/dashboard/media") ? "page" : undefined} href="/dashboard/media" icon={<NewspaperIcon aria-hidden="true" />}>
-        Press &amp; Media
-      </SidebarNavLink>
+      <SidebarNavSection label="Workspace">
+        <SidebarNavLink aria-current={current("/dashboard")} href="/dashboard" icon={<LayoutDashboardIcon aria-hidden="true" />}>
+          Overview
+        </SidebarNavLink>
+      </SidebarNavSection>
+      <SidebarNavSection label="Channels">
+        <SidebarNavLink aria-current={current("/dashboard/content")} href="/dashboard/content" icon={<FileTextIcon aria-hidden="true" />}>
+          Content
+        </SidebarNavLink>
+        <SidebarNavLink aria-current={current("/dashboard/directories")} href="/dashboard/directories" icon={<FolderOpenIcon aria-hidden="true" />}>
+          Directories
+        </SidebarNavLink>
+        <SidebarNavLink aria-current={current("/dashboard/seo")} href="/dashboard/seo" icon={<ScanSearchIcon aria-hidden="true" />}>
+          SEO checker
+        </SidebarNavLink>
+        <SidebarNavLink aria-current={current("/dashboard/media")} href="/dashboard/media" icon={<NewspaperIcon aria-hidden="true" />}>
+          Press &amp; Media
+        </SidebarNavLink>
+      </SidebarNavSection>
     </SidebarNavList>
   );
 }

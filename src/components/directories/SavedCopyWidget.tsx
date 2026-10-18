@@ -36,12 +36,12 @@ export const INITIAL_COPY_BLOCKS: SavedCopyBlock[] = [
   {
     id: "short",
     label: "Short description",
-    text: "Metric Tracker keeps our directory submissions in one calm, organized workspace.",
+    text: "Zedu Amp keeps our directory submissions in one calm, organized workspace.",
   },
   {
     id: "long",
     label: "Long description",
-    text: "Metric Tracker brings content, SEO, social and paid metrics into one workspace the whole team can scan. Easily monitor listing status, review feedback, and manage marketing distribution across all major product directories.",
+    text: "Zedu Amp brings content, SEO, social and paid metrics into one workspace the whole team can scan. Easily monitor listing status, review feedback, and manage marketing distribution across all major product directories.",
   },
 ];
 
@@ -131,7 +131,7 @@ export function SavedCopyWidget({
   return (
     <section
       aria-label={title}
-      className={cn("rounded-xl border bg-card p-4 shadow-sm", className)}
+      className={cn("rounded-2xl bg-card shadow-[0_1px_2px_rgb(21_21_31/0.04)] ring-1 ring-border p-5", className)}
     >
       <div className="flex items-center justify-between">
         <div>
@@ -190,10 +190,10 @@ export function SavedCopyWidget({
                     className={cn(
                       "flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium transition-colors cursor-pointer ml-1",
                       state?.ok
-                        ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                        ? "bg-success-muted text-success"
                         : state?.ok === false
                           ? "bg-destructive/10 text-destructive"
-                          : "bg-primary/10 text-primary hover:bg-primary/20",
+                          : "bg-primary/10 text-primary-deep hover:bg-primary/20",
                     )}
                   >
                     {state?.ok ? (

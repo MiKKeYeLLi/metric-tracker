@@ -12,7 +12,7 @@ In-house marketing teams using one shared workspace to continuously optimize the
 
 ## Product Purpose
 
-Metric Tracker brings the marketing metrics that signal momentum and effectiveness into one operational dashboard. Its purpose is to help a team notice meaningful changes, identify where to act, and improve performance continuously rather than assembling retrospective reports.
+Zedu Amp brings the marketing metrics that signal momentum and effectiveness into one operational dashboard. Its purpose is to help a team notice meaningful changes, identify where to act, and improve performance continuously rather than assembling retrospective reports.
 
 ## Operating Context
 
@@ -29,7 +29,7 @@ Teams return to the dashboard during their normal marketing cadence to check con
 
 ## Brand Commitments
 
-The primary brand color is `#8E6AFA`.
+The product is called **Zedu Amp**, the marketing workspace for Zedu. The primary brand color is `#7D68F9`, the navigation uses deep Zedu violet (`#24145F`), and the mark is Zedu's speech bubble with a lightning bolt.
 
 ## Evidence on Hand
 

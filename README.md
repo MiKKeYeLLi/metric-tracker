@@ -1,6 +1,6 @@
-# Metric Tracker
+# Zedu Amp
 
-A marketing metrics dashboard built by several teams on one shared codebase. The project starts as a bare shell: Google sign-in, an authenticated dashboard layout with an empty **Overview** page, and the plumbing for API routes, the database and API docs. Each team builds its features on top of it.
+The marketing dashboard for [Zedu](https://zedu.chat), built by several teams on one shared codebase (the repository is still called `metric-tracker`). It has Google sign-in, an authenticated dashboard shell with an **Overview** page, and feature areas for Content, Directories, the SEO checker and Press & Media, plus the plumbing for API routes, the database and API docs. The design system is described in [`DESIGN.md`](DESIGN.md).
 
 **Live:** https://metrics.zedu.chat
 
@@ -126,7 +126,8 @@ src/
     not-found.tsx          # 404 page
     dashboard/
       layout.tsx           # Auth guard + sidebar shell for every /dashboard/* page
-      page.tsx             # Overview page
+      page.tsx             # Overview page (KPIs, weekly content chart, coming up, recent content)
+      <feature>/page.tsx   # One folder per feature: content, directories, seo, media
     api/
       auth/[...nextauth]/  # NextAuth (don't change without discussing)
       health/              # GET /api/health
@@ -134,8 +135,10 @@ src/
     docs/route.ts          # /docs — Scalar API reference UI
   components/
     ui/                    # shadcn/ui components (generated, themed)
-    SidebarNav.tsx         # SidebarNavList / SidebarNavLink
-    Wordmark.tsx
+    PageHeader.tsx         # PageHeader + PageContent: the frame every dashboard page uses
+    StatCard.tsx           # StatCard + StatGrid: KPI tiles
+    SidebarNav.tsx         # DashboardSidebarNav (the links), SidebarNavSection, SidebarNavLink
+    Wordmark.tsx           # Zedu Amp wordmark and BrandMark
     AuthButtons.tsx
   lib/
     api.ts                 # requireAuth() helper for route handlers
@@ -185,29 +188,42 @@ Every route under `src/app/dashboard/` automatically gets the sidebar and the si
 
 ```tsx
 // src/app/dashboard/campaigns/page.tsx  →  /dashboard/campaigns
+import { MegaphoneIcon } from "lucide-react";
+import { PageContent, PageHeader } from "@/components/PageHeader";
+import { StatCard, StatGrid } from "@/components/StatCard";
+import { Button } from "@/components/ui/button";
+
 export default function CampaignsPage() {
   return (
-    <header className="sticky top-0 z-10 flex h-14 shrink-0 items-center border-b bg-background/90 px-4 backdrop-blur-sm sm:px-[clamp(20px,4vw,48px)]">
-      <h1 className="m-0 text-base leading-none font-bold tracking-[-0.03em] text-foreground">Campaigns</h1>
-    </header>
+    <>
+      <PageHeader
+        eyebrow="Channels"
+        title="Campaigns"
+        description="Every paid and organic campaign in one place."
+        actions={<Button>New campaign</Button>}
+      />
+      <PageContent>
+        <StatGrid>
+          <StatCard label="Active campaigns" value={4} icon={<MegaphoneIcon aria-hidden="true" />} hint="2 ending this week" tone="warning" />
+        </StatGrid>
+        {/* Cards, charts and tables go here */}
+      </PageContent>
+    </>
   );
 }
 ```
 
 ### Add it to the sidebar
 
-Add a `SidebarNavLink` in `src/app/dashboard/layout.tsx`:
+Add a `SidebarNavLink` to `DashboardSidebarNav` in `src/components/SidebarNav.tsx`, inside the right `SidebarNavSection`:
 
 ```tsx
-import { LayoutGridIcon, MegaphoneIcon } from "lucide-react";
-
-<SidebarNavList aria-label="Main navigation">
-  <SidebarNavLink href="/dashboard" icon={<LayoutGridIcon aria-hidden="true" />}>Overview</SidebarNavLink>
-  <SidebarNavLink href="/dashboard/campaigns" icon={<MegaphoneIcon aria-hidden="true" />}>Campaigns</SidebarNavLink>
-</SidebarNavList>
+<SidebarNavLink aria-current={current("/dashboard/campaigns")} href="/dashboard/campaigns" icon={<MegaphoneIcon aria-hidden="true" />}>
+  Campaigns
+</SidebarNavLink>
 ```
 
-The active link is the one with `aria-current="page"`. Right now it's hard-coded on Overview. When the sidebar has more than one link, move it into a small client component that compares each `href` with `usePathname()`.
+`current()` compares the link with `usePathname()` and sets `aria-current="page"`, which renders the active white pill.
 
 ### Server vs client components
 
@@ -218,22 +234,24 @@ The active link is the one with `aria-current="page"`. Right now it's hard-coded
 
 - **Use shadcn/ui first.** Check `src/components/ui/` for what's already installed. Add more with:
   ```bash
-  npx shadcn@latest add tabs card chart
+  npx shadcn@latest add tabs chart
   ```
   Docs: https://ui.shadcn.com/docs/components
 - **Style with Tailwind utilities and the theme tokens** defined in `src/app/globals.css`. Don't use raw hex values or new CSS files.
 
 | Token (Tailwind class) | Use for |
 |---|---|
-| `bg-background`, `text-foreground` | Page surface and body text |
-| `bg-card`, `bg-popover` | Raised white surfaces |
-| `bg-primary`, `text-primary-foreground`, `bg-primary-deep` | Brand violet: primary actions and active state |
-| `bg-accent`, `text-accent-foreground` | Light violet tint for selected and highlighted items |
+| `bg-background`, `text-foreground` | Lavender page canvas and body text |
+| `bg-card`, `bg-popover` | White cards, dialogs and menus |
+| `bg-primary`, `text-primary-foreground` | Zedu violet (`#7D68F9`) fills: primary buttons, current chart series |
+| `text-primary-deep` | Violet **text** and links (the brand violet is too light for text) |
+| `bg-accent`, `text-accent-foreground` | Light violet tint for icon chips, selection and hover |
 | `text-muted-foreground`, `bg-muted` | Secondary text and quiet fills |
-| `border-border`, `border-border-strong` | Hairlines and stronger dividers |
-| `bg-sidebar`, `bg-sidebar-accent` | Sidebar surfaces |
+| `border-border`, `border-border-strong` | Card rings, rules and hovered inputs |
+| `bg-sidebar`, `text-sidebar-foreground`, `text-sidebar-muted-foreground` | The deep violet sidebar |
+| `bg-chart-1` … `bg-chart-5`, `bg-chart-track` | Chart series and the track behind bars |
 | `success` / `warning` / `info` / `destructive` (+ `-muted`) | Status colors, for example `<Badge variant="success">` |
-| `font-sans` (Manrope), `font-mono` (JetBrains Mono) | Use the mono font for numbers, IDs and metrics |
+| `font-sans` (Manrope), `font-mono` (JetBrains Mono) | Manrope for UI and KPI figures, mono for IDs and column-aligned values |
 
 - Use `cn()` from `@/lib/utils` to combine conditional class names.
 - Use icons from `lucide-react`.

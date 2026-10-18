@@ -5,6 +5,11 @@ import { DashboardSidebarNav } from "@/components/SidebarNav";
 import { Wordmark } from "@/components/Wordmark";
 import { authOptions } from "@/lib/auth";
 
+function initials(name: string) {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  return ((parts[0]?.[0] ?? "") + (parts.length > 1 ? parts[parts.length - 1][0] : "")).toUpperCase() || "Z";
+}
+
 export default async function DashboardLayout({
   children,
 }: {
@@ -13,22 +18,32 @@ export default async function DashboardLayout({
   const session = await getServerSession(authOptions);
   if (!session?.user) redirect("/");
 
+  const displayName = session.user.name ?? session.user.email ?? "Signed in";
+
   return (
-    <main className="grid min-h-screen lg:grid-cols-[224px_minmax(0,1fr)]">
-      <aside className="flex items-center gap-1 overflow-x-auto border-b border-sidebar-border bg-sidebar px-4 py-3.5 lg:sticky lg:top-0 lg:h-screen lg:flex-col lg:items-stretch lg:gap-0 lg:overflow-x-hidden lg:overflow-y-auto lg:border-r lg:border-b-0 lg:px-2.5 lg:pt-5 lg:pb-4">
-        <div className="mr-5 shrink-0 px-2 py-0.5 lg:mr-0 lg:mb-6">
-          <Wordmark href="/dashboard" />
+    <main className="grid min-h-screen lg:grid-cols-[248px_minmax(0,1fr)]">
+      <aside className="sticky top-0 z-20 flex items-center gap-2 overflow-x-auto bg-sidebar px-4 py-3 text-sidebar-foreground lg:h-screen lg:flex-col lg:items-stretch lg:gap-0 lg:overflow-x-hidden lg:overflow-y-auto lg:px-4 lg:pt-6 lg:pb-4">
+        <div className="mr-3 shrink-0 px-1 lg:mr-0 lg:mb-8 lg:px-2">
+          <Wordmark href="/dashboard" tone="inverse" />
         </div>
 
         <DashboardSidebarNav />
 
-        <div className="mt-auto hidden shrink-0 gap-1.5 border-t border-sidebar-border px-2.5 pt-3.5 lg:grid">
+        <div className="mt-auto hidden shrink-0 items-center gap-2.5 rounded-2xl bg-sidebar-accent p-2.5 lg:flex">
           <span
-            className="truncate text-[11px] font-medium text-muted-foreground"
-            title={session.user.email ?? undefined}
+            aria-hidden="true"
+            className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground"
           >
-            {session.user.email}
+            {initials(displayName)}
           </span>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-[13px] font-semibold text-sidebar-foreground">{displayName}</p>
+            {session.user.email && session.user.email !== displayName && (
+              <p className="truncate text-[11px] text-sidebar-muted-foreground" title={session.user.email}>
+                {session.user.email}
+              </p>
+            )}
+          </div>
           <SignOutButton />
         </div>
       </aside>
