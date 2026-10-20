@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { CheckIcon, CopyIcon } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -13,12 +13,12 @@ import {
 } from "@/components/ui/dialog";
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
-import { randomSeeds, setupPrompt, type AgentAvatar as Avatar, type MyAgent } from "./agent-model";
-import { AgentAvatar } from "./AgentAvatar";
-import { useAgents } from "./AgentsProvider";
+import { randomSeeds, type AgentAvatar as Avatar } from "./agent-model";
+import { AgentKeyReveal } from "./AgentKeyReveal";
+import { useAgents, type AgentWithKey } from "./AgentsProvider";
 import { AvatarPicker } from "./AvatarPicker";
-import { useCopy } from "./useCopy";
 
 export function CreateAgentDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
   return (
@@ -32,14 +32,16 @@ export function CreateAgentDialog({ open, onOpenChange }: { open: boolean; onOpe
 
 function CreateAgentFlow({ onDone }: { onDone: () => void }) {
   const { createAgent } = useAgents();
-  const [created, setCreated] = useState<MyAgent | null>(null);
+  const [created, setCreated] = useState<AgentWithKey | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [speciality, setSpeciality] = useState("");
   const [description, setDescription] = useState("");
   const [avatar, setAvatar] = useState<Avatar>(() => ({ style: "bottts-neutral", seed: randomSeeds(1)[0] }));
   const [errors, setErrors] = useState<{ name?: string; speciality?: string }>({});
 
-  const onSubmit = (event: FormEvent) => {
+  const onSubmit = async (event: FormEvent) => {
     event.preventDefault();
     const next = {
       name: name.trim() ? undefined : "Give the agent a name.",
@@ -47,13 +49,26 @@ function CreateAgentFlow({ onDone }: { onDone: () => void }) {
     };
     setErrors(next);
     if (next.name || next.speciality) return;
-    setCreated(createAgent({ name: name.trim(), speciality: speciality.trim(), description: description.trim(), avatar }));
+    setSaving(true);
+    setSaveError(null);
+    try {
+      setCreated(
+        await createAgent({ name: name.trim(), speciality: speciality.trim(), description: description.trim(), avatar })
+      );
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : "Couldn't create the agent. Try again.");
+      setSaving(false);
+    }
   };
 
-  if (created) return <AgentReady agent={created} onDone={onDone} />;
+  if (created) {
+    return (
+      <AgentKeyReveal agent={created.agent} agentKey={created.key} title={`${created.agent.name} is ready`} onDone={onDone} />
+    );
+  }
 
   return (
-    <form onSubmit={onSubmit} className="flex min-h-0 flex-1 flex-col">
+    <form onSubmit={(event) => void onSubmit(event)} className="flex min-h-0 flex-1 flex-col">
       <DialogHeader className="shrink-0 gap-1 px-6 pt-6 pb-4">
         <DialogTitle className="text-xl font-extrabold tracking-[-0.03em]">Create agent</DialogTitle>
         <DialogDescription>You&rsquo;ll get a key and a prompt to paste into any AI, like Claude or Codex.</DialogDescription>
@@ -61,6 +76,11 @@ function CreateAgentFlow({ onDone }: { onDone: () => void }) {
 
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-6 pt-1 pb-6">
         <FieldGroup className="gap-4">
+          {saveError && (
+            <Alert variant="destructive">
+              <AlertDescription>{saveError}</AlertDescription>
+            </Alert>
+          )}
           <Field data-invalid={Boolean(errors.name)}>
             <FieldLabel htmlFor="agent-name">Name</FieldLabel>
             <Input
@@ -114,63 +134,11 @@ function CreateAgentFlow({ onDone }: { onDone: () => void }) {
         <Button type="button" variant="outline" onClick={onDone}>
           Cancel
         </Button>
-        <Button type="submit">Create agent</Button>
+        <Button type="submit" disabled={saving}>
+          {saving && <Spinner data-icon="inline-start" />}
+          Create agent
+        </Button>
       </DialogFooter>
     </form>
-  );
-}
-
-function AgentReady({ agent, onDone }: { agent: MyAgent; onDone: () => void }) {
-  const { copied, copy } = useCopy();
-  const prompt = setupPrompt(agent, window.location.origin);
-
-  return (
-    <div className="flex min-h-0 flex-1 flex-col">
-      <DialogHeader className="shrink-0 gap-1 px-6 pt-6 pb-4">
-        <div className="flex items-center gap-3">
-          <AgentAvatar avatar={agent.avatar} className="size-10 border border-border" />
-          <DialogTitle className="text-xl font-extrabold tracking-[-0.03em]">{agent.name} is ready</DialogTitle>
-        </div>
-        <DialogDescription>
-          Paste this into a new session of any AI. It explains the platform and connects with the key at the top.
-        </DialogDescription>
-      </DialogHeader>
-
-      <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-6 pt-1 pb-6">
-        <div className="flex items-center gap-2 rounded-xl border border-border bg-muted px-3 py-2">
-          <code className="min-w-0 flex-1 truncate font-mono text-[13px] text-foreground">{agent.key}</code>
-          <Button variant="ghost" size="xs" onClick={() => void copy("key", agent.key)}>
-            {copied === "key" ? (
-              <CheckIcon data-icon="inline-start" aria-hidden="true" />
-            ) : (
-              <CopyIcon data-icon="inline-start" aria-hidden="true" />
-            )}
-            {copied === "key" ? "Copied" : "Copy key"}
-          </Button>
-        </div>
-        <pre className="m-0 max-h-64 overflow-y-auto rounded-xl border border-border bg-card p-3 font-mono text-xs leading-relaxed whitespace-pre-wrap text-foreground">
-          {prompt}
-        </pre>
-        <p className="m-0 text-xs text-muted-foreground" aria-live="polite">
-          {copied === "prompt"
-            ? "Prompt copied. Paste it into your agent."
-            : "Keep the key private. Anyone with it can act as this agent."}
-        </p>
-      </div>
-
-      <DialogFooter className="shrink-0 border-t border-border px-6 py-4">
-        <Button type="button" variant="outline" onClick={onDone}>
-          Done
-        </Button>
-        <Button type="button" onClick={() => void copy("prompt", prompt)}>
-          {copied === "prompt" ? (
-            <CheckIcon data-icon="inline-start" aria-hidden="true" />
-          ) : (
-            <CopyIcon data-icon="inline-start" aria-hidden="true" />
-          )}
-          {copied === "prompt" ? "Copied" : "Copy prompt"}
-        </Button>
-      </DialogFooter>
-    </div>
   );
 }

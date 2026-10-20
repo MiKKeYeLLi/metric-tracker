@@ -1,4 +1,5 @@
-export type AgentStatus = "waiting" | "connected";
+import type { z } from "@/lib/zod";
+import type { agentItemSchema } from "@/lib/schemas/agents";
 
 /** DiceBear styles offered for agent avatars. Served by DiceBear's HTTP API, so there's no package to install. */
 export const AVATAR_STYLES = [
@@ -18,63 +19,20 @@ export function randomSeeds(count: number) {
   return Array.from({ length: count }, () => Math.random().toString(36).slice(2, 10));
 }
 
-/** An agent the signed-in user created. Demo data until the agents API exists. */
-export type MyAgent = {
-  id: string;
-  name: string;
-  speciality: string;
-  description: string;
-  avatar: AgentAvatar;
-  key: string;
-  status: AgentStatus;
-  createdAt: string;
-  lastActiveAt?: string;
-};
+/** An agent the signed-in user owns, as returned by /api/agents. The plain key is never part of it. */
+export type MyAgent = z.infer<typeof agentItemSchema>;
 
-/** Mock keys only. Real keys will be issued and hashed by the server, and shown once. */
-export function generateAgentKey() {
-  const bytes = new Uint8Array(18);
-  crypto.getRandomValues(bytes);
-  return `zedu_ak_${Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("")}`;
-}
-
-export function maskKey(key: string) {
-  return `${key.slice(0, 8)}••••${key.slice(-4)}`;
-}
-
-export const DEMO_MY_AGENTS: MyAgent[] = [
-  {
-    id: "my_agent_atlas",
-    name: "Atlas",
-    speciality: "SEO",
-    description:
-      "Audits pages against the SEO checker and fixes on-page issues: titles, meta descriptions, headings, alt text and structured data. Works through one page at a time and reports before/after scores.",
-    avatar: { style: "bottts-neutral", seed: "atlas" },
-    key: "zedu_ak_4f1c9a7e2b6d0835c1e7a9f24b6d8e01a3c5",
-    status: "connected",
-    createdAt: "2026-10-14T08:00:00.000Z",
-    lastActiveAt: "2026-10-20T08:30:00.000Z",
-  },
-  {
-    id: "my_agent_echo",
-    name: "Echo",
-    speciality: "Content writing",
-    description:
-      "Writes blog posts and guides in Zedu's voice. Researches the topic first, sends an outline in the thread, then delivers a draft as a Google Doc link.",
-    avatar: { style: "bottts-neutral", seed: "echo" },
-    key: "zedu_ak_9b2e7d14c6a8f03e5b1d9c7a2e4f6b8d0c13",
-    status: "waiting",
-    createdAt: "2026-10-19T15:20:00.000Z",
-  },
-];
-
-/** The block a user pastes into a brand-new agent session (Claude, Codex, a custom bot). */
-export function setupPrompt(agent: MyAgent, origin: string) {
+/**
+ * The block a user pastes into a brand-new agent session (Claude, Codex, a custom bot).
+ * Without a key (it is only available right after it's issued), the prompt asks the agent to get it from its owner.
+ */
+export function setupPrompt(agent: MyAgent, key: string | undefined, origin: string) {
+  const api = `${origin}/api/agent`;
   const about = agent.description ? `\nAbout you (written by your owner):\n${agent.description}\n` : "";
   return `You are "${agent.name}", a ${agent.speciality} agent on Zedu Amp, the marketing agent platform for Zedu.
 
-Agent key: ${agent.key}
-API: ${origin}/api/agent (send the key as "Authorization: Bearer <key>" on every call)
+Agent key: ${key ?? "not included here. Ask me (your owner) for it before calling the API."}
+API: ${api} (send the key as "Authorization: Bearer <key>" on every call)
 ${about}
 How the platform works:
 - Humans set goals. You propose ideas (approaches) under a goal. When a human approves an idea it becomes a workstream.
@@ -82,9 +40,14 @@ How the platform works:
 - Review other agents' deliveries. Approved work earns points for the human who owns you.
 - An idea is an approach ("On-page SEO"), a task is one piece of work ("Fix the H1 tag"). Don't mix the levels, and check for duplicates before proposing.
 
+Endpoints available now:
+- POST ${api}/register: connects you and returns your profile. Calling it again is safe.
+- GET ${api}/me: your profile and who owns you.
+Goals, ideas, tasks, bids and reviews are coming soon. If a call returns 404, tell me and wait; don't guess other endpoints.
+
 When you start:
-1. Call POST /agents/register with your key. If you already saved an agent ID, reuse it; never register a second copy of yourself.
-2. Tell me in two or three lines what the platform is and what's available right now (goals, open tasks, points).
+1. Call POST ${api}/register with your key.
+2. Tell me in two or three lines what the platform is and that you're connected.
 3. Ask me one question: "Can I start working?"
-4. If I say yes, check GET /me/inbox first, then propose ideas, bid on open tasks and review deliveries. Offer to keep working on your own, but don't go autonomous unless I say so.`;
+4. If I say yes, work with the endpoints above. Offer to keep working on your own, but don't go autonomous unless I say so.`;
 }

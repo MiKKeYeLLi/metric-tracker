@@ -1,29 +1,30 @@
 "use client";
 
 import { useState } from "react";
-import { CheckIcon, ChevronDownIcon, CopyIcon, FileTextIcon, PlusIcon } from "lucide-react";
+import { CheckIcon, ChevronDownIcon, CopyIcon, KeyRoundIcon, PlusIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
-import { maskKey, setupPrompt } from "./agent-model";
+import { setupPrompt } from "./agent-model";
 import { AgentAvatar } from "./AgentAvatar";
 import { useAgents } from "./AgentsProvider";
 import { CreateAgentDialog } from "./CreateAgentDialog";
+import { NewKeyDialog } from "./NewKeyDialog";
 import { useCopy } from "./useCopy";
 
 export function AgentSwitcher() {
-  const { agents, selected, select } = useAgents();
-  const { copied, copy } = useCopy();
+  const { agents, loading, selected, select } = useAgents();
   const [creating, setCreating] = useState(false);
+  const [renewing, setRenewing] = useState(false);
+  const { copied, copy } = useCopy();
 
   const createButton = (
     <>
@@ -37,6 +38,15 @@ export function AgentSwitcher() {
     </>
   );
 
+  if (loading) {
+    return (
+      <>
+        {createButton}
+        <Skeleton className="h-10 w-32 rounded-full sm:w-44" />
+      </>
+    );
+  }
+
   if (!selected) {
     return (
       <>
@@ -46,8 +56,7 @@ export function AgentSwitcher() {
     );
   }
 
-  const keyCopied = copied === `key:${selected.id}`;
-  const promptCopied = copied === `prompt:${selected.id}`;
+  const promptCopied = copied === selected.id;
 
   return (
     <>
@@ -80,11 +89,6 @@ export function AgentSwitcher() {
                 </DropdownMenuRadioItem>
               ))}
             </DropdownMenuRadioGroup>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onSelect={() => void copy(`prompt:${selected.id}`, setupPrompt(selected, window.location.origin))}>
-              <FileTextIcon aria-hidden="true" />
-              Copy setup prompt for {selected.name}
-            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
 
@@ -92,27 +96,41 @@ export function AgentSwitcher() {
 
         <button
           type="button"
-          onClick={() => void copy(`key:${selected.id}`, selected.key)}
-          aria-label={`Copy key for ${selected.name}`}
-          title={maskKey(selected.key)}
+          onClick={() => void copy(selected.id, setupPrompt(selected, undefined, window.location.origin))}
+          aria-label={`Copy setup prompt for ${selected.name}`}
+          title="Copies the setup prompt without the key. Give your agent the key when it asks, or use New key."
           className={cn(
-            "flex h-full items-center gap-1.5 rounded-r-full pr-3.5 pl-2.5 text-[13px] font-medium transition-colors outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50",
-            keyCopied || promptCopied ? "text-success" : "text-muted-foreground hover:text-foreground"
+            "flex h-full items-center gap-1.5 px-2.5 text-[13px] font-medium transition-colors outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50",
+            promptCopied ? "text-success" : "text-muted-foreground hover:text-foreground"
           )}
         >
-          {keyCopied || promptCopied ? (
+          {promptCopied ? (
             <CheckIcon className="size-4" aria-hidden="true" />
           ) : (
             <CopyIcon className="size-4" aria-hidden="true" />
           )}
-          <span className="hidden sm:inline">{promptCopied ? "Prompt copied" : keyCopied ? "Copied" : "Copy key"}</span>
+          <span className="hidden sm:inline">{promptCopied ? "Copied" : "Copy prompt"}</span>
+        </button>
+
+        <span aria-hidden="true" className="h-5 w-px bg-border" />
+
+        <button
+          type="button"
+          onClick={() => setRenewing(true)}
+          aria-label={`Get a new key and setup prompt for ${selected.name}`}
+          title={`Current key: ${selected.keyHint}`}
+          className="flex h-full items-center gap-1.5 rounded-r-full pr-3.5 pl-2.5 text-[13px] font-medium text-muted-foreground transition-colors outline-none hover:bg-muted hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50"
+        >
+          <KeyRoundIcon className="size-4" aria-hidden="true" />
+          <span className="hidden sm:inline">New key</span>
         </button>
       </div>
 
       <span className="sr-only" aria-live="polite">
-        {keyCopied ? `Key for ${selected.name} copied` : promptCopied ? `Setup prompt for ${selected.name} copied` : ""}
+        {promptCopied ? `Setup prompt for ${selected.name} copied, without the key` : ""}
       </span>
 
+      <NewKeyDialog agent={selected} open={renewing} onOpenChange={setRenewing} />
       <CreateAgentDialog open={creating} onOpenChange={setCreating} />
     </>
   );

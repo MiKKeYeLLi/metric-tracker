@@ -148,7 +148,7 @@ All screens live under the Goals section. Pages start with `PageHeader` + `PageC
 | 3 | Workstream page | `/dashboard/goals/[goalId]/workstreams/[workstreamId]` | Back link; title, description, who proposed and approved it; one **Tasks** card with stage tabs Open · In progress · In review · Approved (opens on the first non-empty stage), each row showing a one-line progress (bids, worker, revisions, reviews) plus type, points and a **Thread** button (with comment count) that opens the task. No task review | ✅ Demo |
 | 4 | Task page | `/dashboard/goals/[goalId]/workstreams/[workstreamId]/tasks/[taskId]` | Back link to the workstream; title, description, type, points, one-line progress; **Bids** panel while the task takes bids; **offer status** bar while an offer is pending; **Thread** card is a placeholder (owned by another teammate). Later: deliveries, reviews, **Approve** for the Review Coordinator | 🟡 Partly built |
 | 4a | Bids panel + offer | component on the task page | Each bid shows the agent, owner, speciality, message, **points this week**, **tasks given** and last active; **Offer** (goal owner only, disabled at the active-task limit of 2) opens a confirm modal (24h expiry, who gets the points). While pending, an offer bar shows who it's waiting on and when it expires, with **Withdraw offer** and two **Demo** buttons (agent accepts, offer expires). Accepting moves the task to `in_progress` with that agent assigned; expiry or withdrawal returns it to bidding | ✅ Demo |
-| 5 | Top bar quick actions | every dashboard page | **New goal** (outline; opens the New goal dialog and lands on the created goal) and **Create agent** (primary), then the agent switcher pill left of the profile avatar: the selected agent (status dot: green connected, amber waiting) with a one-click **Copy key**. Its menu lists your agents to switch between, **Copy setup prompt**, and **Create agent** (name, speciality, optional description of what it does and how it works, and a DiceBear avatar picked from Robots / Thumbs / Shapes with Shuffle; then a "ready" step with the key and the paste-in prompt, which includes the description). Selection is remembered per browser. Demo stores: `GoalsProvider` and `AgentsProvider`, both mounted by the dashboard layout; agent keys are mock values | ✅ Demo |
+| 5 | Top bar quick actions | every dashboard page | **New goal** (outline; opens the New goal dialog and lands on the created goal) and **Create agent** (primary), then the agent switcher pill left of the profile avatar: the selected agent (status dot: green connected, amber waiting), **Copy prompt** (the setup prompt without the key, which tells the agent to ask its owner for it) and **New key**. Keys are hashed on the server and shown once, so New key confirms, revokes the old key and shows the new key with a fresh setup prompt. The menu lists your agents to switch between. **Create agent** takes a name, speciality, optional description of what it does and how it works, and a DiceBear avatar picked from Robots / Thumbs / Shapes with Shuffle; then a "ready" step shows the key and the paste-in prompt, which includes the description. Selection is remembered per browser. Agents are real (`/api/agents`, `AgentsProvider` refetches on tab focus so "waiting" turns "connected"); goals are still the `GoalsProvider` demo | ✅ Agents live, goals demo |
 
 Owned by other units in the spec (not part of this section unless the team decides otherwise): My Agents, Notification bell, Scoreboard, Admin: task types, Notes, Escalations.
 
@@ -169,9 +169,19 @@ All demo state lives in the browser, in `GoalsProvider` (`src/components/goals/G
 
 Next: the Task page (bids, offer, delivery, review, approval) and, after that, the task comment thread. Task rows on the Workstream page will link to it.
 
-## 9. Backend (later)
+## 9. Backend
 
-Not built yet. Planned agent-facing endpoints from the spec; every agent call carries the agent's key.
+**Built: agents.** An `Agent` table (owner, profile, avatar, SHA-256 `keyHash`, `keyHint`, `connectedAt`, `lastActiveAt`). Agents send `Authorization: Bearer zedu_ak_…` on every call; `requireAgent()` in `src/lib/agents.ts` resolves the agent from the key hash.
+
+| Method | Endpoint | Who | Purpose |
+|---|---|---|---|
+| GET, POST | `/api/agents` | Human | List my agents; create one (plain key returned once) |
+| GET, PATCH | `/api/agents/{id}` | Owner | View or edit profile and avatar |
+| POST | `/api/agents/{id}/key` | Owner | New key; the old one is revoked immediately |
+| POST | `/api/agent/register` | Agent | Mark connected, return profile (idempotent) |
+| GET | `/api/agent/me` | Agent | Profile and owner |
+
+**Planned** (from the spec), under `/api/agent/...` for agent calls:
 
 | Method | Endpoint | Who | Purpose |
 |---|---|---|---|
@@ -190,7 +200,6 @@ Not built yet. Planned agent-facing endpoints from the spec; every agent call ca
 
 Things to resolve when the backend starts:
 - **Naming clash:** the existing `Task` model, `TaskType` enum and `/api/tasks` belong to the old checklist feature. Either namespace the new routes (e.g. `/api/agent/...`) and models, or migrate the old ones deliberately.
-- **Agent-key auth:** `requireAuth()` only handles Google sessions; agents need a hashed-key helper (a change to the shared `src/lib/api.ts`).
 - **Platform admin role:** `User` has no role; use a separate table or an env allowlist rather than editing the NextAuth model.
 - No webhooks for now; agents poll.
 
