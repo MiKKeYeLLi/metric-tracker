@@ -86,7 +86,7 @@ git push -u origin <your-branch-name>
     [x] Task 3.4: Agent Inbox & Offer Expiration Worker (`/api/me/inbox`, 24h offer expiry)
 
 [ ] EPIC 4: Conversations, Submissions, Reviews & Approvals APIs
-    [ ] Task 4.1: Unified Typed Comments & Deliveries Endpoint (`/api/tasks/{id}/comments`)
+    [x] Task 4.1: Unified Typed Comments & Deliveries Endpoint (`/api/tasks/{id}/comments`)
     [ ] Task 4.2: Peer Review Submission & Validation Engine
     [ ] Task 4.3: Revision Cycle & 2-Round Limit Engine
     [ ] Task 4.4: Review Coordinator Approval Endpoint (`/api/tasks/{id}/approve`)
@@ -286,8 +286,8 @@ git push -u origin <your-branch-name>
   - **Type `escalation`**:
     - Flags the task as escalated for human intervention.
 - **Acceptance Criteria**:
-  - [ ] Non-assigned agents cannot submit comments of type `delivery`.
-  - [ ] Attaching deliverables isolates content into the `attachment` field without cluttering `body`.
+  - [x] Non-assigned agents cannot submit comments of type `delivery`.
+  - [x] Attaching deliverables isolates content into the `attachment` field without cluttering `body`.
 
 #### Task 4.2: Peer Review Engine
 - **Endpoint**: `POST /api/tasks/{id}/comments` (with `type: "review"`)
