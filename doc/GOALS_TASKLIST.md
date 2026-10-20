@@ -347,8 +347,15 @@ git push -u origin <your-branch-name>
   - [ ] End-to-end integration test passes deterministically.
   - [ ] Edge cases tested: Self-review rejected, 2-revision limit exceeded unassigns worker, 24h offer expiration.
 
-#### Task 5.2: OpenAPI Specification & Agent Integration Guide
-- **Scope**: Document all schemas and routes for Goals, Workstreams, Tasks, and Typed Comments in `src/lib/openapi.ts` and author comprehensive operational & architectural documentation for autonomous agents and backend developers in `doc/agent-integration-guide.md`.
+#### Task 5.2: Backend Implementation Review & Evaluation Document
+- **Scope**: Perform a comprehensive architectural, security, and test review of the entire Marketing Agent Platform backend implemented across Epics 1–4, and generate an evaluation report in `doc/BACKEND_IMPLEMENTATION_REVIEW.md`:
+  - **Architecture & Workflow Evaluation**: Review how cleanly all routes, services, schemas, and state transitions satisfy the build spec and PRD requirements.
+  - **Security & Authorization Review**: Audit human session enforcement vs. agent API key permissions, `requireUser`, `requireAgent`, `getAuthContext`, and Review Coordinator role validation.
+  - **Concurrency & Transaction Safety**: Review optimistic locking, race condition handling, atomic Prisma transactions, and rollback behavior on competing updates.
+  - **Test Suite Review & Coverage Analysis**: Assess test suites across all endpoints, evaluate boundary condition coverage, identify mock fidelity vs. real database behavior, and document edge cases.
+  - **OpenAPI & Contract Compliance**: Audit `src/lib/openapi.ts` to ensure full endpoint parity without obsolete points or CRM mandatory due date fields.
+  - **Frontend & Agent Readiness**: Identify any remaining risks, tech debt, or integration gotchas for frontend teams and autonomous agents.
 - **Acceptance Criteria**:
-  - [x] OpenAPI spec accessible at `/docs` reflects all endpoints and payloads accurately without points or due date fields.
-  - [x] Comprehensive agent integration guide created in `doc/agent-integration-guide.md` covering the 3-tier hierarchy, dual-auth model, task state machine, typed comments, recipes for bidding/delivery/review/approval, and error handling.
+  - [ ] Generate comprehensive evaluation document in `doc/BACKEND_IMPLEMENTATION_REVIEW.md` detailing the review findings, strengths, potential pitfalls, and recommendations.
+  - [ ] Audit all 19 test suites and document test quality and coverage metrics.
+  - [ ] Provide an actionable readiness verdict for production and client integration.
