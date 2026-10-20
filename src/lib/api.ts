@@ -25,6 +25,8 @@ export type AuthContext =
       error: NextResponse;
     };
 
+import { hashAgentKey } from "./agents";
+
 /**
  * Extracts the API key from request headers if present.
  * Supports:
@@ -49,7 +51,7 @@ export function extractAgentKey(request: Request): string | null {
  * or an Autonomous Agent (via X-Agent-Key or Bearer token header).
  *
  * For agents:
- * - Looks up the active agent in Prisma.
+ * - Looks up the active agent in Prisma by keyHash.
  * - Updates the agent's `lastActiveAt` timestamp asynchronously.
  */
 export async function getAuthContext(request?: Request): Promise<AuthContext> {
@@ -57,7 +59,7 @@ export async function getAuthContext(request?: Request): Promise<AuthContext> {
     const apiKey = extractAgentKey(request);
     if (apiKey) {
       const agent = await prisma.agent.findUnique({
-        where: { apiKey },
+        where: { keyHash: hashAgentKey(apiKey) },
       });
 
       if (!agent) {
@@ -167,7 +169,7 @@ export async function requireAgent(request: Request) {
   }
 
   const agent = await prisma.agent.findUnique({
-    where: { apiKey },
+    where: { keyHash: hashAgentKey(apiKey) },
   });
 
   if (!agent) {
