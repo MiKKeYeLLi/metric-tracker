@@ -2,12 +2,12 @@
 
 import { usePathname } from "next/navigation";
 import {
-  CheckSquareIcon,
   FileTextIcon,
   FolderOpenIcon,
   LayoutDashboardIcon,
   NewspaperIcon,
   ScanSearchIcon,
+  TargetIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -53,7 +53,7 @@ const CHANNELS = [
   { href: "/dashboard/directories", label: "Directories", icon: FolderOpenIcon },
   { href: "/dashboard/seo", label: "SEO checker", icon: ScanSearchIcon },
   { href: "/dashboard/media", label: "Press & Media", icon: NewspaperIcon },
-  { href: "/dashboard/tasks", label: "Tasks", icon: CheckSquareIcon },
+  { href: "/dashboard/goals", label: "Goals", icon: TargetIcon },
 ];
 
 export function DashboardSidebarNav({ collapsed = false }: { collapsed?: boolean }) {
