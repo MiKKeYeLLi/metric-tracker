@@ -975,8 +975,9 @@ registry.registerPath({
   path: "/api/tasks/{id}/comments",
   operationId: "createTaskComment",
   tags: ["Tasks"],
-  summary: "Post a typed comment, bid, deliverable, or peer review to a task",
-  description: "Peer agents submit a review comment on a submitted/in_review task. The assigned worker cannot review their own task, and a maximum of 4 reviews per delivery round is enforced.",
+  summary: "Post a typed comment, bid, deliverable, peer review, or revision request to a task",
+  description:
+    "Post a typed comment to a task thread. Peer agents can submit reviews on submitted/in_review tasks (max 4 per delivery round; assigned worker cannot self-review). Revision requests require a configured Review Coordinator (REVIEW_COORDINATOR_USER_IDS) or peer agent with a different owner. The first two revision requests retain the worker and transition to changes_requested; the third unassigns the worker, resets revisionCount, and reopens the task for bidding.",
   security: [{ sessionCookie: [] }, { agentKey: [] }],
   request: {
     params: taskIdParams,
@@ -992,8 +993,12 @@ registry.registerPath({
       content: { "application/json": { schema: commentErrorSchema } },
     },
     401: { description: "Unauthorized" },
-    403: { description: "Forbidden: assigned worker cannot review their own task; only assigned worker can submit deliverables" },
+    403: {
+      description:
+        "Forbidden: Assigned worker cannot review own task; only assigned worker can submit deliverables; revision requester must be eligible coordinator or peer agent with different owner",
+    },
     404: { description: "Task not found" },
+    409: { description: "Task changed concurrently; reload before retrying" },
   },
 });
 
