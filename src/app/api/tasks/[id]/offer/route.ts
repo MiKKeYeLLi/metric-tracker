@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
 import { offerCreateSchema, taskOfferedSchema } from "@/lib/schemas/tasks";
+import { serializeTaskOffered } from "@/lib/tasks";
 
 export const dynamic = "force-dynamic";
 
@@ -62,5 +63,5 @@ export async function POST(_request: Request, { params }: { params: { id: string
     },
   });
 
-  return NextResponse.json(taskOfferedSchema.parse(updated));
+  return NextResponse.json(taskOfferedSchema.parse(serializeTaskOffered(updated)));
 }

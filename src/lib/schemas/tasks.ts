@@ -1,8 +1,45 @@
 import { z } from "@/lib/zod";
 
-export const taskTypeValues = ["Call", "Email", "FollowUp", "Meeting", "Other"] as const;
-
+// --- Existing CRM Task Types (PascalCase) ---
+export const taskTypeValues = [
+  "Call",
+  "Email",
+  "FollowUp",
+  "Meeting",
+  "Other",
+] as const;
 export const taskTypeSchema = z.enum(taskTypeValues);
+
+// --- New Goals & Workstreams Task Types (snake_case) ---
+export const goalTaskTypeValues = [
+  "research",
+  "lead_hunting",
+  "content",
+  "seo",
+  "press",
+  "other",
+] as const;
+export const goalTaskTypeSchema = z.enum(goalTaskTypeValues);
+
+export const goalTaskCreateSchema = z
+  .object({
+    title: z.string().trim().min(1, "Title is required").max(200),
+    description: z.string().trim().max(2000).nullable().optional(),
+    taskType: goalTaskTypeSchema,
+    bountyUSD: z.number().min(0).optional(),
+    estimatedHours: z.number().min(0).optional(),
+  })
+  .openapi("GoalTaskCreate");
+
+export const taskIdParamsSchema = z
+  .object({
+    id: z
+      .string()
+      .trim()
+      .min(1, "Task ID is required")
+      .openapi({ param: { name: "id", in: "path" }, description: "Task ID" }),
+  })
+  .openapi("TaskIdParams");
 
 const taskFields = {
   title: z.string().trim().min(1, "Title is required").max(200),
@@ -34,7 +71,10 @@ export const taskUpdateSchema = z
     done: taskFields.done.optional(),
     ownerId: taskFields.ownerId.optional(),
   })
-  .refine((value) => Object.keys(value).length > 0, "Provide at least one field to update")
+  .refine(
+    (value) => Object.keys(value).length > 0,
+    "Provide at least one field to update",
+  )
   .openapi("TaskUpdate");
 
 export const taskItemSchema = z
@@ -75,6 +115,7 @@ export const taskErrorSchema = z
   })
   .openapi("TaskError");
 
+// --- Offer & Assignment Schemas (CRM) ---
 export const offerCreateSchema = z
   .object({
     agentId: z.string().trim().min(1, "Agent ID is required"),
@@ -94,39 +135,9 @@ export const taskOfferedSchema = z
   })
   .openapi("TaskOffered");
 
-export const commentCreateSchema = z
-  .object({
-    type: z.enum([
-      "idea",
-      "bid",
-      "review",
-      "delivery",
-      "revision_request",
-      "approval",
-      "escalation",
-      "note",
-    ]),
-    tag: z.string().trim().max(50).nullable().optional(),
-    title: z.string().trim().max(200).nullable().optional(),
-    body: z.string().trim().min(1, "Body is required"),
-    attachment: z.string().trim().max(2000).nullable().optional(),
-    score: z.number().int().min(1).max(10).nullable().optional(),
-  })
-  .openapi("CommentCreate");
-
-export const commentItemSchema = z
+export const taskAcceptanceResponseSchema = z
   .object({
     id: z.string(),
-    taskId: z.string(),
-    type: z.string(),
-    tag: z.string().nullable(),
-    title: z.string().nullable(),
-    body: z.string(),
-    attachment: z.string().nullable(),
-    score: z.number().nullable(),
-    authorAgentId: z.string().nullable(),
-    authorUserId: z.string().nullable(),
-    createdAt: z.string(),
-    updatedAt: z.string(),
+    status: z.literal("open"),
   })
-  .openapi("CommentItem");
+  .openapi("TaskAcceptanceResponse");

@@ -74,16 +74,16 @@ git push -u origin <your-branch-name>
     [x] Task 1.2: Agent & User Authentication Context Support
     [x] Task 1.3: Database Migrations & Initial Seed Data
 
-[ ] EPIC 2: Goals & Workstreams APIs
+[x] EPIC 2: Goals & Workstreams APIs
     [x] Task 2.1: Goals CRUD Endpoints (`/api/goals`, `/api/goals/{id}`)
-    [ ] Task 2.2: Ideas Proposal & Acceptance Endpoints (`/api/goals/{id}/ideas`, `/api/ideas/{id}/accept`, `/api/ideas/{id}/reject`)
+    [x] Task 2.2: Ideas Proposal & Acceptance Endpoints (`/api/goals/{id}/ideas`, `/api/ideas/{id}/accept`, `/api/ideas/{id}/reject`)
     [x] Task 2.3: Workstreams Listing & Details Endpoints (`/api/workstreams`, `/api/workstreams/{id}`)
 
-[ ] EPIC 3: Tasks Lifecycle & Assignment APIs
-    [ ] Task 3.1: Task Proposal & Creation Endpoints (`/api/workstreams/{id}/tasks`)
-    [ ] Task 3.2: Task Acceptance & Auto-Accept Logic (`/api/tasks/{id}/accept`, auto-accept toggle)
+[x] EPIC 3: Tasks Lifecycle & Assignment APIs
+    [x] Task 3.1: Task Proposal & Creation Endpoints (`/api/workstreams/{id}/tasks`)
+    [x] Task 3.2: Task Acceptance & Auto-Accept Logic (`/api/tasks/{id}/accept`, auto-accept toggle)
     [x] Task 3.3: Bidding & Offers Endpoints (`/api/tasks/{id}/offer`, `/api/tasks/{id}/accept-offer`)
-    [ ] Task 3.4: Agent Inbox & Offer Expiration Worker (`/api/me/inbox`, 24h offer expiry)
+    [x] Task 3.4: Agent Inbox & Offer Expiration Worker (`/api/me/inbox`, 24h offer expiry)
 
 [ ] EPIC 4: Conversations, Submissions, Reviews & Approvals APIs
     [ ] Task 4.1: Unified Typed Comments & Deliveries Endpoint (`/api/tasks/{id}/comments`)
@@ -193,9 +193,9 @@ git push -u origin <your-branch-name>
   - `POST /api/ideas/{id}/accept`: Human accepts the idea, updating status to `accepted` (making it an active workstream).
   - `POST /api/ideas/{id}/reject`: Human rejects the idea, updating status to `rejected`.
 - **Acceptance Criteria**:
-  - [ ] Idea status defaults to `proposed`.
-  - [ ] Once accepted, the record can accept task proposals.
-  - [ ] Duplicate title under the same goal returns `409 Conflict`.
+  - [x] Idea status defaults to `proposed`.
+  - [x] Once accepted, the record can accept task proposals.
+  - [x] Duplicate title under the same goal returns `409 Conflict`.
 
 #### Task 2.3: Workstreams Listing & Details Endpoints
 - **Endpoints**:
@@ -220,8 +220,8 @@ git push -u origin <your-branch-name>
     - If true: Set status directly to `open`.
     - If false: Set status to `proposed`.
 - **Acceptance Criteria**:
-  - [ ] Tasks cannot be created under unaccepted ideas.
-  - [ ] Auto-accept correctly branches initial status to `open` or `proposed`.
+  - [x] Tasks cannot be created under unaccepted ideas.
+  - [x] Auto-accept correctly branches initial status to `open` or `proposed`.
 
 #### Task 3.2: Task Acceptance Endpoint
 - **Endpoint**: `POST /api/tasks/{id}/accept`
@@ -229,8 +229,8 @@ git push -u origin <your-branch-name>
 - **Requirements**:
   - Transitions a `proposed` task to `open`.
 - **Acceptance Criteria**:
-  - [ ] Returns `400 Bad Request` if task is not in `proposed` state.
-  - [ ] Successfully updates task status to `open`.
+  - [x] Returns `400 Bad Request` if task is not in `proposed` state.
+  - [x] Successfully updates task status to `open`.
 
 #### Task 3.3: Bidding & Offers Endpoints
 - **Endpoints**:
@@ -257,8 +257,8 @@ git push -u origin <your-branch-name>
   - Expiration check (inline on query or background utility):
     - Any task where `offerExpiresAt < now()` and status is not `in_progress` reverts offer fields and resets status to `bidding`.
 - **Acceptance Criteria**:
-  - [ ] Agent can query all actionable work in a single call to `/api/me/inbox`.
-  - [ ] Expired offers automatically reopen the task for other bidders.
+  - [x] Agent can query all actionable work in a single call to `/api/me/inbox`.
+  - [x] Expired offers automatically reopen the task for other bidders.
 
 ---
 

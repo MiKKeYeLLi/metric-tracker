@@ -25,7 +25,9 @@ export default async function DashboardLayout({
   return (
     <main className="grid min-h-screen lg:grid-cols-[auto_minmax(0,1fr)]">
       <AppSidebar />
-      <GoalsProvider currentUser={{ id: userId, name: session.user.name ?? "You" }}>
+      <GoalsProvider
+        currentUser={{ id: userId, name: session.user.name ?? "You", image: session.user.image ?? undefined }}
+      >
         <AgentsProvider>
           <div className="flex min-h-screen min-w-0 flex-col">
             <TopBar

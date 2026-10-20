@@ -1,23 +1,77 @@
 import { NextResponse } from "next/server";
-import type { CommentType } from "@prisma/client";
 import { getAuthContext } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
-import { commentCreateSchema } from "@/lib/schemas/tasks";
+import { commentCreateSchema } from "@/lib/schemas/comments";
 
 export const dynamic = "force-dynamic";
 
-export async function POST(_request: Request, { params }: { params: { id: string } }) {
-  const auth = await getAuthContext(_request);
-  if (auth.type === null) {
-    return auth.error;
-  }
-  if (auth.type !== "agent") {
-    return NextResponse.json({ error: "Agent authentication required" }, { status: 401 });
+export async function GET(
+  request: Request,
+  { params }: { params: { id: string } }
+) {
+  const auth = await getAuthContext(request);
+  if (auth.error) return auth.error;
+
+  const task = await prisma.task.findUnique({
+    where: { id: params.id },
+  });
+
+  if (!task) {
+    return NextResponse.json({ error: "Task not found" }, { status: 404 });
   }
 
+  const comments = await prisma.taskComment.findMany({
+    where: { taskId: params.id },
+    include: {
+      authorAgent: { select: { id: true, name: true, speciality: true } },
+      authorUser: { select: { id: true, name: true, email: true } },
+    },
+    orderBy: { createdAt: "asc" },
+  });
+
+  const serialized = comments.map((comment) => ({
+    id: comment.id,
+    taskId: comment.taskId,
+    type: comment.type,
+    tag: comment.tag,
+    title: comment.title,
+    body: comment.body,
+    attachment: comment.attachment,
+    score: comment.score,
+    authorAgentId: comment.authorAgentId,
+    authorAgent: comment.authorAgent,
+    authorUserId: comment.authorUserId,
+    authorUser: comment.authorUser,
+    createdAt: comment.createdAt.toISOString(),
+    updatedAt: comment.updatedAt.toISOString(),
+  }));
+
+  return NextResponse.json(serialized);
+}
+
+export async function POST(
+  request: Request,
+  { params }: { params: { id: string } }
+) {
+  const auth = await getAuthContext(request);
+  if (auth.error) return auth.error;
+
+  const callerAgent = auth.type === "agent" ? auth.agent : null;
+  const callerUserId = auth.type === "user" ? auth.user.id : null;
+
+  // Verify task exists
+  const task = await prisma.task.findUnique({
+    where: { id: params.id },
+  });
+
+  if (!task) {
+    return NextResponse.json({ error: "Task not found" }, { status: 404 });
+  }
+
+  // Parse and validate payload
   let body: unknown;
   try {
-    body = await _request.json();
+    body = await request.json();
   } catch {
     return NextResponse.json(
       { error: "Validation failed", details: { _errors: ["Invalid JSON"] } },
@@ -33,19 +87,47 @@ export async function POST(_request: Request, { params }: { params: { id: string
     );
   }
 
-  const data = result.data;
+  const { type, tag, title, body: commentBody, attachment, score } = result.data;
 
-  const task = await prisma.task.findUnique({
-    where: { id: params.id },
-    select: { id: true, status: true, assignedAgentId: true },
-  });
+  // Task 4.1 State Side-Effects & Rules:
+  // 1. Deliveries: only allowed by assigned worker agent, must include attachment
+  if (type === "delivery") {
+    if (!callerAgent || task.assignedAgentId !== callerAgent.id) {
+      return NextResponse.json(
+        { error: "Only the assigned worker agent can submit deliverables" },
+        { status: 403 }
+      );
+    }
 
-  if (!task) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
+    if (!attachment || attachment.trim().length === 0) {
+      return NextResponse.json(
+        {
+          error: "Validation failed",
+          details: { attachment: ["Deliverables must include an attachment"] },
+        },
+        { status: 400 }
+      );
+    }
+
+    // Move task status to submitted
+    await prisma.task.update({
+      where: { id: params.id },
+      data: { status: "submitted" },
+    });
+  }
+
+  // 2. Bid: moves task status from open to bidding
+  if (type === "bid") {
+    if (task.status === "open") {
+      await prisma.task.update({
+        where: { id: params.id },
+        data: { status: "bidding" },
+      });
+    }
   }
 
   // Task 4.2: Peer review rules apply only to type "review".
-  if (data.type === "review") {
+  if (type === "review") {
     // Task must be in submitted or in_review status.
     if (task.status !== "submitted" && task.status !== "in_review") {
       return NextResponse.json(
@@ -55,7 +137,7 @@ export async function POST(_request: Request, { params }: { params: { id: string
     }
 
     // Assigned worker cannot review their own task.
-    if (task.assignedAgentId && task.assignedAgentId === auth.agent.id) {
+    if (task.assignedAgentId && task.assignedAgentId === (callerAgent?.id ?? null)) {
       return NextResponse.json(
         { error: "Assigned worker cannot review their own task" },
         { status: 403 }
@@ -87,19 +169,42 @@ export async function POST(_request: Request, { params }: { params: { id: string
     }
   }
 
+  // Save the comment
   const comment = await prisma.taskComment.create({
     data: {
       taskId: params.id,
-      type: data.type as CommentType,
-      tag: data.tag ?? null,
-      title: data.title ?? null,
-      body: data.body,
-      attachment: data.attachment ?? null,
-      score: data.score ?? null,
-      authorAgentId: auth.agent.id,
-      authorUserId: null,
+      type,
+      tag: tag ?? null,
+      title: title ?? null,
+      body: commentBody,
+      attachment: attachment ?? null,
+      score: score ?? null,
+      authorAgentId: callerAgent ? callerAgent.id : null,
+      authorUserId: callerUserId ? callerUserId : null,
+    },
+    include: {
+      authorAgent: { select: { id: true, name: true, speciality: true } },
+      authorUser: { select: { id: true, name: true, email: true } },
     },
   });
 
-  return NextResponse.json(comment, { status: 201 });
+  return NextResponse.json(
+    {
+      id: comment.id,
+      taskId: comment.taskId,
+      type: comment.type,
+      tag: comment.tag,
+      title: comment.title,
+      body: comment.body,
+      attachment: comment.attachment,
+      score: comment.score,
+      authorAgentId: comment.authorAgentId,
+      authorAgent: comment.authorAgent,
+      authorUserId: comment.authorUserId,
+      authorUser: comment.authorUser,
+      createdAt: comment.createdAt.toISOString(),
+      updatedAt: comment.updatedAt.toISOString(),
+    },
+    { status: 201 }
+  );
 }
