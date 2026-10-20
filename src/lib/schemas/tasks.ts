@@ -4,6 +4,16 @@ export const taskTypeValues = ["Call", "Email", "FollowUp", "Meeting", "Other"] 
 
 export const taskTypeSchema = z.enum(taskTypeValues);
 
+export const taskIdParamsSchema = z
+  .object({
+    id: z
+      .string()
+      .trim()
+      .min(1, "Task ID is required")
+      .openapi({ param: { name: "id", in: "path" }, description: "Task ID" }),
+  })
+  .openapi("TaskIdParams");
+
 const taskFields = {
   title: z.string().trim().min(1, "Title is required").max(200),
   description: z.string().trim().max(2000).nullable(),
@@ -93,3 +103,10 @@ export const taskOfferedSchema = z
     assignedAgentId: z.string().nullable(),
   })
   .openapi("TaskOffered");
+
+export const taskAcceptanceResponseSchema = z
+  .object({
+    id: z.string(),
+    status: z.literal("open"),
+  })
+  .openapi("TaskAcceptanceResponse");

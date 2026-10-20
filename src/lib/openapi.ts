@@ -48,8 +48,10 @@ import {
 import {
   offerAcceptSchema,
   offerCreateSchema,
+  taskAcceptanceResponseSchema,
   taskCreateSchema,
   taskErrorSchema,
+  taskIdParamsSchema,
   taskItemSchema,
   taskOfferedSchema,
   taskUpdateSchema,
@@ -728,9 +730,7 @@ registry.registerPath({
 });
 
 // ── Tasks ──
-const taskIdParams = z.object({
-  id: z.string().openapi({ param: { name: "id", in: "path" } }),
-});
+const taskIdParams = taskIdParamsSchema;
 
 const taskListQuery = z.object({
   status: z.enum(["open", "completed", "all"]).optional().openapi({ param: { name: "status", in: "query" } }),
@@ -833,6 +833,30 @@ registry.registerPath({
   responses: {
     204: { description: "Task deleted" },
     401: { description: "Unauthorized" },
+    404: { description: "Not found" },
+  },
+});
+
+registry.registerPath({
+  method: "post",
+  path: "/api/tasks/{id}/accept",
+  operationId: "acceptProposedTask",
+  tags: ["Tasks"],
+  summary: "Accept a proposed task (authenticated human manager)",
+  description: "Transitions a task from proposed to open. Agent callers are forbidden.",
+  security: [{ sessionCookie: [] }],
+  request: { params: taskIdParams },
+  responses: {
+    200: {
+      description: "Task accepted and now open",
+      content: { "application/json": { schema: taskAcceptanceResponseSchema } },
+    },
+    400: {
+      description: "Invalid task ID or task is not in proposed status",
+      content: { "application/json": { schema: taskErrorSchema } },
+    },
+    401: { description: "Unauthorized" },
+    403: { description: "Agent callers cannot accept tasks" },
     404: { description: "Not found" },
   },
 });
