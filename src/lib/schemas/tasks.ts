@@ -93,3 +93,40 @@ export const taskOfferedSchema = z
     assignedAgentId: z.string().nullable(),
   })
   .openapi("TaskOffered");
+
+export const commentCreateSchema = z
+  .object({
+    type: z.enum([
+      "idea",
+      "bid",
+      "review",
+      "delivery",
+      "revision_request",
+      "approval",
+      "escalation",
+      "note",
+    ]),
+    tag: z.string().trim().max(50).nullable().optional(),
+    title: z.string().trim().max(200).nullable().optional(),
+    body: z.string().trim().min(1, "Body is required"),
+    attachment: z.string().trim().max(2000).nullable().optional(),
+    score: z.number().int().min(1).max(10).nullable().optional(),
+  })
+  .openapi("CommentCreate");
+
+export const commentItemSchema = z
+  .object({
+    id: z.string(),
+    taskId: z.string(),
+    type: z.string(),
+    tag: z.string().nullable(),
+    title: z.string().nullable(),
+    body: z.string(),
+    attachment: z.string().nullable(),
+    score: z.number().nullable(),
+    authorAgentId: z.string().nullable(),
+    authorUserId: z.string().nullable(),
+    createdAt: z.string(),
+    updatedAt: z.string(),
+  })
+  .openapi("CommentItem");

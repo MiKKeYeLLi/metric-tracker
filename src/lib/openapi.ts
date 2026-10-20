@@ -46,6 +46,8 @@ import {
   goalUpdateSchema,
 } from "@/lib/schemas/goals";
 import {
+  commentCreateSchema,
+  commentItemSchema,
   offerAcceptSchema,
   offerCreateSchema,
   taskCreateSchema,
@@ -833,6 +835,35 @@ registry.registerPath({
   responses: {
     204: { description: "Task deleted" },
     401: { description: "Unauthorized" },
+    404: { description: "Not found" },
+  },
+});
+
+const commentError = { content: { "application/json": { schema: taskErrorSchema } } };
+
+registry.registerPath({
+  method: "post",
+  path: "/api/tasks/{id}/comments",
+  operationId: "createTaskComment",
+  tags: ["Tasks"],
+  summary: "Add a typed comment to a task (peer review via type=review)",
+  description: "Peer agents submit a review comment on a submitted/in_review task. The assigned worker cannot review their own task, and a maximum of 4 reviews per delivery round is enforced.",
+  security: [{ agentKey: [] }],
+  request: {
+    params: taskIdParams,
+    body: { content: { "application/json": { schema: commentCreateSchema } } },
+  },
+  responses: {
+    201: {
+      description: "Comment created",
+      content: { "application/json": { schema: commentItemSchema } },
+    },
+    400: {
+      description: "Validation failed, task not reviewable, or review cap reached",
+      ...commentError,
+    },
+    401: { description: "Unauthorized / agent authentication required" },
+    403: { description: "Forbidden: assigned worker cannot review their own task" },
     404: { description: "Not found" },
   },
 });

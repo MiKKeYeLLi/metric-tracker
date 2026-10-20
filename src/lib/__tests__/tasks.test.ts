@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { taskCreateSchema, taskUpdateSchema } from "@/lib/schemas/tasks";
+import { taskCreateSchema, taskUpdateSchema, commentCreateSchema } from "@/lib/schemas/tasks";
 import { serializeTask } from "@/lib/tasks";
 import { getOpenApiDocument } from "@/lib/openapi";
 
@@ -108,5 +108,44 @@ describe("Tasks Validation & Serialization", () => {
     assert.ok(doc.paths["/api/tasks/{id}"].get);
     assert.ok(doc.paths["/api/tasks/{id}"].patch);
     assert.ok(doc.paths["/api/tasks/{id}"].delete);
+  });
+});
+
+describe("Comment Validation & Registration", () => {
+  it("validates a valid review comment payload", () => {
+    const parsed = commentCreateSchema.safeParse({
+      type: "review",
+      tag: "seo",
+      title: "Peer review",
+      body: "Looks good overall.",
+      score: 8,
+    });
+    assert.equal(parsed.success, true);
+    if (parsed.success) {
+      assert.equal(parsed.data.type, "review");
+      assert.equal(parsed.data.score, 8);
+    }
+  });
+
+  it("rejects review with missing body", () => {
+    assert.equal(commentCreateSchema.safeParse({ type: "review" }).success, false);
+  });
+
+  it("rejects review score outside 1-10", () => {
+    assert.equal(
+      commentCreateSchema.safeParse({ type: "review", body: "ok", score: 0 }).success,
+      false
+    );
+    assert.equal(
+      commentCreateSchema.safeParse({ type: "review", body: "ok", score: 11 }).success,
+      false
+    );
+  });
+
+  it("registers comments endpoint in OpenAPI document", () => {
+    const doc = getOpenApiDocument();
+    assert.ok(doc.paths);
+    assert.ok(doc.paths["/api/tasks/{id}/comments"]);
+    assert.ok(doc.paths["/api/tasks/{id}/comments"].post);
   });
 });
