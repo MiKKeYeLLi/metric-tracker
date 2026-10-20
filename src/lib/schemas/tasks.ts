@@ -88,8 +88,8 @@ export const taskOfferedSchema = z
     id: z.string(),
     status: z.string(),
     offeredToAgentId: z.string().nullable(),
-    offeredAt: z.string().nullable(),
-    offerExpiresAt: z.string().nullable(),
+    offeredAt: z.iso.datetime().nullable(),
+    offerExpiresAt: z.iso.datetime().nullable(),
     assignedAgentId: z.string().nullable(),
   })
   .openapi("TaskOffered");
