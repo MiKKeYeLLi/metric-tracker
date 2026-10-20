@@ -39,6 +39,8 @@ model User {
   sessions      Session[]
   contentItems  ContentItem[]
   seoChecks     SeoCheck[]
+  createdTasks  Task[]        @relation("TaskCreator")
+  assignedTasks Task[]        @relation("TaskOwner")
 }
 
 model ContentItem {
@@ -249,4 +251,32 @@ model PressOutlet {
   updatedAt    DateTime          @updatedAt
   coverage     PressCoverage[]
   submissions  PressSubmission[]
+}
+
+enum TaskType {
+  Call
+  Email
+  FollowUp
+  Meeting
+  Other
+}
+
+model Task {
+  id          String    @id @default(cuid())
+  title       String
+  description String?
+  type        TaskType  @default(Other)
+  dueAt       DateTime
+  done        Boolean   @default(false)
+  completedAt DateTime?
+  ownerId     String?
+  owner       User?     @relation("TaskOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  userId      String
+  user        User      @relation("TaskCreator", fields: [userId], references: [id], onDelete: Cascade)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([dueAt])
+  @@index([userId, done])
+  @@index([ownerId])
 }

@@ -10,7 +10,7 @@
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
-    "test": "tsx --test src/lib/seo/__tests__/scoring.test.ts src/lib/seo/__tests__/ssrf.test.ts src/lib/seo/__tests__/checks.test.ts"
+    "test": "tsx --test \"src/**/*.test.ts\""
   },
   "dependencies": {
     "@asteasolutions/zod-to-openapi": "^9.1.0",
