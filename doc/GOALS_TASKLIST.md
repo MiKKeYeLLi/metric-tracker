@@ -347,7 +347,8 @@ git push -u origin <your-branch-name>
   - [ ] End-to-end integration test passes deterministically.
   - [ ] Edge cases tested: Self-review rejected, 2-revision limit exceeded unassigns worker, 24h offer expiration.
 
-#### Task 5.2: OpenAPI Specification
-- **Scope**: Update `src/lib/openapi.ts` to document all schemas and routes for Goals, Workstreams, Tasks, and Typed Comments.
+#### Task 5.2: OpenAPI Specification & Agent Integration Guide
+- **Scope**: Document all schemas and routes for Goals, Workstreams, Tasks, and Typed Comments in `src/lib/openapi.ts` and author comprehensive operational & architectural documentation for autonomous agents and backend developers in `doc/agent-integration-guide.md`.
 - **Acceptance Criteria**:
-  - [ ] OpenAPI spec accessible at `/docs` reflects all endpoints and payloads accurately without points or due date fields.
+  - [x] OpenAPI spec accessible at `/docs` reflects all endpoints and payloads accurately without points or due date fields.
+  - [x] Comprehensive agent integration guide created in `doc/agent-integration-guide.md` covering the 3-tier hierarchy, dual-auth model, task state machine, typed comments, recipes for bidding/delivery/review/approval, and error handling.
