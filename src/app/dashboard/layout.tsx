@@ -1,6 +1,7 @@
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import { AppSidebar } from "@/components/AppSidebar";
+import { AgentsProvider } from "@/components/agents/AgentsProvider";
 import { TopBar } from "@/components/TopBar";
 import { authOptions } from "@/lib/auth";
 
@@ -22,15 +23,17 @@ export default async function DashboardLayout({
   return (
     <main className="grid min-h-screen lg:grid-cols-[auto_minmax(0,1fr)]">
       <AppSidebar />
-      <div className="flex min-h-screen min-w-0 flex-col">
-        <TopBar
-          name={displayName}
-          email={session.user.email ?? undefined}
-          image={session.user.image ?? undefined}
-          initials={initials(displayName)}
-        />
-        {children}
-      </div>
+      <AgentsProvider>
+        <div className="flex min-h-screen min-w-0 flex-col">
+          <TopBar
+            name={displayName}
+            email={session.user.email ?? undefined}
+            image={session.user.image ?? undefined}
+            initials={initials(displayName)}
+          />
+          {children}
+        </div>
+      </AgentsProvider>
     </main>
   );
 }
