@@ -29,7 +29,7 @@ import {
 } from "./GoalParts";
 import { useGoals } from "./GoalsProvider";
 import { OfferDialog } from "./OfferDialog";
-import { TaskThread, isBid } from "./TaskThread";
+import { TaskThread, agentMessages } from "./TaskThread";
 
 const TABS = {
   bids: { icon: HandIcon, chip: "bg-accent text-primary-deep" },
@@ -65,7 +65,7 @@ export function TaskView({ goalId, workstreamId, taskId }: { goalId: string; wor
   const offeredTo = task.offer ? agentFor(task.offer.agentId) : undefined;
   const bidding = task.status === "open" || task.status === "bidding";
   const takingBids = bidding && !task.offer;
-  const threadCount = threadFor(task.id).filter((entry) => entry.kind === "comment" && !isBid(entry)).length;
+  const threadCount = agentMessages(threadFor(task.id)).length;
   const stage = TASK_STAGES.find((option) => option.statuses.includes(task.status)) ?? TASK_STAGES[0];
   const stageStyle = STAGE_STYLES[stage.value];
   const StageIcon = stageStyle.icon;

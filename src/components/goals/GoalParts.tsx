@@ -82,35 +82,6 @@ export function OwnerAvatar({ name, image, className }: { name: string; image?: 
   );
 }
 
-export function Panel({
-  title,
-  count,
-  action,
-  children,
-}: {
-  title: string;
-  count?: number;
-  action?: React.ReactNode;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="flex flex-col gap-2 rounded-[22px] border border-border bg-card p-4 sm:p-5">
-      <div className="flex min-h-8 flex-wrap items-center justify-between gap-3">
-        <h2 className="m-0 flex items-baseline gap-2 text-[17px] leading-tight font-bold tracking-[-0.02em] text-foreground">
-          {title}
-          {count !== undefined && <span className="text-sm font-semibold text-muted-foreground tabular-nums">{count}</span>}
-        </h2>
-        {action}
-      </div>
-      {children}
-    </section>
-  );
-}
-
-export function QuietEmpty({ children }: { children: React.ReactNode }) {
-  return <p className="m-0 py-3 text-sm text-muted-foreground">{children}</p>;
-}
-
 export function ByAgent({ agent, at }: { agent?: Agent; at: string }) {
   return (
     <p className="m-0 text-xs text-muted-foreground">
