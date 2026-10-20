@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { ArrowLeftIcon, ChevronDownIcon, MessageSquareIcon, type LucideIcon } from "lucide-react";
 import { PageContent, PageHeader } from "@/components/PageHeader";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
   Empty,
@@ -16,25 +17,59 @@ import {
 import { cn } from "@/lib/utils";
 import { shortDate, type Agent, type Task } from "./goal-model";
 
-export function Progress({ label, done, total, className }: { label: string; done: number; total: number; className?: string }) {
-  const percent = total === 0 ? 0 : Math.round((done / total) * 100);
+/** DESIGN.md's progress bar for goals and workstreams: a full-width track with the share approved written inside the fill. */
+export function TaskProgress({ label, done, total }: { label: string; done: number; total: number }) {
+  if (total === 0) {
+    return <p className="m-0 text-[13px] text-muted-foreground">No tasks yet. They appear once an idea is approved.</p>;
+  }
+
+  const percent = Math.round((done / total) * 100);
 
   return (
-    <div className={cn("flex items-center gap-2.5", className)}>
+    <div className="flex flex-col gap-2">
+      <div className="flex items-baseline justify-between gap-3 text-[13px]">
+        <span className="font-medium text-muted-foreground">Tasks approved</span>
+        <span className="font-bold text-primary-deep tabular-nums">
+          {done} / {total}
+        </span>
+      </div>
       <div
-        className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-chart-track"
+        className="relative h-[26px] overflow-hidden rounded-full bg-chart-track"
         role="progressbar"
         aria-label={`${label}: ${done} of ${total} tasks approved`}
         aria-valuemin={0}
         aria-valuemax={100}
         aria-valuenow={percent}
       >
-        <div className="h-full rounded-full bg-primary" style={{ width: `${percent}%` }} />
+        {done > 0 ? (
+          <div
+            className="flex h-full min-w-11 items-center justify-end rounded-full bg-primary px-2.5"
+            style={{ width: `${percent}%` }}
+          >
+            <span className="text-[13px] font-semibold text-primary-foreground tabular-nums">{percent}%</span>
+          </div>
+        ) : (
+          <span className="absolute inset-y-0 left-3 flex items-center text-[13px] font-semibold text-primary-deep tabular-nums">
+            0%
+          </span>
+        )}
       </div>
-      <span className="shrink-0 text-xs font-semibold text-muted-foreground tabular-nums">
-        {done}/{total}
-      </span>
     </div>
+  );
+}
+
+function initials(name: string) {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  return ((parts[0]?.[0] ?? "") + (parts.length > 1 ? parts[parts.length - 1][0] : "")).toUpperCase() || "?";
+}
+
+/** A person's photo, or their initials when there is none (demo owners have no photos). */
+export function OwnerAvatar({ name, image, className }: { name: string; image?: string; className?: string }) {
+  return (
+    <Avatar className={cn("size-6", className)}>
+      {image && <AvatarImage src={image} alt="" referrerPolicy="no-referrer" />}
+      <AvatarFallback className="bg-accent text-[10px] font-bold text-primary-deep">{initials(name)}</AvatarFallback>
+    </Avatar>
   );
 }
 
