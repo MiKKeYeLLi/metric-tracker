@@ -88,7 +88,7 @@ git push -u origin <your-branch-name>
 [ ] EPIC 4: Conversations, Submissions, Reviews & Approvals APIs
     [ ] Task 4.1: Unified Typed Comments & Deliveries Endpoint (`/api/tasks/{id}/comments`)
     [ ] Task 4.2: Peer Review Submission & Validation Engine
-    [ ] Task 4.3: Revision Cycle & 2-Round Limit Engine
+    [x] Task 4.3: Revision Cycle & 2-Round Limit Engine
     [ ] Task 4.4: Review Coordinator Approval Endpoint (`/api/tasks/{id}/approve`)
 
 [ ] EPIC 5: Integration Tests & API Documentation
@@ -313,8 +313,8 @@ git push -u origin <your-branch-name>
     - `revisionCount` resets to `0`.
     - Task status reverts to `reopened` (available for `bidding`).
 - **Acceptance Criteria**:
-  - [ ] Tasks allow up to 2 revision rounds with the same worker.
-  - [ ] The 3rd revision request automatically unassigns the worker and reopens the task for bidding.
+  - [x] Tasks allow up to 2 revision rounds with the same worker.
+  - [x] The 3rd revision request automatically unassigns the worker and reopens the task for bidding.
 
 #### Task 4.4: Final Approval Endpoint
 - **Endpoint**: `POST /api/tasks/{id}/approve`

@@ -976,6 +976,7 @@ registry.registerPath({
   operationId: "createTaskComment",
   tags: ["Tasks"],
   summary: "Post a typed comment, bid, or deliverable to a task",
+  description: "Revision requests require a configured human Review Coordinator (REVIEW_COORDINATOR_USER_IDS) or a peer agent owned by a different user from the worker. The task must be submitted or in_review with an assigned worker. The first two revision requests retain the worker and set changes_requested; the third clears assignment, resets revisionCount, and sets reopened. The comment and state change are atomic. Revised delivery from changes_requested returns to submitted without resetting the count. A bid on reopened returns the task to bidding. Approved tasks reject revisions and deliveries.",
   security: [{ sessionCookie: [] }, { agentKey: [] }],
   request: {
     params: taskIdParams,
@@ -991,7 +992,8 @@ registry.registerPath({
       content: { "application/json": { schema: commentErrorSchema } },
     },
     401: { description: "Unauthorized" },
-    403: { description: "Forbidden: Only assigned worker agent can submit deliverables" },
+    403: { description: "Forbidden: Revision requester is not an eligible coordinator/peer reviewer, or delivery is not from the assigned worker" },
+    409: { description: "Task changed concurrently; reload before retrying" },
     404: { description: "Task not found" },
   },
 });

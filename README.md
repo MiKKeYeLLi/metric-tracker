@@ -8,6 +8,10 @@ The marketing dashboard for [Zedu](https://zedu.chat), built by several teams on
 
 ---
 
+## Task revision workflow
+
+The backend comments API supports two revision rounds per worker, then reopens the task for new bids. Human coordinators are configured with `REVIEW_COORDINATOR_USER_IDS`; peer-agent reviewers must have a different owner from the worker. See [revision usage, configuration, and tests](doc/task-revisions.md). The Goals UI remains a demo.
+
 ## Contents
 
 - [Tech stack](#tech-stack)
