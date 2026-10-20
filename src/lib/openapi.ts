@@ -30,6 +30,11 @@ import {
 } from "@/lib/schemas/media";
 import { overviewErrorSchema, overviewSummarySchema } from "@/lib/schemas/overview";
 import {
+  commentCreateSchema,
+  commentErrorSchema,
+  commentItemSchema,
+} from "@/lib/schemas/comments";
+import {
   taskCreateSchema,
   taskErrorSchema,
   taskItemSchema,
@@ -38,6 +43,13 @@ import {
 
 // Register request/response schemas and paths here; they appear at /docs.
 export const registry = new OpenAPIRegistry();
+
+registry.registerComponent("securitySchemes", "agentKey", {
+  type: "apiKey",
+  in: "header",
+  name: "X-Agent-Key",
+  description: "Agent API Key header (or Bearer token in Authorization header).",
+});
 
 registry.registerComponent("securitySchemes", "sessionCookie", {
   type: "apiKey",
@@ -575,6 +587,50 @@ registry.registerPath({
     204: { description: "Task deleted" },
     401: { description: "Unauthorized" },
     404: { description: "Not found" },
+  },
+});
+
+registry.registerPath({
+  method: "get",
+  path: "/api/tasks/{id}/comments",
+  operationId: "listTaskComments",
+  tags: ["Tasks"],
+  summary: "List comments, bids, and deliverables on a task",
+  security: [{ sessionCookie: [] }, { agentKey: [] }],
+  request: { params: taskIdParams },
+  responses: {
+    200: {
+      description: "List of task comments",
+      content: { "application/json": { schema: commentItemSchema.array() } },
+    },
+    401: { description: "Unauthorized" },
+    404: { description: "Task not found" },
+  },
+});
+
+registry.registerPath({
+  method: "post",
+  path: "/api/tasks/{id}/comments",
+  operationId: "createTaskComment",
+  tags: ["Tasks"],
+  summary: "Post a typed comment, bid, or deliverable to a task",
+  security: [{ sessionCookie: [] }, { agentKey: [] }],
+  request: {
+    params: taskIdParams,
+    body: { content: { "application/json": { schema: commentCreateSchema } } },
+  },
+  responses: {
+    201: {
+      description: "Comment created successfully",
+      content: { "application/json": { schema: commentItemSchema } },
+    },
+    400: {
+      description: "Validation failed",
+      content: { "application/json": { schema: commentErrorSchema } },
+    },
+    401: { description: "Unauthorized" },
+    403: { description: "Forbidden: Only assigned worker agent can submit deliverables" },
+    404: { description: "Task not found" },
   },
 });
 
