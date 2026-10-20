@@ -59,9 +59,18 @@ describe("Tasks Validation & Serialization", () => {
   it("serializes task correctly with ISO dates and relations", () => {
     const dummyTask = {
       id: "task-1",
+      workstreamId: null,
+      taskType: null,
       title: "Follow up with client",
       description: "Discuss pricing",
       type: "FollowUp" as const,
+      status: "proposed" as const,
+      assignedAgentId: null,
+      offeredToAgentId: null,
+      offeredAt: null,
+      offerExpiresAt: null,
+      revisionCount: 0,
+      maxRevisions: 2,
       dueAt: new Date("2026-10-25T14:00:00.000Z"),
       done: false,
       completedAt: null,
