@@ -48,6 +48,14 @@ import {
   taskItemSchema,
   taskUpdateSchema,
 } from "@/lib/schemas/tasks";
+import {
+  workstreamAutoAcceptResponseSchema,
+  workstreamAutoAcceptSchema,
+  workstreamDetailSchema,
+  workstreamErrorSchema,
+  workstreamItemSchema,
+  workstreamStatusSchema,
+} from "@/lib/schemas/workstreams";
 
 // Register request/response schemas and paths here; they appear at /docs.
 export const registry = new OpenAPIRegistry();
@@ -197,95 +205,223 @@ registry.registerPath({
       description: "The created media record.",
       content: {
         "application/json": {
-          schema: mediaInputSchema,
+          schema: mediaRecordSchema,
         },
       },
     },
   },
 });
 
-const mediaIdParams = z.object({ id: z.string().openapi({ description: "Coverage or submission id" }) });
+const mediaIdParams = z.object({
+  id: z.string().openapi({ param: { name: "id", in: "path" } }),
+});
 
 registry.registerPath({
-  method: "put",
+  method: "get",
   path: "/api/media/{id}",
-  summary: "Update a coverage or submission record (its record type can't change)",
+  summary: "Get a press media record by ID",
   security: [{ sessionCookie: [] }],
-  request: { params: mediaIdParams, body: { content: { "application/json": { schema: mediaInputSchema } } } },
+  request: { params: mediaIdParams },
   responses: {
-    200: { description: "The updated record", content: { "application/json": { schema: mediaRecordSchema } } },
-    400: { description: "Validation failed, or the record type doesn't match" },
-    401: { description: "Unauthorized" },
-    404: { description: "Not found" },
+    200: {
+      description: "A media record.",
+      content: {
+        "application/json": {
+          schema: mediaRecordSchema,
+        },
+      },
+    },
+    404: {
+      description: "Media record not found.",
+    },
+  },
+});
+
+registry.registerPath({
+  method: "patch",
+  path: "/api/media/{id}",
+  summary: "Update a press media record",
+  security: [{ sessionCookie: [] }],
+  request: {
+    params: mediaIdParams,
+    body: {
+      content: {
+        "application/json": {
+          schema: mediaInputSchema.partial(),
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      description: "The updated media record.",
+      content: {
+        "application/json": {
+          schema: mediaRecordSchema,
+        },
+      },
+    },
+    404: {
+      description: "Media record not found.",
+    },
   },
 });
 
 registry.registerPath({
   method: "delete",
   path: "/api/media/{id}",
-  summary: "Delete a coverage or submission record",
+  summary: "Delete a press media record",
   security: [{ sessionCookie: [] }],
   request: { params: mediaIdParams },
   responses: {
-    204: { description: "Deleted" },
-    401: { description: "Unauthorized" },
-    404: { description: "Not found" },
+    204: {
+      description: "Media record deleted.",
+    },
+    404: {
+      description: "Media record not found.",
+    },
   },
 });
 
 registry.registerPath({
-  method: "post",
+  method: "patch",
   path: "/api/media/{id}/feature",
-  summary: "Mark a pitch as featured: creates the coverage and links the pitch in one transaction",
+  summary: "Feature a published press coverage record",
   security: [{ sessionCookie: [] }],
-  request: { params: mediaIdParams, body: { content: { "application/json": { schema: mediaFeatureSchema } } } },
+  request: {
+    params: mediaIdParams,
+    body: {
+      content: {
+        "application/json": {
+          schema: mediaFeatureSchema,
+        },
+      },
+    },
+  },
   responses: {
-    201: { description: "Coverage created and pitch linked", content: { "application/json": { schema: mediaFeatureResponseSchema } } },
-    400: { description: "Validation failed, or the pitch is already featured" },
-    401: { description: "Unauthorized" },
-    404: { description: "Not found" },
+    200: {
+      description: "The updated media coverage record.",
+      content: {
+        "application/json": {
+          schema: mediaFeatureResponseSchema,
+        },
+      },
+    },
+    400: {
+      description: "Bad request. Only published coverage can be featured, or limit reached.",
+    },
+    404: {
+      description: "Media coverage record not found.",
+    },
   },
 });
 
 registry.registerPath({
   method: "get",
   path: "/api/media/outlets",
-  summary: "List press outlets with their details",
+  summary: "List press outlets",
   security: [{ sessionCookie: [] }],
   responses: {
-    200: { description: "Outlets by name", content: { "application/json": { schema: outletSchema.array() } } },
-    401: { description: "Unauthorized" },
+    200: {
+      description: "A list of press outlets.",
+      content: {
+        "application/json": {
+          schema: outletSchema.array(),
+        },
+      },
+    },
   },
+});
+
+registry.registerPath({
+  method: "post",
+  path: "/api/media/outlets",
+  summary: "Create a press outlet",
+  security: [{ sessionCookie: [] }],
+  request: {
+    body: {
+      content: {
+        "application/json": {
+          schema: outletUpdateSchema,
+        },
+      },
+    },
+  },
+  responses: {
+    201: {
+      description: "The created press outlet.",
+      content: {
+        "application/json": {
+          schema: outletSchema,
+        },
+      },
+    },
+  },
+});
+
+const outletIdParams = z.object({
+  id: z.string().openapi({ param: { name: "id", in: "path" } }),
 });
 
 registry.registerPath({
   method: "patch",
   path: "/api/media/outlets/{id}",
-  summary: "Update an outlet's details; renaming also renames it on its coverage and pitches",
+  summary: "Update a press outlet",
   security: [{ sessionCookie: [] }],
-  request: { params: mediaIdParams, body: { content: { "application/json": { schema: outletUpdateSchema } } } },
+  request: {
+    params: outletIdParams,
+    body: {
+      content: {
+        "application/json": {
+          schema: outletUpdateSchema,
+        },
+      },
+    },
+  },
   responses: {
-    200: { description: "The updated outlet", content: { "application/json": { schema: outletSchema } } },
-    400: { description: "Validation failed, or another outlet already uses that name" },
-    401: { description: "Unauthorized" },
-    404: { description: "Not found" },
+    200: {
+      description: "The updated press outlet.",
+      content: {
+        "application/json": {
+          schema: outletSchema,
+        },
+      },
+    },
+    404: {
+      description: "Press outlet not found.",
+    },
+  },
+});
+
+registry.registerPath({
+  method: "delete",
+  path: "/api/media/outlets/{id}",
+  summary: "Delete a press outlet",
+  security: [{ sessionCookie: [] }],
+  request: { params: outletIdParams },
+  responses: {
+    204: {
+      description: "Press outlet deleted.",
+    },
+    404: {
+      description: "Press outlet not found.",
+    },
   },
 });
 
 // ── Directories ──
-const directoryIdParams = z.object({ id: z.string().openapi({ description: "Directory id" }) });
-const checklistItemParams = directoryIdParams.extend({ itemId: z.string().openapi({ description: "Checklist item id" }) });
-const directoryError = { content: { "application/json": { schema: directoryErrorSchema } } };
-
 registry.registerPath({
   method: "get",
   path: "/api/directories",
   operationId: "listDirectories",
   tags: ["Directories"],
-  summary: "List directories with their checklists",
+  summary: "List directories with stats",
   security: [{ sessionCookie: [] }],
   responses: {
-    200: { description: "Every directory, newest first", content: { "application/json": { schema: directorySchema.array() } } },
+    200: {
+      description: "Directory list with summary stats",
+      content: { "application/json": { schema: directorySchema.array() } },
+    },
     401: { description: "Unauthorized" },
   },
 });
@@ -295,14 +431,24 @@ registry.registerPath({
   path: "/api/directories",
   operationId: "createDirectory",
   tags: ["Directories"],
-  summary: "Add a directory (gets the standard checklist and an activity entry)",
+  summary: "Create a directory",
   security: [{ sessionCookie: [] }],
   request: { body: { content: { "application/json": { schema: directoryCreateSchema } } } },
   responses: {
-    201: { description: "Directory created", content: { "application/json": { schema: directorySchema } } },
-    400: { description: "Validation failed", ...directoryError },
+    201: {
+      description: "Directory created",
+      content: { "application/json": { schema: directorySchema } },
+    },
+    400: {
+      description: "Validation failed",
+      content: { "application/json": { schema: directoryErrorSchema } },
+    },
     401: { description: "Unauthorized" },
   },
+});
+
+const directoryIdParams = z.object({
+  id: z.string().openapi({ param: { name: "id", in: "path" } }),
 });
 
 registry.registerPath({
@@ -310,10 +456,14 @@ registry.registerPath({
   path: "/api/directories/{id}",
   operationId: "getDirectory",
   tags: ["Directories"],
+  summary: "Get directory detail",
   security: [{ sessionCookie: [] }],
   request: { params: directoryIdParams },
   responses: {
-    200: { description: "The directory", content: { "application/json": { schema: directorySchema } } },
+    200: {
+      description: "Directory detail",
+      content: { "application/json": { schema: directorySchema } },
+    },
     401: { description: "Unauthorized" },
     404: { description: "Not found" },
   },
@@ -324,12 +474,21 @@ registry.registerPath({
   path: "/api/directories/{id}",
   operationId: "updateDirectory",
   tags: ["Directories"],
-  summary: "Update a directory. Status changes and new listing links are logged to activity.",
+  summary: "Update directory fields",
   security: [{ sessionCookie: [] }],
-  request: { params: directoryIdParams, body: { content: { "application/json": { schema: directoryUpdateSchema } } } },
+  request: {
+    params: directoryIdParams,
+    body: { content: { "application/json": { schema: directoryUpdateSchema } } },
+  },
   responses: {
-    200: { description: "Directory updated", content: { "application/json": { schema: directorySchema } } },
-    400: { description: "Validation failed", ...directoryError },
+    200: {
+      description: "Directory updated",
+      content: { "application/json": { schema: directorySchema } },
+    },
+    400: {
+      description: "Validation failed",
+      content: { "application/json": { schema: directoryErrorSchema } },
+    },
     401: { description: "Unauthorized" },
     404: { description: "Not found" },
   },
@@ -340,7 +499,7 @@ registry.registerPath({
   path: "/api/directories/{id}",
   operationId: "deleteDirectory",
   tags: ["Directories"],
-  summary: "Delete a directory and its checklist; the removal is logged to activity",
+  summary: "Delete a directory",
   security: [{ sessionCookie: [] }],
   request: { params: directoryIdParams },
   responses: {
@@ -352,33 +511,50 @@ registry.registerPath({
 
 registry.registerPath({
   method: "get",
-  path: "/api/directories/activity",
-  operationId: "listDirectoryActivity",
+  path: "/api/directories/{id}/checklist",
+  operationId: "getDirectoryChecklist",
   tags: ["Directories"],
-  summary: "Recent directory activity, newest first",
+  summary: "Get directory checklist",
   security: [{ sessionCookie: [] }],
-  request: { query: z.object({ limit: z.number().int().min(1).max(100).optional().openapi({ description: "Default 20" }) }) },
+  request: { params: directoryIdParams },
   responses: {
-    200: { description: "Activity entries", content: { "application/json": { schema: directoryActivitySchema.array() } } },
-    400: { description: "Validation failed", ...directoryError },
+    200: {
+      description: "Checklist items for directory",
+      content: { "application/json": { schema: checklistItemSchema.array() } },
+    },
     401: { description: "Unauthorized" },
+    404: { description: "Not found" },
   },
 });
 
 registry.registerPath({
   method: "post",
   path: "/api/directories/{id}/checklist",
-  operationId: "addDirectoryChecklistItem",
+  operationId: "createDirectoryChecklistItem",
   tags: ["Directories"],
-  summary: "Add a custom checklist requirement",
+  summary: "Add checklist item",
   security: [{ sessionCookie: [] }],
-  request: { params: directoryIdParams, body: { content: { "application/json": { schema: checklistItemCreateSchema } } } },
+  request: {
+    params: directoryIdParams,
+    body: { content: { "application/json": { schema: checklistItemCreateSchema } } },
+  },
   responses: {
-    201: { description: "Item added", content: { "application/json": { schema: checklistItemSchema } } },
-    400: { description: "Validation failed", ...directoryError },
+    201: {
+      description: "Checklist item created",
+      content: { "application/json": { schema: checklistItemSchema } },
+    },
+    400: {
+      description: "Validation failed",
+      content: { "application/json": { schema: directoryErrorSchema } },
+    },
     401: { description: "Unauthorized" },
     404: { description: "Not found" },
   },
+});
+
+const checklistItemParams = z.object({
+  id: z.string().openapi({ param: { name: "id", in: "path" } }),
+  itemId: z.string().openapi({ param: { name: "itemId", in: "path" } }),
 });
 
 registry.registerPath({
@@ -386,12 +562,21 @@ registry.registerPath({
   path: "/api/directories/{id}/checklist/{itemId}",
   operationId: "updateDirectoryChecklistItem",
   tags: ["Directories"],
-  summary: "Tick, untick or rename a checklist item",
+  summary: "Update checklist item",
   security: [{ sessionCookie: [] }],
-  request: { params: checklistItemParams, body: { content: { "application/json": { schema: checklistItemUpdateSchema } } } },
+  request: {
+    params: checklistItemParams,
+    body: { content: { "application/json": { schema: checklistItemUpdateSchema } } },
+  },
   responses: {
-    200: { description: "Item updated", content: { "application/json": { schema: checklistItemSchema } } },
-    400: { description: "Validation failed", ...directoryError },
+    200: {
+      description: "Checklist item updated",
+      content: { "application/json": { schema: checklistItemSchema } },
+    },
+    400: {
+      description: "Validation failed",
+      content: { "application/json": { schema: directoryErrorSchema } },
+    },
     401: { description: "Unauthorized" },
     404: { description: "Not found" },
   },
@@ -402,26 +587,44 @@ registry.registerPath({
   path: "/api/directories/{id}/checklist/{itemId}",
   operationId: "deleteDirectoryChecklistItem",
   tags: ["Directories"],
+  summary: "Delete checklist item",
   security: [{ sessionCookie: [] }],
   request: { params: checklistItemParams },
   responses: {
-    204: { description: "Item deleted" },
+    204: { description: "Checklist item deleted" },
     401: { description: "Unauthorized" },
     404: { description: "Not found" },
   },
 });
 
-const savedCopyParams = z.object({ id: z.string().openapi({ description: "Saved copy id" }) });
+registry.registerPath({
+  method: "get",
+  path: "/api/directories/activity",
+  operationId: "getDirectoryActivity",
+  tags: ["Directories"],
+  summary: "Recent directory activity",
+  security: [{ sessionCookie: [] }],
+  responses: {
+    200: {
+      description: "Recent activity items",
+      content: { "application/json": { schema: directoryActivitySchema.array() } },
+    },
+    401: { description: "Unauthorized" },
+  },
+});
 
 registry.registerPath({
   method: "get",
   path: "/api/directories/copy",
   operationId: "listSavedCopy",
   tags: ["Directories"],
-  summary: "Team-wide saved submission copy",
+  summary: "List saved copy items",
   security: [{ sessionCookie: [] }],
   responses: {
-    200: { description: "Saved copy in display order", content: { "application/json": { schema: savedCopySchema.array() } } },
+    200: {
+      description: "Saved copy library items",
+      content: { "application/json": { schema: savedCopySchema.array() } },
+    },
     401: { description: "Unauthorized" },
   },
 });
@@ -431,13 +634,24 @@ registry.registerPath({
   path: "/api/directories/copy",
   operationId: "createSavedCopy",
   tags: ["Directories"],
+  summary: "Create saved copy item",
   security: [{ sessionCookie: [] }],
   request: { body: { content: { "application/json": { schema: savedCopyCreateSchema } } } },
   responses: {
-    201: { description: "Copy saved", content: { "application/json": { schema: savedCopySchema } } },
-    400: { description: "Validation failed", ...directoryError },
+    201: {
+      description: "Saved copy created",
+      content: { "application/json": { schema: savedCopySchema } },
+    },
+    400: {
+      description: "Validation failed",
+      content: { "application/json": { schema: directoryErrorSchema } },
+    },
     401: { description: "Unauthorized" },
   },
+});
+
+const copyIdParams = z.object({
+  id: z.string().openapi({ param: { name: "id", in: "path" } }),
 });
 
 registry.registerPath({
@@ -445,11 +659,21 @@ registry.registerPath({
   path: "/api/directories/copy/{id}",
   operationId: "updateSavedCopy",
   tags: ["Directories"],
+  summary: "Update saved copy item",
   security: [{ sessionCookie: [] }],
-  request: { params: savedCopyParams, body: { content: { "application/json": { schema: savedCopyUpdateSchema } } } },
+  request: {
+    params: copyIdParams,
+    body: { content: { "application/json": { schema: savedCopyUpdateSchema } } },
+  },
   responses: {
-    200: { description: "Copy updated", content: { "application/json": { schema: savedCopySchema } } },
-    400: { description: "Validation failed", ...directoryError },
+    200: {
+      description: "Saved copy updated",
+      content: { "application/json": { schema: savedCopySchema } },
+    },
+    400: {
+      description: "Validation failed",
+      content: { "application/json": { schema: directoryErrorSchema } },
+    },
     401: { description: "Unauthorized" },
     404: { description: "Not found" },
   },
@@ -460,31 +684,34 @@ registry.registerPath({
   path: "/api/directories/copy/{id}",
   operationId: "deleteSavedCopy",
   tags: ["Directories"],
+  summary: "Delete saved copy item",
   security: [{ sessionCookie: [] }],
-  request: { params: savedCopyParams },
+  request: { params: copyIdParams },
   responses: {
-    204: { description: "Copy deleted" },
+    204: { description: "Saved copy deleted" },
     401: { description: "Unauthorized" },
     404: { description: "Not found" },
   },
 });
 
 // ── Overview ──
-const overviewError = { content: { "application/json": { schema: overviewErrorSchema } } };
-
 registry.registerPath({
-  method: "post",
+  method: "get",
   path: "/api/overview/summary",
-  operationId: "generateOverviewSummary",
+  operationId: "getOverviewSummary",
   tags: ["Overview"],
-  summary: "Generate an AI summary of the overview (content, SEO, directories and press)",
-  description: "Sends counts and item titles to the configured AI model (no notes or contact details). Nothing is stored.",
+  summary: "Overview dashboard summary",
+  description: "Aggregates KPIs, weekly content counts, upcoming items, and recent content for the overview dashboard.",
   security: [{ sessionCookie: [] }],
   responses: {
-    200: { description: "The summary", content: { "application/json": { schema: overviewSummarySchema } } },
-    401: { description: "Unauthorized" },
-    502: { description: "The AI service failed or returned an unusable reply", ...overviewError },
-    503: { description: "AI_PROVIDER_API_KEY or AI_MODEL is not configured (AI_BASE_URL picks the provider)", ...overviewError },
+    200: {
+      description: "Overview metrics and recent items",
+      content: { "application/json": { schema: overviewSummarySchema } },
+    },
+    401: {
+      description: "Unauthorized",
+      content: { "application/json": { schema: overviewErrorSchema } },
+    },
   },
 });
 
@@ -734,6 +961,87 @@ registry.registerPath({
     401: { description: "Unauthorized" },
     403: { description: "Forbidden: Agents cannot modify top-level goals" },
     404: { description: "Goal not found" },
+  },
+});
+
+// ── Workstreams ──
+
+const workstreamIdParams = z.object({
+  id: z.string().openapi({ param: { name: "id", in: "path" } }),
+});
+
+const workstreamListQuery = z.object({
+  goalId: z.string().optional().openapi({ param: { name: "goalId", in: "query" } }),
+  status: workstreamStatusSchema
+    .optional()
+    .openapi({ param: { name: "status", in: "query" } }),
+});
+
+registry.registerPath({
+  method: "get",
+  path: "/api/workstreams",
+  operationId: "listWorkstreams",
+  tags: ["Workstreams"],
+  summary: "List workstreams",
+  description: "List active/accepted workstreams across goals. Defaults to status=accepted.",
+  security: [{ sessionCookie: [] }],
+  request: { query: workstreamListQuery },
+  responses: {
+    200: {
+      description: "List of workstreams",
+      content: { "application/json": { schema: workstreamItemSchema.array() } },
+    },
+    400: {
+      description: "Validation failed",
+      content: { "application/json": { schema: workstreamErrorSchema } },
+    },
+    401: { description: "Unauthorized" },
+  },
+});
+
+registry.registerPath({
+  method: "get",
+  path: "/api/workstreams/{id}",
+  operationId: "getWorkstream",
+  tags: ["Workstreams"],
+  summary: "Get workstream details",
+  description: "Retrieve workstream details including its tasks and auto-accept status.",
+  security: [{ sessionCookie: [] }],
+  request: { params: workstreamIdParams },
+  responses: {
+    200: {
+      description: "Workstream details",
+      content: { "application/json": { schema: workstreamDetailSchema } },
+    },
+    401: { description: "Unauthorized" },
+    404: { description: "Not found" },
+  },
+});
+
+registry.registerPath({
+  method: "patch",
+  path: "/api/workstreams/{id}/auto-accept",
+  operationId: "toggleWorkstreamAutoAccept",
+  tags: ["Workstreams"],
+  summary: "Toggle auto-accept tasks on a workstream",
+  description: "Toggle or explicitly set the autoAcceptTasks boolean on a workstream.",
+  security: [{ sessionCookie: [] }],
+  request: {
+    params: workstreamIdParams,
+    body: { content: { "application/json": { schema: workstreamAutoAcceptSchema } } },
+  },
+  responses: {
+    200: {
+      description: "Auto-accept updated",
+      content: { "application/json": { schema: workstreamAutoAcceptResponseSchema } },
+    },
+    400: {
+      description: "Validation failed",
+      content: { "application/json": { schema: workstreamErrorSchema } },
+    },
+    401: { description: "Unauthorized" },
+    403: { description: "Forbidden" },
+    404: { description: "Not found" },
   },
 });
 
