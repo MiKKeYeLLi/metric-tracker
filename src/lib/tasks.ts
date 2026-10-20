@@ -11,11 +11,11 @@ export function serializeTask(task: TaskWithRelations) {
     title: task.title,
     description: task.description,
     type: task.type,
-    dueAt: task.dueAt.toISOString(),
+    dueAt: task.dueAt ? task.dueAt.toISOString() : new Date().toISOString(),
     done: task.done,
     completedAt: task.completedAt?.toISOString() ?? null,
     ownerId: task.ownerId,
-    userId: task.userId,
+    userId: task.userId ?? "",
     owner: task.owner
       ? {
           id: task.owner.id,
