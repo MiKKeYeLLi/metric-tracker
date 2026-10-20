@@ -15,8 +15,7 @@ import { Input } from "@/components/ui/input";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
 import { GOAL_TYPES } from "./goal-model";
-
-export type NewGoal = { title: string; type: string; description: string };
+import type { NewGoal } from "./GoalsProvider";
 
 export function GoalFormDialog({
   open,

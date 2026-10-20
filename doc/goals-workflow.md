@@ -141,8 +141,8 @@ All screens live under the Goals section. Pages start with `PageHeader` + `PageC
 | # | Screen | Route (planned) | What's on it | State |
 |---|---|---|---|---|
 | 1 | Goals list | `/dashboard/goals` | KPIs (active goals, ideas to review, open tasks, points released); search + type filter; goals as stacked full-width cards (title, type, description, stats, progress); **New goal** dialog (title, type dropdown, description) | ✅ Demo |
-| 2 | Goal page | `/dashboard/goals/[goalId]` | Goal details; proposed ideas with Accept / Reject; accepted workstreams with task counts | ⏳ Next |
-| 3 | Workstream page | `/dashboard/goals/[goalId]/workstreams/[workstreamId]` | Proposed tasks with Accept; auto-accept toggle; tasks grouped by status with type and points | ⏳ |
+| 2 | Goal page | `/dashboard/goals/[goalId]` | Back link; goal details and owner; KPIs; **Ideas** card with Proposed / Rejected tabs, Approve / Reject (owner only, reject asks an optional reason); **Workstreams** side card with task counts and progress | ✅ Demo |
+| 3 | Workstream page | `/dashboard/goals/[goalId]/workstreams/[workstreamId]` | Proposed tasks with Accept; auto-accept toggle; tasks grouped by status with type and points | ⏳ Next |
 | 4 | Task page | `/dashboard/goals/[goalId]/workstreams/[workstreamId]/tasks/[taskId]` | Description, type, points, status, revision count (n / 2); the Conversation thread (bids, deliveries with attachments, reviews with scores, revision requests); **Approve** for the Review Coordinator | ⏳ |
 | 4a | Bids panel | component on the task page | Each bidder's speciality, last active, points this week, tasks given; **Offer** button; offer countdown (24h) | ⏳ |
 
@@ -150,13 +150,16 @@ Owned by other units in the spec (not part of this section unless the team decid
 
 ## 8. Demo data
 
-Lives in `src/components/goals/goal-model.ts` and is shaped like the future API responses so the backend can be swapped in later.
+All demo state lives in the browser, in `GoalsProvider` (`src/components/goals/GoalsProvider.tsx`), mounted by `src/app/dashboard/goals/layout.tsx` so it survives moving between Goals pages. A refresh resets it. Fixtures and types are in `src/components/goals/goal-model.ts`, shaped like future API responses.
 
 - **Goal types** (placeholder, team to confirm): SEO, Content, Research, Lead hunting, Press. A goal type is a plain string chosen from a dropdown, because the list will be managed by the platform admin later (like task types).
-- **Goal** fields used by the UI: `id`, `title`, `type`, `description`, `createdBy`, `createdAt`, and the roll-ups `workstreams`, `pendingIdeas`, `openTasks`, `approvedTasks`, `totalTasks`, `pointsReleased`.
-- New goals created in the dialog live in component state only; a refresh resets to the demo set.
+- **Goal:** `id`, `title`, `type`, `description`, `ownerId`, `ownerName`, `createdAt`. Counts are not stored; `summarizeGoal()` derives them from the goal's ideas.
+- **Agent:** `id`, `name`, `speciality`, `ownerName` (four demo agents).
+- **Idea:** `goalId`, `agentId`, `title`, `description`, `proposedAt`, `status` (`proposed | accepted | rejected`), `decidedBy`, `decidedAt`, `rejectionReason`. An accepted idea *is* the workstream, so it also carries the task roll-ups `openTasks`, `approvedTasks`, `totalTasks`, `pointsReleased` until tasks are modelled.
+- **Ownership:** the demo makes the signed-in user the owner of "Make Zedu SEO compliant" and of any goal they create. The other demo goals belong to other people, so their goal pages show the read-only view (no Approve / Reject).
+- Store actions: `createGoal`, `approveIdea`, `rejectIdea(reason)`. These are the calls to replace with `POST /goals`, `POST /ideas/{id}/accept` and a reject endpoint when the backend lands.
 
-When adding the next screens, extend the model with `Idea` / `Workstream`, `Task`, `Bid` / `Offer` and `Comment` types matching sections 4 and 5, and keep all demo fixtures in `src/components/goals/`.
+When adding the next screens, add `Task`, `Bid` / `Offer` and `Comment` types matching sections 4 and 5, move the task roll-ups off `Idea` onto real tasks, and keep all demo fixtures in `src/components/goals/`.
 
 ## 9. Backend (later)
 

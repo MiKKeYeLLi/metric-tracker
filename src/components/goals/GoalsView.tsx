@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { FolderTreeIcon, LightbulbIcon, ListTodoIcon, PlusIcon, TargetIcon } from "lucide-react";
 import { PageContent, PageHeader } from "@/components/PageHeader";
 import { KpiCard, KpiGrid } from "@/components/KpiCard";
@@ -15,26 +16,32 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
-import { DEMO_GOALS, GOAL_TYPES, type Goal } from "./goal-model";
-import { GoalFormDialog, type NewGoal } from "./GoalFormDialog";
+import { GOAL_TYPES, shortDate, summarizeGoal, type Goal, type GoalSummary } from "./goal-model";
+import { GoalFormDialog } from "./GoalFormDialog";
+import { GoalStat, TaskProgress } from "./GoalParts";
+import { useGoals } from "./GoalsProvider";
 
-const dateFormat = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
-
-export function GoalsView({ currentUserName }: { currentUserName: string }) {
-  const [goals, setGoals] = useState<Goal[]>(DEMO_GOALS);
+export function GoalsView() {
+  const { goals, ideas, currentUser, createGoal } = useGoals();
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
   const [formOpen, setFormOpen] = useState(false);
 
-  const stats = useMemo(
-    () => ({
-      goals: goals.length,
-      pendingIdeas: goals.reduce((sum, goal) => sum + goal.pendingIdeas, 0),
-      openTasks: goals.reduce((sum, goal) => sum + goal.openTasks, 0),
-      points: goals.reduce((sum, goal) => sum + goal.pointsReleased, 0),
-    }),
-    [goals]
+  const summaries = useMemo(
+    () => new Map(goals.map((goal) => [goal.id, summarizeGoal(goal.id, ideas)])),
+    [goals, ideas]
   );
+
+  const stats = useMemo(() => {
+    const all = Array.from(summaries.values());
+    const sum = (key: keyof GoalSummary) => all.reduce((total, summary) => total + summary[key], 0);
+    return {
+      goals: goals.length,
+      pendingIdeas: sum("pendingIdeas"),
+      openTasks: sum("openTasks"),
+      points: sum("pointsReleased"),
+    };
+  }, [goals, summaries]);
 
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -44,22 +51,6 @@ export function GoalsView({ currentUserName }: { currentUserName: string }) {
         (!query || goal.title.toLowerCase().includes(query) || goal.description.toLowerCase().includes(query))
     );
   }, [goals, search, typeFilter]);
-
-  const createGoal = (input: NewGoal) => {
-    const goal: Goal = {
-      ...input,
-      id: `goal_${Date.now()}`,
-      createdBy: currentUserName,
-      createdAt: new Date().toISOString(),
-      workstreams: 0,
-      pendingIdeas: 0,
-      openTasks: 0,
-      approvedTasks: 0,
-      totalTasks: 0,
-      pointsReleased: 0,
-    };
-    setGoals((previous) => [goal, ...previous]);
-  };
 
   const filtering = search !== "" || typeFilter !== "all";
 
@@ -139,7 +130,11 @@ export function GoalsView({ currentUserName }: { currentUserName: string }) {
             <ul className="m-0 flex list-none flex-col gap-3 p-0">
               {filtered.map((goal) => (
                 <li key={goal.id}>
-                  <GoalTile goal={goal} />
+                  <GoalTile
+                    goal={goal}
+                    summary={summaries.get(goal.id) ?? summarizeGoal(goal.id, ideas)}
+                    ownedByYou={goal.ownerId === currentUser.id}
+                  />
                 </li>
               ))}
             </ul>
@@ -152,11 +147,12 @@ export function GoalsView({ currentUserName }: { currentUserName: string }) {
   );
 }
 
-function GoalTile({ goal }: { goal: Goal }) {
-  const progress = goal.totalTasks === 0 ? 0 : Math.round((goal.approvedTasks / goal.totalTasks) * 100);
-
+function GoalTile({ goal, summary, ownedByYou }: { goal: Goal; summary: GoalSummary; ownedByYou: boolean }) {
   return (
-    <article className="grid gap-4 rounded-2xl border border-border p-4 transition-colors hover:border-border-strong lg:grid-cols-[minmax(0,1fr)_auto_220px] lg:items-center lg:gap-6">
+    <Link
+      href={`/dashboard/goals/${goal.id}`}
+      className="grid gap-4 rounded-2xl border border-border p-4 text-inherit no-underline transition-colors outline-none hover:border-border-strong hover:bg-accent/30 focus-visible:ring-3 focus-visible:ring-ring/50 lg:grid-cols-[minmax(0,1fr)_auto_220px] lg:items-center lg:gap-6"
+    >
       <div className="flex min-w-0 items-start gap-3">
         <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-accent text-primary-deep">
           <TargetIcon className="size-5" aria-hidden="true" />
@@ -165,50 +161,22 @@ function GoalTile({ goal }: { goal: Goal }) {
           <div className="flex flex-wrap items-center gap-2">
             <h3 className="m-0 text-[15px] leading-snug font-bold text-foreground">{goal.title}</h3>
             <Badge variant="secondary">{goal.type}</Badge>
+            {summary.pendingIdeas > 0 && ownedByYou && <Badge variant="warning">Needs your review</Badge>}
           </div>
           {goal.description && <p className="m-0 line-clamp-2 text-sm text-muted-foreground">{goal.description}</p>}
           <p className="m-0 text-xs text-muted-foreground">
-            {goal.createdBy} · {dateFormat.format(new Date(goal.createdAt))}
+            {ownedByYou ? "You" : goal.ownerName} · {shortDate.format(new Date(goal.createdAt))}
           </p>
         </div>
       </div>
 
       <dl className="m-0 grid grid-cols-3 gap-2 lg:w-[330px]">
-        <GoalStat icon={FolderTreeIcon} label="Workstreams" value={goal.workstreams} />
-        <GoalStat icon={LightbulbIcon} label="Ideas" value={goal.pendingIdeas} />
-        <GoalStat icon={ListTodoIcon} label="Open tasks" value={goal.openTasks} />
+        <GoalStat icon={FolderTreeIcon} label="Workstreams" value={summary.workstreams} />
+        <GoalStat icon={LightbulbIcon} label="Ideas" value={summary.pendingIdeas} />
+        <GoalStat icon={ListTodoIcon} label="Open tasks" value={summary.openTasks} />
       </dl>
 
-      <div className="flex flex-col gap-1.5">
-        <div className="flex items-center justify-between gap-2 text-xs">
-          <span className="font-semibold text-foreground">Tasks approved</span>
-          <span className="font-semibold text-primary-deep tabular-nums">
-            {goal.approvedTasks} / {goal.totalTasks}
-          </span>
-        </div>
-        <div
-          className="h-2 overflow-hidden rounded-full bg-chart-track"
-          role="progressbar"
-          aria-label={`${goal.title}: tasks approved`}
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-valuenow={progress}
-        >
-          <div className="h-full rounded-full bg-primary" style={{ width: `${progress}%` }} />
-        </div>
-      </div>
-    </article>
-  );
-}
-
-function GoalStat({ icon: Icon, label, value }: { icon: typeof TargetIcon; label: string; value: number }) {
-  return (
-    <div className="flex min-w-0 flex-col gap-1 rounded-xl bg-muted px-3 py-2">
-      <dt className="flex items-center gap-1 truncate text-2xs font-bold tracking-[0.07em] text-muted-foreground uppercase">
-        <Icon className="size-3 shrink-0" aria-hidden="true" />
-        <span className="truncate">{label}</span>
-      </dt>
-      <dd className="m-0 text-lg leading-none font-extrabold text-foreground tabular-nums">{value}</dd>
-    </div>
+      <TaskProgress label={goal.title} approved={summary.approvedTasks} total={summary.totalTasks} />
+    </Link>
   );
 }
