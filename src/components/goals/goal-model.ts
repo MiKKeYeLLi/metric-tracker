@@ -22,7 +22,7 @@ export type Agent = {
 
 export type IdeaStatus = "proposed" | "accepted" | "rejected";
 
-/** An idea an agent proposed under a goal. Once accepted it is a workstream, so the task roll-ups live here too. */
+/** An idea an agent proposed under a goal. Once accepted it is a workstream, and tasks are created inside it. */
 export type Idea = {
   id: string;
   goalId: string;
@@ -34,11 +34,81 @@ export type Idea = {
   decidedBy?: string;
   decidedAt?: string;
   rejectionReason?: string;
+};
+
+/** Placeholder task types until the admin screen exists. `points` is the default, `maxPoints` the cap per task. */
+export const TASK_TYPES: { name: string; points: number; maxPoints: number }[] = [
+  { name: "Research", points: 20, maxPoints: 50 },
+  { name: "Lead hunting", points: 30, maxPoints: 50 },
+  { name: "Content", points: 40, maxPoints: 50 },
+  { name: "SEO", points: 25, maxPoints: 50 },
+  { name: "Press", points: 35, maxPoints: 50 },
+];
+
+/** Tasks are created automatically inside a workstream and open for bidding straight away. */
+export type TaskStatus =
+  | "open"
+  | "bidding"
+  | "in_progress"
+  | "changes_requested"
+  | "submitted"
+  | "in_review"
+  | "approved";
+
+export type Task = {
+  id: string;
+  workstreamId: string;
+  title: string;
+  description: string;
+  taskType: string;
+  points: number;
+  status: TaskStatus;
+  createdAt: string;
+  updatedAt: string;
+  assignedAgentId?: string;
+  bidCount: number;
+  biddingClosesAt?: string;
+  revisionCount: number;
+  reviewCount: number;
+  commentCount: number;
+};
+
+export type TaskStage = "open" | "in_progress" | "in_review" | "approved";
+
+export const TASK_STAGES: { value: TaskStage; label: string; statuses: TaskStatus[] }[] = [
+  { value: "open", label: "Open", statuses: ["open", "bidding"] },
+  { value: "in_progress", label: "In progress", statuses: ["in_progress", "changes_requested"] },
+  { value: "in_review", label: "In review", statuses: ["submitted", "in_review"] },
+  { value: "approved", label: "Approved", statuses: ["approved"] },
+];
+
+export const MAX_REVISIONS = 2;
+export const MAX_REVIEWS = 4;
+
+export type WorkstreamSummary = {
   openTasks: number;
+  activeTasks: number;
   approvedTasks: number;
   totalTasks: number;
   pointsReleased: number;
+  pointsOnOffer: number;
 };
+
+const inStage = (stage: TaskStage, task: Task) =>
+  TASK_STAGES.find((option) => option.value === stage)?.statuses.includes(task.status) ?? false;
+
+export function summarizeTasks(tasks: Task[]): WorkstreamSummary {
+  const approved = tasks.filter((task) => task.status === "approved");
+
+  return {
+    openTasks: tasks.filter((task) => inStage("open", task)).length,
+    activeTasks: tasks.filter((task) => inStage("in_progress", task) || inStage("in_review", task)).length,
+    approvedTasks: approved.length,
+    totalTasks: tasks.length,
+    pointsReleased: approved.reduce((total, task) => total + task.points, 0),
+    pointsOnOffer: tasks.reduce((total, task) => total + task.points, 0),
+  };
+}
 
 export type GoalSummary = {
   workstreams: number;
@@ -49,19 +119,18 @@ export type GoalSummary = {
   pointsReleased: number;
 };
 
-export function summarizeGoal(goalId: string, ideas: Idea[]): GoalSummary {
+export function summarizeGoal(goalId: string, ideas: Idea[], tasks: Task[]): GoalSummary {
   const own = ideas.filter((idea) => idea.goalId === goalId);
-  const workstreams = own.filter((idea) => idea.status === "accepted");
-  const sum = (key: "openTasks" | "approvedTasks" | "totalTasks" | "pointsReleased") =>
-    workstreams.reduce((total, idea) => total + idea[key], 0);
+  const workstreamIds = new Set(own.filter((idea) => idea.status === "accepted").map((idea) => idea.id));
+  const tasksSummary = summarizeTasks(tasks.filter((task) => workstreamIds.has(task.workstreamId)));
 
   return {
-    workstreams: workstreams.length,
+    workstreams: workstreamIds.size,
     pendingIdeas: own.filter((idea) => idea.status === "proposed").length,
-    openTasks: sum("openTasks"),
-    approvedTasks: sum("approvedTasks"),
-    totalTasks: sum("totalTasks"),
-    pointsReleased: sum("pointsReleased"),
+    openTasks: tasksSummary.openTasks,
+    approvedTasks: tasksSummary.approvedTasks,
+    totalTasks: tasksSummary.totalTasks,
+    pointsReleased: tasksSummary.pointsReleased,
   };
 }
 
@@ -114,8 +183,6 @@ export function demoGoals(currentUser: DemoUser): Goal[] {
   ];
 }
 
-const noTasks = { openTasks: 0, approvedTasks: 0, totalTasks: 0, pointsReleased: 0 };
-
 export function demoIdeas(currentUser: DemoUser): Idea[] {
   return [
     {
@@ -128,10 +195,6 @@ export function demoIdeas(currentUser: DemoUser): Idea[] {
       status: "accepted",
       decidedBy: currentUser.name,
       decidedAt: "2026-10-14T15:00:00.000Z",
-      openTasks: 3,
-      approvedTasks: 5,
-      totalTasks: 9,
-      pointsReleased: 150,
     },
     {
       id: "idea_technical",
@@ -143,10 +206,6 @@ export function demoIdeas(currentUser: DemoUser): Idea[] {
       status: "accepted",
       decidedBy: currentUser.name,
       decidedAt: "2026-10-15T10:05:00.000Z",
-      openTasks: 2,
-      approvedTasks: 2,
-      totalTasks: 5,
-      pointsReleased: 60,
     },
     {
       id: "idea_schema",
@@ -156,7 +215,6 @@ export function demoIdeas(currentUser: DemoUser): Idea[] {
       description: "Add schema.org markup (Organization, Article, FAQ) so search results show rich snippets.",
       proposedAt: "2026-10-20T07:40:00.000Z",
       status: "proposed",
-      ...noTasks,
     },
     {
       id: "idea_backlinks",
@@ -166,7 +224,6 @@ export function demoIdeas(currentUser: DemoUser): Idea[] {
       description: "Write guest posts for coding bootcamp blogs that link back to Zedu's guides.",
       proposedAt: "2026-10-20T08:55:00.000Z",
       status: "proposed",
-      ...noTasks,
     },
     {
       id: "idea_pricing_h1",
@@ -179,7 +236,6 @@ export function demoIdeas(currentUser: DemoUser): Idea[] {
       decidedBy: currentUser.name,
       decidedAt: "2026-10-16T16:00:00.000Z",
       rejectionReason: "This is a task, not a workstream. Propose it under On-page SEO.",
-      ...noTasks,
     },
     {
       id: "idea_industry",
@@ -191,10 +247,6 @@ export function demoIdeas(currentUser: DemoUser): Idea[] {
       status: "accepted",
       decidedBy: "Tunde Bello",
       decidedAt: "2026-10-15T17:30:00.000Z",
-      openTasks: 3,
-      approvedTasks: 2,
-      totalTasks: 6,
-      pointsReleased: 90,
     },
     {
       id: "idea_guides",
@@ -204,7 +256,6 @@ export function demoIdeas(currentUser: DemoUser): Idea[] {
       description: "Step-by-step guides that answer the questions new users ask support most.",
       proposedAt: "2026-10-19T10:15:00.000Z",
       status: "proposed",
-      ...noTasks,
     },
     {
       id: "idea_bootcamps",
@@ -216,10 +267,6 @@ export function demoIdeas(currentUser: DemoUser): Idea[] {
       status: "accepted",
       decidedBy: "Ada Okafor",
       decidedAt: "2026-10-17T12:20:00.000Z",
-      openTasks: 4,
-      approvedTasks: 0,
-      totalTasks: 4,
-      pointsReleased: 0,
     },
     {
       id: "idea_outlets",
@@ -229,8 +276,259 @@ export function demoIdeas(currentUser: DemoUser): Idea[] {
       description: "Pitch the Zedu launch as a founder story with usage numbers.",
       proposedAt: "2026-10-19T16:30:00.000Z",
       status: "proposed",
-      ...noTasks,
     },
+  ];
+}
+
+type DemoTaskInput = Pick<Task, "id" | "workstreamId" | "title" | "description" | "taskType" | "status"> &
+  Partial<Task> & { day: number };
+
+function demoTask({ day, ...task }: DemoTaskInput): Task {
+  const at = `2026-10-${String(day).padStart(2, "0")}T09:00:00.000Z`;
+  const bidCount = task.bidCount ?? (task.assignedAgentId ? 2 : 0);
+  const reviewCount = task.reviewCount ?? 0;
+  const revisionCount = task.revisionCount ?? 0;
+  return {
+    points: TASK_TYPES.find((type) => type.name === task.taskType)?.points ?? 20,
+    createdAt: at,
+    updatedAt: at,
+    commentCount: bidCount + reviewCount + revisionCount + (task.assignedAgentId ? 1 : 0),
+    ...task,
+    bidCount,
+    reviewCount,
+    revisionCount,
+  };
+}
+
+/** One line saying where a task stands: bids, who is working on it, revisions or reviews. */
+export function taskProgressLine(task: Task, worker?: Agent) {
+  const name = worker?.name ?? "an agent";
+  switch (task.status) {
+    case "open":
+      return "Open for bids · no bids yet";
+    case "bidding":
+      return `${task.bidCount} ${task.bidCount === 1 ? "bid" : "bids"}${
+        task.biddingClosesAt ? ` · closes ${shortDateTime.format(new Date(task.biddingClosesAt))}` : ""
+      }`;
+    case "in_progress":
+      return `${name} is working on it`;
+    case "changes_requested":
+      return `${name} · revision ${task.revisionCount} of ${MAX_REVISIONS}`;
+    case "submitted":
+      return `Delivered by ${name} · waiting for reviews`;
+    case "in_review":
+      return `Delivered by ${name} · ${task.reviewCount} of ${MAX_REVIEWS} reviews`;
+    case "approved":
+      return `Done by ${name} · ${shortDate.format(new Date(task.updatedAt))}`;
+  }
+}
+
+export function demoTasks(): Task[] {
+  return [
+    // On-page SEO
+    demoTask({
+      id: "task_og_tags",
+      workstreamId: "idea_onpage",
+      title: "Add OG tags to blog posts",
+      description: "Every blog post needs og:title, og:description and og:image so links preview properly.",
+      taskType: "SEO",
+      status: "open",
+      day: 20,
+    }),
+    demoTask({
+      id: "task_faq_snippets",
+      workstreamId: "idea_onpage",
+      title: "Add FAQ snippets to the pricing page",
+      description: "Mark up the pricing FAQ so it can show as a rich result.",
+      taskType: "SEO",
+      status: "open",
+      day: 20,
+    }),
+    demoTask({
+      id: "task_alt_text",
+      workstreamId: "idea_onpage",
+      title: "Add alt text to hero images",
+      description: "Write descriptive alt text for the hero image on every landing page.",
+      taskType: "SEO",
+      status: "bidding",
+      bidCount: 3,
+      biddingClosesAt: "2026-10-21T09:00:00.000Z",
+      day: 19,
+    }),
+    demoTask({
+      id: "task_titles",
+      workstreamId: "idea_onpage",
+      title: "Rewrite page titles under 60 characters",
+      description: "Twelve pages have titles that get cut off in search results.",
+      taskType: "SEO",
+      status: "open",
+      day: 20,
+    }),
+    demoTask({
+      id: "task_internal_links",
+      workstreamId: "idea_onpage",
+      title: "Add internal links between guides",
+      description: "Link each guide to at least two related guides.",
+      taskType: "SEO",
+      status: "bidding",
+      bidCount: 1,
+      biddingClosesAt: "2026-10-21T15:00:00.000Z",
+      day: 20,
+    }),
+    demoTask({
+      id: "task_meta",
+      workstreamId: "idea_onpage",
+      title: "Rewrite meta descriptions",
+      description: "Unique 150-character meta descriptions for the top 20 pages.",
+      taskType: "SEO",
+      status: "in_progress",
+      assignedAgentId: "agent_quill",
+      day: 18,
+    }),
+    demoTask({
+      id: "task_compress",
+      workstreamId: "idea_onpage",
+      title: "Compress homepage images",
+      description: "Bring the homepage under 1 MB without visible quality loss.",
+      taskType: "SEO",
+      status: "changes_requested",
+      assignedAgentId: "agent_scout",
+      revisionCount: 1,
+      reviewCount: 3,
+      day: 17,
+    }),
+    demoTask({
+      id: "task_h1",
+      workstreamId: "idea_onpage",
+      title: "Fix the H1 on the pricing page",
+      description: "The pricing page has two H1 tags; keep one.",
+      taskType: "SEO",
+      status: "in_review",
+      assignedAgentId: "agent_hunter",
+      reviewCount: 2,
+      day: 16,
+    }),
+    ...["About page", "Careers page", "Contact page"].map((page, index) =>
+      demoTask({
+        id: `task_onpage_done_${index}`,
+        workstreamId: "idea_onpage",
+        title: `Fix headings on the ${page}`,
+        description: `Use one H1 and a logical H2/H3 order on the ${page}.`,
+        taskType: "SEO",
+        status: "approved",
+        assignedAgentId: index === 1 ? "agent_quill" : "agent_scout",
+        reviewCount: 3,
+        day: 15 + index,
+      })
+    ),
+
+    // Technical SEO
+    demoTask({
+      id: "task_sitemap",
+      workstreamId: "idea_technical",
+      title: "Generate an XML sitemap",
+      description: "Include every public page and submit it to Search Console.",
+      taskType: "SEO",
+      status: "approved",
+      assignedAgentId: "agent_scout",
+      reviewCount: 4,
+      day: 15,
+    }),
+    demoTask({
+      id: "task_canonical",
+      workstreamId: "idea_technical",
+      title: "Add canonical tags",
+      description: "Stop duplicate content between /blog and /blog?page=1.",
+      taskType: "SEO",
+      status: "bidding",
+      bidCount: 2,
+      biddingClosesAt: "2026-10-21T12:00:00.000Z",
+      day: 19,
+    }),
+    demoTask({
+      id: "task_speed",
+      workstreamId: "idea_technical",
+      title: "Audit page speed on mobile",
+      description: "Report the five slowest pages with their Core Web Vitals.",
+      taskType: "Research",
+      status: "in_progress",
+      assignedAgentId: "agent_hunter",
+      day: 18,
+    }),
+
+    // Write content about our industry
+    demoTask({
+      id: "task_travel_post",
+      workstreamId: "idea_industry",
+      title: "How travel is changing business",
+      description: "A 1,200-word article for the Zedu blog.",
+      taskType: "Content",
+      status: "in_review",
+      assignedAgentId: "agent_quill",
+      reviewCount: 3,
+      day: 17,
+    }),
+    demoTask({
+      id: "task_flight_post",
+      workstreamId: "idea_industry",
+      title: "The best way to get a good flight",
+      description: "A practical guide with five tips and sources.",
+      taskType: "Content",
+      status: "bidding",
+      bidCount: 2,
+      biddingClosesAt: "2026-10-21T10:00:00.000Z",
+      day: 19,
+    }),
+    demoTask({
+      id: "task_remote_post",
+      workstreamId: "idea_industry",
+      title: "Remote teams that travel together",
+      description: "Interview-style post with two Zedu customers.",
+      taskType: "Content",
+      status: "open",
+      day: 20,
+    }),
+    demoTask({
+      id: "task_trends_post",
+      workstreamId: "idea_industry",
+      title: "Five travel trends for 2027",
+      description: "A short trend round-up for LinkedIn and the blog.",
+      taskType: "Content",
+      status: "approved",
+      assignedAgentId: "agent_quill",
+      reviewCount: 4,
+      day: 16,
+    }),
+
+    // Nigerian coding bootcamps
+    demoTask({
+      id: "task_lagos",
+      workstreamId: "idea_bootcamps",
+      title: "List Lagos bootcamps",
+      description: "Name, website, programme lead and contact email for each bootcamp.",
+      taskType: "Lead hunting",
+      status: "in_progress",
+      assignedAgentId: "agent_hunter",
+      day: 18,
+    }),
+    demoTask({
+      id: "task_abuja",
+      workstreamId: "idea_bootcamps",
+      title: "List Abuja bootcamps",
+      description: "Same fields as the Lagos list.",
+      taskType: "Lead hunting",
+      status: "open",
+      day: 19,
+    }),
+    demoTask({
+      id: "task_online",
+      workstreamId: "idea_bootcamps",
+      title: "List online-only bootcamps",
+      description: "Bootcamps that run fully online and accept Nigerian students.",
+      taskType: "Lead hunting",
+      status: "open",
+      day: 20,
+    }),
   ];
 }
 

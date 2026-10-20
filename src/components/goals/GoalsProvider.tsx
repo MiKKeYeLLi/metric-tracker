@@ -1,7 +1,17 @@
 "use client";
 
 import { createContext, useCallback, useContext, useMemo, useState } from "react";
-import { DEMO_AGENTS, demoGoals, demoIdeas, type Agent, type DemoUser, type Goal, type Idea } from "./goal-model";
+import {
+  DEMO_AGENTS,
+  demoGoals,
+  demoIdeas,
+  demoTasks,
+  type Agent,
+  type DemoUser,
+  type Goal,
+  type Idea,
+  type Task,
+} from "./goal-model";
 
 export type NewGoal = { title: string; type: string; description: string };
 
@@ -9,6 +19,7 @@ type GoalsContextValue = {
   currentUser: DemoUser;
   goals: Goal[];
   ideas: Idea[];
+  tasks: Task[];
   agentFor: (agentId: string) => Agent | undefined;
   createGoal: (input: NewGoal) => void;
   approveIdea: (ideaId: string) => void;
@@ -21,6 +32,7 @@ const GoalsContext = createContext<GoalsContextValue | undefined>(undefined);
 export function GoalsProvider({ currentUser, children }: { currentUser: DemoUser; children: React.ReactNode }) {
   const [goals, setGoals] = useState(() => demoGoals(currentUser));
   const [ideas, setIdeas] = useState(() => demoIdeas(currentUser));
+  const [tasks] = useState(demoTasks);
 
   const createGoal = useCallback(
     (input: NewGoal) =>
@@ -54,12 +66,13 @@ export function GoalsProvider({ currentUser, children }: { currentUser: DemoUser
       currentUser,
       goals,
       ideas,
+      tasks,
       agentFor: (agentId) => DEMO_AGENTS.find((agent) => agent.id === agentId),
       createGoal,
       approveIdea: (ideaId) => decide(ideaId, { status: "accepted" }),
       rejectIdea: (ideaId, reason) => decide(ideaId, { status: "rejected", rejectionReason: reason || undefined }),
     }),
-    [currentUser, goals, ideas, createGoal, decide]
+    [currentUser, goals, ideas, tasks, createGoal, decide]
   );
 
   return <GoalsContext.Provider value={value}>{children}</GoalsContext.Provider>;

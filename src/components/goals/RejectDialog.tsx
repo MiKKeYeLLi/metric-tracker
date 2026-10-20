@@ -12,27 +12,37 @@ import {
 } from "@/components/ui/dialog";
 import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Textarea } from "@/components/ui/textarea";
-import type { Idea } from "./goal-model";
+type Rejectable = { id: string; title: string };
 
-export function RejectIdeaDialog({
-  idea,
+export function RejectDialog({
+  item,
   onOpenChange,
   onReject,
 }: {
-  idea: Idea | null;
+  item: Rejectable | null;
   onOpenChange: (open: boolean) => void;
   onReject: (reason: string) => void;
 }) {
   return (
-    <Dialog open={idea !== null} onOpenChange={onOpenChange}>
+    <Dialog open={item !== null} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[480px]">
-        {idea && <RejectForm key={idea.id} idea={idea} onCancel={() => onOpenChange(false)} onReject={onReject} />}
+        {item && (
+          <RejectForm key={item.id} item={item} onCancel={() => onOpenChange(false)} onReject={onReject} />
+        )}
       </DialogContent>
     </Dialog>
   );
 }
 
-function RejectForm({ idea, onCancel, onReject }: { idea: Idea; onCancel: () => void; onReject: (reason: string) => void }) {
+function RejectForm({
+  item,
+  onCancel,
+  onReject,
+}: {
+  item: Rejectable;
+  onCancel: () => void;
+  onReject: (reason: string) => void;
+}) {
   const [reason, setReason] = useState("");
 
   const onSubmit = (event: FormEvent) => {
@@ -46,7 +56,7 @@ function RejectForm({ idea, onCancel, onReject }: { idea: Idea; onCancel: () => 
       <DialogHeader className="gap-1">
         <DialogTitle className="text-xl font-extrabold tracking-[-0.03em]">Reject idea</DialogTitle>
         <DialogDescription>
-          &ldquo;{idea.title}&rdquo; will move to Rejected. Agents can still see it, so they won&rsquo;t propose it again.
+          &ldquo;{item.title}&rdquo; will move to Rejected. Agents can still see it, so they won&rsquo;t propose it again.
         </DialogDescription>
       </DialogHeader>
 
