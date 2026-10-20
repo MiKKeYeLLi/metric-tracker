@@ -35,6 +35,11 @@ import {
   taskItemSchema,
   taskUpdateSchema,
 } from "@/lib/schemas/tasks";
+import {
+  ideaCreateSchema,
+  ideaErrorSchema,
+  ideaItemSchema,
+} from "@/lib/schemas/ideas";
 
 // Register request/response schemas and paths here; they appear at /docs.
 export const registry = new OpenAPIRegistry();
@@ -575,6 +580,92 @@ registry.registerPath({
     204: { description: "Task deleted" },
     401: { description: "Unauthorized" },
     404: { description: "Not found" },
+  },
+});
+
+// ── Ideas (Goal → Idea → Workstream lifecycle) ──
+// An idea is a proposed `Workstream` row; accepting it promotes the same record to an
+// active workstream. Agents propose with an agent key; humans accept/reject via session.
+registry.registerComponent("securitySchemes", "agentKey", {
+  type: "apiKey",
+  in: "header",
+  name: "X-Agent-Key",
+  description: "Agent API key from the dashboard. Endpoints marked with this scheme act as that agent.",
+});
+
+const ideaError = { content: { "application/json": { schema: ideaErrorSchema } } };
+const ideaIdParams = z.object({ id: z.string().openapi({ param: { name: "id", in: "path" } }) });
+
+registry.registerPath({
+  method: "post",
+  path: "/api/goals/{id}/ideas",
+  operationId: "proposeIdea",
+  tags: ["Ideas"],
+  summary: "Propose an idea under a goal",
+  description:
+    "Agents only. The idea starts as `proposed`; a human then accepts it (turning it into an active " +
+    "workstream) or rejects it. Duplicate titles under the same goal return 409, and an agent is " +
+    "capped at 5 pending ideas per goal.",
+  security: [{ agentKey: [] }],
+  request: { params: ideaIdParams, body: { content: { "application/json": { schema: ideaCreateSchema } } } },
+  responses: {
+    201: {
+      description: "Idea proposed",
+      content: { "application/json": { schema: ideaItemSchema } },
+    },
+    400: {
+      description: "Validation failed, or the pending-idea cap (5 per agent per goal) is reached",
+      ...ideaError,
+    },
+    401: { description: "Unauthorized (missing or unknown agent key)", ...ideaError },
+    404: { description: "Goal not found", ...ideaError },
+    409: { description: "Duplicate title under this goal", ...ideaError },
+  },
+});
+
+registry.registerPath({
+  method: "post",
+  path: "/api/ideas/{id}/accept",
+  operationId: "acceptIdea",
+  tags: ["Ideas"],
+  summary: "Accept an idea, turning it into an active workstream",
+  description: "Humans only. The record's status moves from `proposed` to `accepted`; tasks can then be proposed in it.",
+  security: [{ sessionCookie: [] }],
+  request: { params: ideaIdParams },
+  responses: {
+    200: {
+      description: "Idea accepted (now an active workstream)",
+      content: { "application/json": { schema: ideaItemSchema } },
+    },
+    400: {
+      description: "Idea already accepted or was rejected",
+      ...ideaError,
+    },
+    401: { description: "Unauthorized", ...ideaError },
+    404: { description: "Idea not found", ...ideaError },
+  },
+});
+
+registry.registerPath({
+  method: "post",
+  path: "/api/ideas/{id}/reject",
+  operationId: "rejectIdea",
+  tags: ["Ideas"],
+  summary: "Reject an idea",
+  description: "Humans only. The record's status moves from `proposed` to `rejected` and stays visible as rejected.",
+  security: [{ sessionCookie: [] }],
+  request: { params: ideaIdParams },
+  responses: {
+    200: {
+      description: "Idea rejected",
+      content: { "application/json": { schema: ideaItemSchema } },
+    },
+    400: {
+      description: "Idea already rejected or was accepted",
+      ...ideaError,
+    },
+    401: { description: "Unauthorized", ...ideaError },
+    404: { description: "Idea not found", ...ideaError },
   },
 });
 
