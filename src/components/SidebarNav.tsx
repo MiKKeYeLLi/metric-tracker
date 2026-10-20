@@ -2,6 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import {
+  CheckSquareIcon,
   FileTextIcon,
   FolderOpenIcon,
   LayoutDashboardIcon,
@@ -52,6 +53,7 @@ const CHANNELS = [
   { href: "/dashboard/directories", label: "Directories", icon: FolderOpenIcon },
   { href: "/dashboard/seo", label: "SEO checker", icon: ScanSearchIcon },
   { href: "/dashboard/media", label: "Press & Media", icon: NewspaperIcon },
+  { href: "/dashboard/tasks", label: "Tasks", icon: CheckSquareIcon },
 ];
 
 export function DashboardSidebarNav({ collapsed = false }: { collapsed?: boolean }) {

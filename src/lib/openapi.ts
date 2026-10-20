@@ -29,6 +29,12 @@ import {
   outletUpdateSchema,
 } from "@/lib/schemas/media";
 import { overviewErrorSchema, overviewSummarySchema } from "@/lib/schemas/overview";
+import {
+  taskCreateSchema,
+  taskErrorSchema,
+  taskItemSchema,
+  taskUpdateSchema,
+} from "@/lib/schemas/tasks";
 
 // Register request/response schemas and paths here; they appear at /docs.
 export const registry = new OpenAPIRegistry();
@@ -459,6 +465,116 @@ registry.registerPath({
     401: { description: "Unauthorized" },
     502: { description: "The AI service failed or returned an unusable reply", ...overviewError },
     503: { description: "AI_PROVIDER_API_KEY or AI_MODEL is not configured (AI_BASE_URL picks the provider)", ...overviewError },
+  },
+});
+
+// ── Tasks ──
+const taskIdParams = z.object({
+  id: z.string().openapi({ param: { name: "id", in: "path" } }),
+});
+
+const taskListQuery = z.object({
+  status: z.enum(["open", "completed", "all"]).optional().openapi({ param: { name: "status", in: "query" } }),
+  type: z.enum(["Call", "Email", "FollowUp", "Meeting", "Other"]).optional().openapi({ param: { name: "type", in: "query" } }),
+  assignedToMe: z.enum(["true", "false"]).optional().openapi({ param: { name: "assignedToMe", in: "query" } }),
+});
+
+registry.registerPath({
+  method: "get",
+  path: "/api/tasks",
+  operationId: "listTasks",
+  tags: ["Tasks"],
+  summary: "List tasks",
+  description: "Retrieve tasks with optional status, type, and assignment filters.",
+  security: [{ sessionCookie: [] }],
+  request: { query: taskListQuery },
+  responses: {
+    200: {
+      description: "List of tasks",
+      content: { "application/json": { schema: taskItemSchema.array() } },
+    },
+    401: { description: "Unauthorized" },
+  },
+});
+
+registry.registerPath({
+  method: "post",
+  path: "/api/tasks",
+  operationId: "createTask",
+  tags: ["Tasks"],
+  summary: "Create a new task",
+  description: "Create a task. If assignToMe is true, assigns the task to the current user.",
+  security: [{ sessionCookie: [] }],
+  request: { body: { content: { "application/json": { schema: taskCreateSchema } } } },
+  responses: {
+    201: {
+      description: "Task created",
+      content: { "application/json": { schema: taskItemSchema } },
+    },
+    400: {
+      description: "Validation failed",
+      content: { "application/json": { schema: taskErrorSchema } },
+    },
+    401: { description: "Unauthorized" },
+  },
+});
+
+registry.registerPath({
+  method: "get",
+  path: "/api/tasks/{id}",
+  operationId: "getTask",
+  tags: ["Tasks"],
+  summary: "Get a task by ID",
+  security: [{ sessionCookie: [] }],
+  request: { params: taskIdParams },
+  responses: {
+    200: {
+      description: "Task details",
+      content: { "application/json": { schema: taskItemSchema } },
+    },
+    401: { description: "Unauthorized" },
+    404: { description: "Not found" },
+  },
+});
+
+registry.registerPath({
+  method: "patch",
+  path: "/api/tasks/{id}",
+  operationId: "updateTask",
+  tags: ["Tasks"],
+  summary: "Update a task",
+  description: "Update task fields or toggle done status.",
+  security: [{ sessionCookie: [] }],
+  request: {
+    params: taskIdParams,
+    body: { content: { "application/json": { schema: taskUpdateSchema } } },
+  },
+  responses: {
+    200: {
+      description: "Task updated",
+      content: { "application/json": { schema: taskItemSchema } },
+    },
+    400: {
+      description: "Validation failed",
+      content: { "application/json": { schema: taskErrorSchema } },
+    },
+    401: { description: "Unauthorized" },
+    404: { description: "Not found" },
+  },
+});
+
+registry.registerPath({
+  method: "delete",
+  path: "/api/tasks/{id}",
+  operationId: "deleteTask",
+  tags: ["Tasks"],
+  summary: "Delete a task",
+  security: [{ sessionCookie: [] }],
+  request: { params: taskIdParams },
+  responses: {
+    204: { description: "Task deleted" },
+    401: { description: "Unauthorized" },
+    404: { description: "Not found" },
   },
 });
 
