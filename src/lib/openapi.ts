@@ -1,6 +1,14 @@
 import { OpenAPIRegistry, OpenApiGeneratorV31 } from "@asteasolutions/zod-to-openapi";
 import { z } from "@/lib/zod";
 import {
+  agentCreateSchema,
+  agentErrorSchema,
+  agentItemSchema,
+  agentProfileSchema,
+  agentUpdateSchema,
+  agentWithKeySchema,
+} from "@/lib/schemas/agents";
+import {
   contentCreateSchema,
   contentErrorSchema,
   contentItemSchema,
@@ -28,6 +36,7 @@ import {
   outletSchema,
   outletUpdateSchema,
 } from "@/lib/schemas/media";
+import { agentInboxSchema, inboxErrorSchema } from "@/lib/schemas/inbox";
 import { overviewErrorSchema, overviewSummarySchema } from "@/lib/schemas/overview";
 import {
   commentCreateSchema,
@@ -43,9 +52,12 @@ import {
   goalUpdateSchema,
 } from "@/lib/schemas/goals";
 import {
+  offerAcceptSchema,
+  offerCreateSchema,
   taskCreateSchema,
   taskErrorSchema,
   taskItemSchema,
+  taskOfferedSchema,
   taskUpdateSchema,
 } from "@/lib/schemas/tasks";
 import {
@@ -56,6 +68,11 @@ import {
   workstreamItemSchema,
   workstreamStatusSchema,
 } from "@/lib/schemas/workstreams";
+import {
+  ideaCreateSchema,
+  ideaErrorSchema,
+  ideaItemSchema,
+} from "@/lib/schemas/ideas";
 
 // Register request/response schemas and paths here; they appear at /docs.
 export const registry = new OpenAPIRegistry();
@@ -72,6 +89,12 @@ registry.registerComponent("securitySchemes", "sessionCookie", {
   in: "cookie",
   name: "next-auth.session-token",
   description: "NextAuth session cookie — obtained after Google OAuth sign-in at `/api/auth/signin`.",
+});
+
+registry.registerComponent("securitySchemes", "agentKey", {
+  type: "http",
+  scheme: "bearer",
+  description: "Agent key (`zedu_ak_…`) issued when the agent is created. Send it as `Authorization: Bearer <key>`.",
 });
 
 registry.registerPath({
@@ -869,6 +892,193 @@ registry.registerPath({
   },
 });
 
+// ── Agents ──
+const agentIdParams = z.object({
+  id: z.string().openapi({ param: { name: "id", in: "path" } }),
+});
+
+registry.registerPath({
+  method: "get",
+  path: "/api/agents",
+  operationId: "listAgents",
+  tags: ["Agents"],
+  summary: "List my agents",
+  description: "Agents owned by the signed-in user, oldest first. Keys are never returned here.",
+  security: [{ sessionCookie: [] }],
+  responses: {
+    200: {
+      description: "List of agents",
+      content: { "application/json": { schema: agentItemSchema.array() } },
+    },
+    401: { description: "Unauthorized" },
+  },
+});
+
+registry.registerPath({
+  method: "post",
+  path: "/api/agents",
+  operationId: "createAgent",
+  tags: ["Agents"],
+  summary: "Create an agent",
+  description: "Creates an agent owned by the signed-in user. The response includes the plain key; it is not shown again.",
+  security: [{ sessionCookie: [] }],
+  request: { body: { content: { "application/json": { schema: agentCreateSchema } } } },
+  responses: {
+    201: {
+      description: "Agent created",
+      content: { "application/json": { schema: agentWithKeySchema } },
+    },
+    400: {
+      description: "Validation failed",
+      content: { "application/json": { schema: agentErrorSchema } },
+    },
+    401: { description: "Unauthorized" },
+  },
+});
+
+registry.registerPath({
+  method: "get",
+  path: "/api/agents/{id}",
+  operationId: "getAgent",
+  tags: ["Agents"],
+  summary: "Get one of my agents",
+  security: [{ sessionCookie: [] }],
+  request: { params: agentIdParams },
+  responses: {
+    200: {
+      description: "The agent",
+      content: { "application/json": { schema: agentItemSchema } },
+    },
+    401: { description: "Unauthorized" },
+    404: { description: "Not found, or owned by someone else" },
+  },
+});
+
+registry.registerPath({
+  method: "patch",
+  path: "/api/agents/{id}",
+  operationId: "updateAgent",
+  tags: ["Agents"],
+  summary: "Update one of my agents",
+  security: [{ sessionCookie: [] }],
+  request: {
+    params: agentIdParams,
+    body: { content: { "application/json": { schema: agentUpdateSchema } } },
+  },
+  responses: {
+    200: {
+      description: "Agent updated",
+      content: { "application/json": { schema: agentItemSchema } },
+    },
+    400: {
+      description: "Validation failed",
+      content: { "application/json": { schema: agentErrorSchema } },
+    },
+    401: { description: "Unauthorized" },
+    404: { description: "Not found, or owned by someone else" },
+  },
+});
+
+registry.registerPath({
+  method: "post",
+  path: "/api/agents/{id}/key",
+  operationId: "regenerateAgentKey",
+  tags: ["Agents"],
+  summary: "Regenerate an agent's key",
+  description: "Issues a new key and revokes the old one immediately. The new plain key is returned only in this response.",
+  security: [{ sessionCookie: [] }],
+  request: { params: agentIdParams },
+  responses: {
+    200: {
+      description: "New key issued",
+      content: { "application/json": { schema: agentWithKeySchema } },
+    },
+    401: { description: "Unauthorized" },
+    404: { description: "Not found, or owned by someone else" },
+  },
+});
+
+registry.registerPath({
+  method: "post",
+  path: "/api/agent/register",
+  operationId: "registerAgent",
+  tags: ["Agent API"],
+  summary: "Register (connect) the calling agent",
+  description: "The agent's first call. Marks it connected and returns its profile. Safe to call again.",
+  security: [{ agentKey: [] }],
+  responses: {
+    200: {
+      description: "The calling agent",
+      content: { "application/json": { schema: agentProfileSchema } },
+    },
+    401: { description: "Missing or invalid agent key" },
+  },
+});
+
+registry.registerPath({
+  method: "get",
+  path: "/api/agent/me",
+  operationId: "getCallingAgent",
+  tags: ["Agent API"],
+  summary: "Get the calling agent",
+  security: [{ agentKey: [] }],
+  responses: {
+    200: {
+      description: "The calling agent",
+      content: { "application/json": { schema: agentProfileSchema } },
+    },
+    401: { description: "Missing or invalid agent key" },
+  },
+});
+
+const offerError = { content: { "application/json": { schema: taskErrorSchema } } };
+
+registry.registerPath({
+  method: "post",
+  path: "/api/tasks/{id}/offer",
+  operationId: "offerTask",
+  tags: ["Tasks"],
+  summary: "Offer an open or bidding task to an agent (human / Review Coordinator)",
+  description: "Sets offeredToAgentId, offeredAt and offerExpiresAt (now + 24h), and moves the task to bidding status.",
+  security: [{ sessionCookie: [] }],
+  request: {
+    params: taskIdParams,
+    body: { content: { "application/json": { schema: offerCreateSchema } } },
+  },
+  responses: {
+    200: {
+      description: "Task offered",
+      content: { "application/json": { schema: taskOfferedSchema } },
+    },
+    400: { description: "Validation failed, or task is not open for offers", ...offerError },
+    401: { description: "Unauthorized" },
+    404: { description: "Not found" },
+  },
+});
+
+registry.registerPath({
+  method: "post",
+  path: "/api/tasks/{id}/accept-offer",
+  operationId: "acceptTaskOffer",
+  tags: ["Tasks"],
+  summary: "Accept an offered task (offered agent, authenticated via agent key)",
+  description: "Verifies the offer is unexpired and addressed to the calling agent, enforces the 2 active in-progress task limit, then assigns the agent and moves the task to in_progress.",
+  security: [{ agentKey: [] }],
+  request: {
+    params: taskIdParams,
+    body: { content: { "application/json": { schema: offerAcceptSchema } } },
+  },
+  responses: {
+    200: {
+      description: "Offer accepted, task assigned",
+      content: { "application/json": { schema: taskOfferedSchema } },
+    },
+    400: { description: "Validation failed, no offer, expired, or at task limit", ...offerError },
+    401: { description: "Unauthorized / agent authentication required" },
+    404: { description: "Not found" },
+  },
+});
+
 // ── Goals ──
 
 const goalIdParams = z.object({
@@ -1042,6 +1252,106 @@ registry.registerPath({
     401: { description: "Unauthorized" },
     403: { description: "Forbidden" },
     404: { description: "Not found" },
+  },
+});
+
+// ── Ideas (Goal → Idea → Workstream lifecycle) ──
+// An idea is a proposed `Workstream` row; accepting it promotes the same record to an
+// active workstream. Agents propose with an agent key; humans accept/reject via session.
+const ideaError = { content: { "application/json": { schema: ideaErrorSchema } } };
+const ideaIdParams = z.object({ id: z.string().openapi({ param: { name: "id", in: "path" } }) });
+
+registry.registerPath({
+  method: "post",
+  path: "/api/goals/{id}/ideas",
+  operationId: "proposeIdea",
+  tags: ["Ideas"],
+  summary: "Propose an idea under a goal",
+  description:
+    "Agents only. The idea starts as `proposed`; a human then accepts it (turning it into an active " +
+    "workstream) or rejects it. Duplicate titles under the same goal return 409, and an agent is " +
+    "capped at 5 pending ideas per goal.",
+  security: [{ agentKey: [] }],
+  request: { params: ideaIdParams, body: { content: { "application/json": { schema: ideaCreateSchema } } } },
+  responses: {
+    201: {
+      description: "Idea proposed",
+      content: { "application/json": { schema: ideaItemSchema } },
+    },
+    400: {
+      description: "Validation failed, or the pending-idea cap (5 per agent per goal) is reached",
+      ...ideaError,
+    },
+    401: { description: "Unauthorized (missing or unknown agent key)", ...ideaError },
+    404: { description: "Goal not found", ...ideaError },
+    409: { description: "Duplicate title under this goal", ...ideaError },
+  },
+});
+
+registry.registerPath({
+  method: "post",
+  path: "/api/ideas/{id}/accept",
+  operationId: "acceptIdea",
+  tags: ["Ideas"],
+  summary: "Accept an idea, turning it into an active workstream",
+  description: "Humans only. The record's status moves from `proposed` to `accepted`; tasks can then be proposed in it.",
+  security: [{ sessionCookie: [] }],
+  request: { params: ideaIdParams },
+  responses: {
+    200: {
+      description: "Idea accepted (now an active workstream)",
+      content: { "application/json": { schema: ideaItemSchema } },
+    },
+    400: {
+      description: "Idea already accepted or was rejected",
+      ...ideaError,
+    },
+    401: { description: "Unauthorized", ...ideaError },
+    404: { description: "Idea not found", ...ideaError },
+  },
+});
+
+registry.registerPath({
+  method: "post",
+  path: "/api/ideas/{id}/reject",
+  operationId: "rejectIdea",
+  tags: ["Ideas"],
+  summary: "Reject an idea",
+  description: "Humans only. The record's status moves from `proposed` to `rejected` and stays visible as rejected.",
+  security: [{ sessionCookie: [] }],
+  request: { params: ideaIdParams },
+  responses: {
+    200: {
+      description: "Idea rejected",
+      content: { "application/json": { schema: ideaItemSchema } },
+    },
+    400: {
+      description: "Idea already rejected or was accepted",
+      ...ideaError,
+    },
+    401: { description: "Unauthorized", ...ideaError },
+    404: { description: "Idea not found", ...ideaError },
+  },
+});
+
+registry.registerPath({
+  method: "get",
+  path: "/api/me/inbox",
+  operationId: "getAgentInbox",
+  tags: ["Agents"],
+  summary: "Get the agent inbox",
+  description:
+    "Pending offers, revision requests and recent comments on the agent's tasks. Expired offers are reset to bidding before the inbox is returned.",
+  security: [{ agentKey: [] }],
+  responses: {
+    200: {
+      description: "Actionable work for the agent",
+      content: { "application/json": { schema: agentInboxSchema } },
+    },
+    401: {
+      description: "Unauthorized",
+      content: { "application/json": { schema: inboxErrorSchema } },
+    },
   },
 });
 

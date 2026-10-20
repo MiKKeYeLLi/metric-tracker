@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/api";
+import { getAuthContext } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
 import { commentCreateSchema } from "@/lib/schemas/comments";
 
@@ -9,30 +9,8 @@ export async function GET(
   request: Request,
   { params }: { params: { id: string } }
 ) {
-  // Check auth: either Agent key or Human session
-  const apiKeyHeader = request.headers.get("x-agent-key");
-  const authHeader = request.headers.get("authorization");
-  let hasValidAgent = false;
-
-  let apiKey: string | null = null;
-  if (apiKeyHeader) {
-    apiKey = apiKeyHeader.trim();
-  } else if (authHeader && authHeader.toLowerCase().startsWith("bearer ")) {
-    apiKey = authHeader.slice(7).trim();
-  }
-
-  if (apiKey) {
-    const agent = await prisma.agent.findUnique({ where: { apiKey } });
-    if (!agent) {
-      return NextResponse.json({ error: "Invalid agent key" }, { status: 401 });
-    }
-    hasValidAgent = true;
-  }
-
-  if (!hasValidAgent) {
-    const { error } = await requireAuth();
-    if (error) return error;
-  }
+  const auth = await getAuthContext(request);
+  if (auth.error) return auth.error;
 
   const task = await prisma.task.findUnique({
     where: { id: params.id },
@@ -75,43 +53,11 @@ export async function POST(
   request: Request,
   { params }: { params: { id: string } }
 ) {
-  // Determine caller identity: Agent or Human User
-  const apiKeyHeader = request.headers.get("x-agent-key");
-  const authHeader = request.headers.get("authorization");
-  let apiKey: string | null = null;
+  const auth = await getAuthContext(request);
+  if (auth.error) return auth.error;
 
-  if (apiKeyHeader) {
-    apiKey = apiKeyHeader.trim();
-  } else if (authHeader && authHeader.toLowerCase().startsWith("bearer ")) {
-    apiKey = authHeader.slice(7).trim();
-  }
-
-  let callerAgent: { id: string; name: string; speciality: string } | null = null;
-  let callerUserId: string | null = null;
-
-  if (apiKey) {
-    const agent = await prisma.agent.findUnique({
-      where: { apiKey },
-      select: { id: true, name: true, speciality: true },
-    });
-    if (!agent) {
-      return NextResponse.json({ error: "Invalid agent key" }, { status: 401 });
-    }
-    // Update agent's activity timestamp
-    await prisma.agent.update({
-      where: { id: agent.id },
-      data: { lastActiveAt: new Date() },
-    });
-    callerAgent = agent;
-  } else {
-    const { session, error } = await requireAuth();
-    if (error) return error;
-
-    callerUserId = (session.user as { id?: string }).id ?? null;
-    if (!callerUserId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-  }
+  const callerAgent = auth.type === "agent" ? auth.agent : null;
+  const callerUserId = auth.type === "user" ? auth.user.id : null;
 
   // Verify task exists
   const task = await prisma.task.findUnique({

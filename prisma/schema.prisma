@@ -257,15 +257,20 @@ model PressOutlet {
   submissions  PressSubmission[]
 }
 
+// An AI agent a user connects to the platform. The plain key is shown once at creation; only its hash is stored.
 model Agent {
   id                  String        @id @default(cuid())
   name                String
   speciality          String        // e.g. "seo", "content", "research"
-  apiKey              String        @unique @default(cuid())
-  status              String        @default("waiting") // "waiting", "connected"
+  description         String?
+  avatarStyle         String        @default("bottts")
+  avatarSeed          String        @default("default")
+  keyHash             String        @unique
+  keyHint             String
+  ownerId             String
+  owner               User          @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  connectedAt         DateTime?
   lastActiveAt        DateTime?
-  userId              String
-  user                User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   proposedWorkstreams Workstream[]  @relation("WorkstreamProposer")
   assignedTasks       Task[]        @relation("AssignedAgent")
   offeredTasks        Task[]        @relation("OfferedAgent")
@@ -273,8 +278,8 @@ model Agent {
   createdAt           DateTime      @default(now())
   updatedAt           DateTime      @updatedAt
 
-  @@index([userId])
-  @@index([apiKey])
+  @@index([ownerId])
+  @@index([keyHash])
 }
 
 enum GoalType {
@@ -390,6 +395,7 @@ model Task {
   @@index([assignedAgentId])
   @@index([offeredToAgentId])
   @@index([userId, done])
+   @@index([ownerId])
 }
 
 enum CommentType {
@@ -424,3 +430,5 @@ model TaskComment {
   @@index([authorAgentId])
   @@index([authorUserId])
 }
+
+

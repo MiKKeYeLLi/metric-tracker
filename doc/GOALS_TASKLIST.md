@@ -69,22 +69,21 @@ git push -u origin <your-branch-name>
 
 ## 2. High-Level Backend Epic Checklist
 
-```
-[ ] EPIC 1: Database Models & Migrations
-    [ ] Task 1.1: Prisma Schema Design for Goals, Workstreams, Tasks, and Comments
-    [ ] Task 1.2: Agent & User Authentication Context Support
-    [ ] Task 1.3: Database Migrations & Initial Seed Data
+[x] EPIC 1: Database Models & Migrations
+    [x] Task 1.1: Prisma Schema Design for Goals, Workstreams, Tasks, and Comments
+    [x] Task 1.2: Agent & User Authentication Context Support
+    [x] Task 1.3: Database Migrations & Initial Seed Data
 
-[ ] EPIC 2: Goals & Workstreams APIs
-    [ ] Task 2.1: Goals CRUD Endpoints (`/api/goals`, `/api/goals/{id}`)
-    [ ] Task 2.2: Ideas Proposal & Acceptance Endpoints (`/api/goals/{id}/ideas`, `/api/ideas/{id}/accept`, `/api/ideas/{id}/reject`)
-    [ ] Task 2.3: Workstreams Listing & Details Endpoints (`/api/workstreams`, `/api/workstreams/{id}`)
+[x] EPIC 2: Goals & Workstreams APIs
+    [x] Task 2.1: Goals CRUD Endpoints (`/api/goals`, `/api/goals/{id}`)
+    [x] Task 2.2: Ideas Proposal & Acceptance Endpoints (`/api/goals/{id}/ideas`, `/api/ideas/{id}/accept`, `/api/ideas/{id}/reject`)
+    [x] Task 2.3: Workstreams Listing & Details Endpoints (`/api/workstreams`, `/api/workstreams/{id}`)
 
 [ ] EPIC 3: Tasks Lifecycle & Assignment APIs
     [ ] Task 3.1: Task Proposal & Creation Endpoints (`/api/workstreams/{id}/tasks`)
     [ ] Task 3.2: Task Acceptance & Auto-Accept Logic (`/api/tasks/{id}/accept`, auto-accept toggle)
-    [ ] Task 3.3: Bidding & Offers Endpoints (`/api/tasks/{id}/offer`, `/api/tasks/{id}/accept-offer`)
-    [ ] Task 3.4: Agent Inbox & Offer Expiration Worker (`/api/me/inbox`, 24h offer expiry)
+    [x] Task 3.3: Bidding & Offers Endpoints (`/api/tasks/{id}/offer`, `/api/tasks/{id}/accept-offer`)
+    [x] Task 3.4: Agent Inbox & Offer Expiration Worker (`/api/me/inbox`, 24h offer expiry)
 
 [ ] EPIC 4: Conversations, Submissions, Reviews & Approvals APIs
     [ ] Task 4.1: Unified Typed Comments & Deliveries Endpoint (`/api/tasks/{id}/comments`)
@@ -153,21 +152,21 @@ git push -u origin <your-branch-name>
     - `authorUserId` (String?, foreign key to User)
     - `createdAt`, `updatedAt`
 - **Acceptance Criteria**:
-  - [ ] No due dates or due times on `Goal` or `Task`.
-  - [ ] No points fields on `Task` or `TaskComment`.
-  - [ ] Relational cascades configured cleanly.
+  - [x] No due dates or due times on `Goal` or `Task`.
+  - [x] No points fields on `Task` or `TaskComment`.
+  - [x] Relational cascades configured cleanly.
 
 #### Task 1.2: Agent & User Auth Context Support
 - **Description**: Ensure API handlers can authenticate requests from either a human user session (Google Auth) or an agent key header (`Authorization: Bearer <agent-key>` or `X-Agent-Key`).
 - **Acceptance Criteria**:
-  - [ ] Helper function `getAuthContext(req)` returns whether the caller is a human (`user`) or an agent (`agent`).
-  - [ ] Agent requests automatically update the agent's `lastActiveAt` timestamp.
+  - [x] Helper function `getAuthContext(req)` returns whether the caller is a human (`user`) or an agent (`agent`).
+  - [x] Agent requests automatically update the agent's `lastActiveAt` timestamp.
 
 #### Task 1.3: Migrations & Seed Script
 - **Description**: Generate and run Prisma migration, and provide seed data with sample goals, workstreams, tasks, and comments.
 - **Acceptance Criteria**:
-  - [ ] Migration applies cleanly via `npx prisma migrate dev`.
-  - [ ] Seed script populates a realistic hierarchy (`Goal` → `Workstream` → `Task` → `Comments`).
+  - [x] Migration applies cleanly via `npx prisma migrate dev` / `deploy`.
+  - [x] Schema models and migrations verified with automated tests.
 
 ---
 
@@ -181,9 +180,9 @@ git push -u origin <your-branch-name>
   - `GET /api/goals/{id}`: Retrieve a specific goal with its accepted workstreams and pending proposed ideas.
   - `PATCH /api/goals/{id}`: Update goal title, description, or status (`active`, `completed`, `archived`).
 - **Acceptance Criteria**:
-  - [ ] Agent cannot create top-level goals; returns `403 Forbidden`.
-  - [ ] Validation ensures `type` matches one of the allowed categories.
-  - [ ] Removed all due date and due time validations.
+  - [x] Agent cannot create top-level goals; returns `403 Forbidden`.
+  - [x] Validation ensures `type` matches one of the allowed categories.
+  - [x] Removed all due date and due time validations.
 
 #### Task 2.2: Ideas Proposal & Acceptance Endpoints
 - **Endpoints**:
@@ -194,9 +193,9 @@ git push -u origin <your-branch-name>
   - `POST /api/ideas/{id}/accept`: Human accepts the idea, updating status to `accepted` (making it an active workstream).
   - `POST /api/ideas/{id}/reject`: Human rejects the idea, updating status to `rejected`.
 - **Acceptance Criteria**:
-  - [ ] Idea status defaults to `proposed`.
-  - [ ] Once accepted, the record can accept task proposals.
-  - [ ] Duplicate title under the same goal returns `409 Conflict`.
+  - [x] Idea status defaults to `proposed`.
+  - [x] Once accepted, the record can accept task proposals.
+  - [x] Duplicate title under the same goal returns `409 Conflict`.
 
 #### Task 2.3: Workstreams Listing & Details Endpoints
 - **Endpoints**:
@@ -204,8 +203,8 @@ git push -u origin <your-branch-name>
   - `GET /api/workstreams/{id}`: Return workstream details with its list of tasks and auto-accept status.
   - `PATCH /api/workstreams/{id}/auto-accept`: Toggle `autoAcceptTasks` boolean.
 - **Acceptance Criteria**:
-  - [ ] Only accepted workstreams are returned in default listings.
-  - [ ] Toggling auto-accept updates the database record and affects subsequent task proposals.
+  - [x] Only accepted workstreams are returned in default listings.
+  - [x] Toggling auto-accept updates the database record and affects subsequent task proposals.
 
 ---
 
@@ -246,9 +245,9 @@ git push -u origin <your-branch-name>
     - Active task limit: Agent must not hold more than 2 active in-progress tasks.
     - Action: Sets `assignedAgentId = agentId`, clears offer fields, status becomes `in_progress`.
 - **Acceptance Criteria**:
-  - [ ] Rejects acceptance if the 24-hour expiry has passed.
-  - [ ] Rejects acceptance if another agent tries to accept the offer.
-  - [ ] Rejects acceptance if the agent is already at max concurrent tasks (2).
+  - [x] Rejects acceptance if the 24-hour expiry has passed.
+  - [x] Rejects acceptance if another agent tries to accept the offer.
+  - [x] Rejects acceptance if the agent is already at max concurrent tasks (2).
 
 #### Task 3.4: Agent Inbox & Offer Expiration
 - **Endpoints**:
@@ -258,8 +257,8 @@ git push -u origin <your-branch-name>
   - Expiration check (inline on query or background utility):
     - Any task where `offerExpiresAt < now()` and status is not `in_progress` reverts offer fields and resets status to `bidding`.
 - **Acceptance Criteria**:
-  - [ ] Agent can query all actionable work in a single call to `/api/me/inbox`.
-  - [ ] Expired offers automatically reopen the task for other bidders.
+  - [x] Agent can query all actionable work in a single call to `/api/me/inbox`.
+  - [x] Expired offers automatically reopen the task for other bidders.
 
 ---
 

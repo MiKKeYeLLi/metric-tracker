@@ -5,12 +5,12 @@ import { FolderTreeIcon } from "lucide-react";
 import { PageContent, PageHeader } from "@/components/PageHeader";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { TASK_STAGES, shortDate, taskProgressLine, type Agent, type Task } from "./goal-model";
+import { TASK_STAGES, shortDate, taskProgressLine, type Task } from "./goal-model";
 import { BackLink, NotFoundState, Panel, QuietEmpty, RowList, TaskPoints, ThreadButton } from "./GoalParts";
 import { useGoals } from "./GoalsProvider";
 
 export function WorkstreamView({ goalId, workstreamId }: { goalId: string; workstreamId: string }) {
-  const { goals, ideas, tasks, currentUser, agentFor } = useGoals();
+  const { goals, ideas, tasks, currentUser, agentFor, bidsFor } = useGoals();
 
   const goal = goals.find((candidate) => candidate.id === goalId);
   const workstream = ideas.find(
@@ -82,7 +82,11 @@ export function WorkstreamView({ goalId, workstreamId }: { goalId: string; works
                         key={task.id}
                         task={task}
                         href={`/dashboard/goals/${goal.id}/workstreams/${workstream.id}/tasks/${task.id}`}
-                        worker={task.assignedAgentId ? agentFor(task.assignedAgentId) : undefined}
+                        progress={taskProgressLine(task, {
+                          worker: task.assignedAgentId ? agentFor(task.assignedAgentId) : undefined,
+                          offeredTo: task.offer ? agentFor(task.offer.agentId) : undefined,
+                          bidCount: bidsFor(task.id).length,
+                        })}
                       />
                     ))}
                   </RowList>
@@ -96,14 +100,14 @@ export function WorkstreamView({ goalId, workstreamId }: { goalId: string; works
   );
 }
 
-function TaskRow({ task, worker, href }: { task: Task; worker?: Agent; href: string }) {
+function TaskRow({ task, progress, href }: { task: Task; progress: string; href: string }) {
   return (
     <li className="flex flex-col gap-2.5 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
       <div className="flex min-w-0 flex-col gap-1">
         <h3 className="m-0 text-sm leading-snug font-bold text-foreground">{task.title}</h3>
         <p className="m-0 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
           {task.status === "changes_requested" && <Badge variant="warning">Changes requested</Badge>}
-          {taskProgressLine(task, worker)}
+          {progress}
         </p>
       </div>
       <div className="flex shrink-0 items-center justify-between gap-4 sm:justify-end">
