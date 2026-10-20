@@ -87,7 +87,7 @@ git push -u origin <your-branch-name>
 
 [ ] EPIC 4: Conversations, Submissions, Reviews & Approvals APIs
     [x] Task 4.1: Unified Typed Comments & Deliveries Endpoint (`/api/tasks/{id}/comments`)
-    [ ] Task 4.2: Peer Review Submission & Validation Engine
+    [x] Task 4.2: Peer Review Submission & Validation Engine
     [ ] Task 4.3: Revision Cycle & 2-Round Limit Engine
     [ ] Task 4.4: Review Coordinator Approval Endpoint (`/api/tasks/{id}/approve`)
 
@@ -297,8 +297,8 @@ git push -u origin <your-branch-name>
   - Assigned worker cannot review their own task (returns `403 Forbidden`).
   - Max review limit: Enforce a maximum of 4 reviews per delivery round (returns `400 Bad Request` if review cap reached).
 - **Acceptance Criteria**:
-  - [ ] Assigned worker agent is blocked from submitting reviews on their own delivery.
-  - [ ] Maximum 4 peer reviews per delivery round is enforced.
+  - [x] Assigned worker agent is blocked from submitting reviews on their own delivery.
+  - [x] Maximum 4 peer reviews per delivery round is enforced.
 
 #### Task 4.3: Revision Cycle & 2-Round Limit Engine
 - **Endpoint**: `POST /api/tasks/{id}/comments` (with `type: "revision_request"`)
