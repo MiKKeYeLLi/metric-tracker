@@ -1,13 +1,11 @@
 "use client";
 
-import { useMemo, useState, type FormEvent } from "react";
+import { useMemo, useState } from "react";
 import { CheckIcon, CircleDotIcon, CopyIcon, FileIcon, FileTextIcon, LinkIcon, MessageSquareIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
-import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { shortDateTime, type Task } from "./goal-model";
 import { Panel, QuietEmpty } from "./GoalParts";
@@ -25,10 +23,11 @@ import {
 
 type Filter = "all" | CommentType;
 
-/** The task's conversation: every bid, delivery, review and decision, filterable by comment type. */
+/** The task's conversation, filterable by comment type. Bids live in their own tab on the task page, so they're left out here. */
 export function TaskThread({ task }: { task: Task }) {
-  const { threadFor, addNote } = useGoals();
-  const entries = threadFor(task.id);
+  const { threadFor } = useGoals();
+  const all = threadFor(task.id);
+  const entries = useMemo(() => all.filter((entry) => !isBid(entry)), [all]);
   const [filter, setFilter] = useState<Filter>("all");
 
   const counts = useMemo(() => {
@@ -39,13 +38,13 @@ export function TaskThread({ task }: { task: Task }) {
     return byType;
   }, [entries]);
   const total = Array.from(counts.values()).reduce((sum, count) => sum + count, 0);
-  const filters: Filter[] = ["all", ...THREAD_FILTERS.filter((type) => (counts.get(type) ?? 0) > 0)];
+  const filters: Filter[] = ["all", ...THREAD_FILTERS.filter((type) => type !== "bid" && (counts.get(type) ?? 0) > 0)];
 
   return (
     <Panel
       title="Thread"
       count={total}
-      action={<span className="text-xs text-muted-foreground">Agents bid, deliver and review here</span>}
+      action={<span className="text-xs text-muted-foreground">Agents deliver, review and escalate here</span>}
     >
       {entries.length === 0 ? (
         <Empty className="py-10">
@@ -54,7 +53,7 @@ export function TaskThread({ task }: { task: Task }) {
               <MessageSquareIcon className="size-5" aria-hidden="true" />
             </EmptyMedia>
             <EmptyTitle>No activity yet</EmptyTitle>
-            <EmptyDescription>Bids from interested agents will show up here.</EmptyDescription>
+            <EmptyDescription>Once an agent takes the task, its delivery, reviews and questions show up here.</EmptyDescription>
           </EmptyHeader>
         </Empty>
       ) : (
@@ -87,8 +86,6 @@ export function TaskThread({ task }: { task: Task }) {
           })}
         </Tabs>
       )}
-
-      <NoteComposer taskId={task.id} onPost={(body) => addNote(task.id, body)} />
     </Panel>
   );
 }
@@ -187,39 +184,6 @@ function AttachmentBlock({ attachment }: { attachment: Attachment }) {
   );
 }
 
-function NoteComposer({ taskId, onPost }: { taskId: string; onPost: (body: string) => void }) {
-  const [body, setBody] = useState("");
-  const id = `note-${taskId}`;
-
-  const onSubmit = (event: FormEvent) => {
-    event.preventDefault();
-    if (!body.trim()) return;
-    onPost(body.trim());
-    setBody("");
-  };
-
-  return (
-    <form onSubmit={onSubmit} className="flex flex-col gap-2 border-t border-border pt-4">
-      <Field>
-        <FieldLabel htmlFor={id}>Add a note</FieldLabel>
-        <Textarea
-          id={id}
-          value={body}
-          onChange={(event) => setBody(event.target.value)}
-          placeholder="Answer an escalation or give the agents direction"
-          rows={2}
-          maxLength={2000}
-          className="min-h-16"
-        />
-        <FieldDescription>Agents read the thread before they work on the task.</FieldDescription>
-      </Field>
-      <Button type="submit" variant="outline" size="sm" className="self-end" disabled={!body.trim()}>
-        Post note
-      </Button>
-    </form>
-  );
-}
-
 function EntryTime({ at, className }: { at: string; className?: string }) {
   return (
     <time dateTime={at} className={cn("shrink-0 font-mono text-xs text-muted-foreground", className)}>
@@ -250,4 +214,9 @@ function initials(name: string) {
     .slice(0, 2)
     .map((part) => part[0]?.toUpperCase())
     .join("");
+}
+
+/** True for a bid comment in the thread. */
+export function isBid(entry: ThreadEntry) {
+  return entry.kind === "comment" && entry.type === "bid";
 }

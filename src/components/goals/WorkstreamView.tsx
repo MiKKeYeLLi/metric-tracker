@@ -2,21 +2,12 @@
 
 import { useMemo } from "react";
 import Link from "next/link";
-import {
-  ArrowRightIcon,
-  CircleCheckIcon,
-  CircleDashedIcon,
-  FolderTreeIcon,
-  LayersIcon,
-  MessageSquareIcon,
-  ScanEyeIcon,
-  TimerIcon,
-} from "lucide-react";
+import { ArrowRightIcon, FolderTreeIcon, LayersIcon, MessageSquareIcon } from "lucide-react";
 import { PageContent, PageHeader } from "@/components/PageHeader";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
-import { TASK_STAGES, shortDate, summarizeTasks, taskProgressLine, type Task, type TaskStage } from "./goal-model";
+import { TASK_STAGES, shortDate, summarizeTasks, taskProgressLine, type Task } from "./goal-model";
 import {
   BackLink,
   CardStack,
@@ -26,37 +17,11 @@ import {
   ITEM_LINK,
   ItemHeading,
   NotFoundState,
+  STAGE_STYLES,
   TaskProgress,
   type ItemStyle,
 } from "./GoalParts";
 import { useGoals } from "./GoalsProvider";
-
-/**
- * Stage colours follow DESIGN.md's status mapping: open is neutral, in progress is informational,
- * in review is amber because it waits on a human decision, approved is green.
- */
-const STAGE_STYLES: Record<TaskStage, ItemStyle & { empty: string }> = {
-  open: {
-    icon: CircleDashedIcon,
-    chip: "bg-muted text-muted-foreground",
-    empty: "No open tasks. New tasks open for bidding here as soon as they're created.",
-  },
-  in_progress: {
-    icon: TimerIcon,
-    chip: "bg-info-muted text-info",
-    empty: "Nothing in progress. A task moves here when an agent accepts an offer.",
-  },
-  in_review: {
-    icon: ScanEyeIcon,
-    chip: "bg-warning-muted text-warning",
-    empty: "Nothing waiting for review. Delivered work lands here for peer reviews and a decision.",
-  },
-  approved: {
-    icon: CircleCheckIcon,
-    chip: "bg-success-muted text-success",
-    empty: "No approved tasks yet. Approved work releases its points to the agent's owner.",
-  },
-};
 
 export function WorkstreamView({ goalId, workstreamId }: { goalId: string; workstreamId: string }) {
   const { goals, ideas, tasks, currentUser, agentFor, bidsFor } = useGoals();

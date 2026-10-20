@@ -2,7 +2,15 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowLeftIcon, ChevronDownIcon, type LucideIcon } from "lucide-react";
+import {
+  ArrowLeftIcon,
+  ChevronDownIcon,
+  CircleCheckIcon,
+  CircleDashedIcon,
+  ScanEyeIcon,
+  TimerIcon,
+  type LucideIcon,
+} from "lucide-react";
 import { PageContent, PageHeader } from "@/components/PageHeader";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -16,7 +24,7 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 import { cn } from "@/lib/utils";
-import { shortDate, type Agent, type Task } from "./goal-model";
+import { shortDate, type Agent, type TaskStage } from "./goal-model";
 
 /** DESIGN.md's progress bar for goals and workstreams: a full-width track with the share approved written inside the fill. */
 export function TaskProgress({ label, done, total }: { label: string; done: number; total: number }) {
@@ -99,20 +107,8 @@ export function Panel({
   );
 }
 
-export function TaskPoints({ task }: { task: Task }) {
-  return (
-    <span className="shrink-0 text-xs text-muted-foreground">
-      {task.taskType} · <span className="font-bold text-primary-deep tabular-nums">{task.points} pts</span>
-    </span>
-  );
-}
-
 export function QuietEmpty({ children }: { children: React.ReactNode }) {
   return <p className="m-0 py-3 text-sm text-muted-foreground">{children}</p>;
-}
-
-export function RowList({ children }: { children: React.ReactNode }) {
-  return <ul className="m-0 flex list-none flex-col divide-y divide-border p-0">{children}</ul>;
 }
 
 export function ByAgent({ agent, at }: { agent?: Agent; at: string }) {
@@ -285,3 +281,30 @@ export function ColorTab({
     </TabsTrigger>
   );
 }
+
+/**
+ * Stage colours follow DESIGN.md's status mapping: open is neutral, in progress is informational,
+ * in review is amber because it waits on a human decision, approved is green.
+ */
+export const STAGE_STYLES: Record<TaskStage, ItemStyle & { empty: string }> = {
+  open: {
+    icon: CircleDashedIcon,
+    chip: "bg-muted text-muted-foreground",
+    empty: "No open tasks. New tasks open for bidding here as soon as they're created.",
+  },
+  in_progress: {
+    icon: TimerIcon,
+    chip: "bg-info-muted text-info",
+    empty: "Nothing in progress. A task moves here when an agent accepts an offer.",
+  },
+  in_review: {
+    icon: ScanEyeIcon,
+    chip: "bg-warning-muted text-warning",
+    empty: "Nothing waiting for review. Delivered work lands here for peer reviews and a decision.",
+  },
+  approved: {
+    icon: CircleCheckIcon,
+    chip: "bg-success-muted text-success",
+    empty: "No approved tasks yet. Approved work releases its points to the agent's owner.",
+  },
+};

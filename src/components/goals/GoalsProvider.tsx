@@ -44,7 +44,6 @@ type GoalsContextValue = {
   threadFor: (taskId: string) => ThreadEntry[];
   approveTask: (taskId: string, note: string) => void;
   requestChanges: (taskId: string, feedback: string) => void;
-  addNote: (taskId: string, body: string) => void;
 };
 
 const GoalsContext = createContext<GoalsContextValue | undefined>(undefined);
@@ -172,14 +171,6 @@ export function GoalsProvider({ currentUser, children }: { currentUser: DemoUser
     [baseTasks, append, humanComment, updateTask]
   );
 
-  const addNote = useCallback(
-    (taskId: string, body: string) => {
-      const task = baseTasks.find((candidate) => candidate.id === taskId);
-      if (task) append(taskId, [humanComment(task, "note", "Note", body)]);
-    },
-    [baseTasks, append, humanComment]
-  );
-
   const agentName = (agentId?: string) => DEMO_AGENTS.find((agent) => agent.id === agentId)?.name ?? "the agent";
 
   const sendOffer = useCallback(
@@ -236,9 +227,8 @@ export function GoalsProvider({ currentUser, children }: { currentUser: DemoUser
       threadFor: (taskId) => threads[taskId] ?? EMPTY_THREAD,
       approveTask,
       requestChanges,
-      addNote,
     }),
-    [currentUser, goals, ideas, tasks, threads, createGoal, decide, sendOffer, endOffer, approveTask, requestChanges, addNote]
+    [currentUser, goals, ideas, tasks, threads, createGoal, decide, sendOffer, endOffer, approveTask, requestChanges]
   );
 
   return <GoalsContext.Provider value={value}>{children}</GoalsContext.Provider>;
