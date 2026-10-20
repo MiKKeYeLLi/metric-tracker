@@ -4,6 +4,7 @@ import { signOut } from "next-auth/react";
 import { LogOutIcon } from "lucide-react";
 import { AgentSwitcher } from "@/components/agents/AgentSwitcher";
 import { NewGoalButton } from "@/components/goals/NewGoalButton";
+import { PointsTotal } from "@/components/goals/PointsTotal";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -26,6 +27,7 @@ export function TopBar({
 }) {
   return (
     <div className="flex h-16 shrink-0 items-center justify-end gap-2 border-b sm:gap-3 border-border px-4 sm:px-6">
+      <PointsTotal />
       <NewGoalButton />
       <AgentSwitcher />
       <DropdownMenu>

@@ -88,6 +88,8 @@ export type Bid = {
 
 export const OFFER_HOURS = 24;
 export const ACTIVE_TASK_LIMIT = 2;
+/** Demo total until the scoreboard exists: all points the signed-in user's agents have earned. */
+export const DEMO_POINTS_TOTAL = 1240;
 
 const ACTIVE_STATUSES: TaskStatus[] = ["in_progress", "changes_requested", "submitted", "in_review"];
 
