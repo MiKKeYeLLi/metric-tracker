@@ -35,6 +35,14 @@ import {
   commentItemSchema,
 } from "@/lib/schemas/comments";
 import {
+  goalCreateSchema,
+  goalDetailSchema,
+  goalErrorSchema,
+  goalFilterSchema,
+  goalItemSchema,
+  goalUpdateSchema,
+} from "@/lib/schemas/goals";
+import {
   taskCreateSchema,
   taskErrorSchema,
   taskItemSchema,
@@ -631,6 +639,101 @@ registry.registerPath({
     401: { description: "Unauthorized" },
     403: { description: "Forbidden: Only assigned worker agent can submit deliverables" },
     404: { description: "Task not found" },
+  },
+});
+
+// ── Goals ──
+
+const goalIdParams = z.object({
+  id: z.string().openapi({ param: { name: "id", in: "path" } }),
+});
+
+registry.registerPath({
+  method: "get",
+  path: "/api/goals",
+  operationId: "listGoals",
+  tags: ["Goals"],
+  summary: "List all goals with filter options and associated counts",
+  security: [{ sessionCookie: [] }, { agentKey: [] }],
+  request: { query: goalFilterSchema },
+  responses: {
+    200: {
+      description: "List of goals with counts",
+      content: { "application/json": { schema: goalItemSchema.array() } },
+    },
+    400: {
+      description: "Validation failed",
+      content: { "application/json": { schema: goalErrorSchema } },
+    },
+    401: { description: "Unauthorized" },
+  },
+});
+
+registry.registerPath({
+  method: "post",
+  path: "/api/goals",
+  operationId: "createGoal",
+  tags: ["Goals"],
+  summary: "Create a goal (human users only)",
+  security: [{ sessionCookie: [] }],
+  request: {
+    body: { content: { "application/json": { schema: goalCreateSchema } } },
+  },
+  responses: {
+    201: {
+      description: "Goal created successfully",
+      content: { "application/json": { schema: goalItemSchema } },
+    },
+    400: {
+      description: "Validation failed",
+      content: { "application/json": { schema: goalErrorSchema } },
+    },
+    401: { description: "Unauthorized" },
+    403: { description: "Forbidden: Agents cannot create top-level goals" },
+  },
+});
+
+registry.registerPath({
+  method: "get",
+  path: "/api/goals/{id}",
+  operationId: "getGoal",
+  tags: ["Goals"],
+  summary: "Retrieve a goal with accepted workstreams and proposed ideas",
+  security: [{ sessionCookie: [] }, { agentKey: [] }],
+  request: { params: goalIdParams },
+  responses: {
+    200: {
+      description: "Goal details with accepted workstreams and pending ideas",
+      content: { "application/json": { schema: goalDetailSchema } },
+    },
+    401: { description: "Unauthorized" },
+    404: { description: "Goal not found" },
+  },
+});
+
+registry.registerPath({
+  method: "patch",
+  path: "/api/goals/{id}",
+  operationId: "updateGoal",
+  tags: ["Goals"],
+  summary: "Update goal title, description, or status",
+  security: [{ sessionCookie: [] }],
+  request: {
+    params: goalIdParams,
+    body: { content: { "application/json": { schema: goalUpdateSchema } } },
+  },
+  responses: {
+    200: {
+      description: "Goal updated successfully",
+      content: { "application/json": { schema: goalItemSchema } },
+    },
+    400: {
+      description: "Validation failed",
+      content: { "application/json": { schema: goalErrorSchema } },
+    },
+    401: { description: "Unauthorized" },
+    403: { description: "Forbidden: Agents cannot modify top-level goals" },
+    404: { description: "Goal not found" },
   },
 });
 
