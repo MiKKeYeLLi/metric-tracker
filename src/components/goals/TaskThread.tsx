@@ -1,23 +1,30 @@
 "use client";
 
-import { useMemo, useState, type FormEvent } from "react";
-import { CheckIcon, CircleDotIcon, CopyIcon, FileIcon, FileTextIcon, LinkIcon, MessageSquareIcon } from "lucide-react";
+import { useMemo, useState } from "react";
+import {
+  CheckIcon,
+  CopyIcon,
+  FileIcon,
+  FileTextIcon,
+  LinkIcon,
+  MessagesSquareIcon,
+  PackageCheckIcon,
+  StarIcon,
+  StickyNoteIcon,
+  TriangleAlertIcon,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
-import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsList } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
-import { shortDateTime, type Task } from "./goal-model";
-import { Panel, QuietEmpty } from "./GoalParts";
+import { shortDateTime, type Agent, type Task } from "./goal-model";
+import { ColorTab, EmptyCard, type ItemStyle } from "./GoalParts";
 import { useGoals } from "./GoalsProvider";
 import {
   COMMENT_TYPES,
   REVIEW_SCALE,
   THREAD_FILTERS,
   type Attachment,
-  type Author,
   type CommentType,
   type ThreadComment,
   type ThreadEntry,
@@ -25,125 +32,143 @@ import {
 
 type Filter = "all" | CommentType;
 
-/** The task's conversation: every bid, delivery, review and decision, filterable by comment type. */
-export function TaskThread({ task }: { task: Task }) {
-  const { threadFor, addNote } = useGoals();
-  const entries = threadFor(task.id);
-  const [filter, setFilter] = useState<Filter>("all");
-
-  const counts = useMemo(() => {
-    const byType = new Map<CommentType, number>();
-    for (const entry of entries) {
-      if (entry.kind === "comment") byType.set(entry.type, (byType.get(entry.type) ?? 0) + 1);
-    }
-    return byType;
-  }, [entries]);
-  const total = Array.from(counts.values()).reduce((sum, count) => sum + count, 0);
-  const filters: Filter[] = ["all", ...THREAD_FILTERS.filter((type) => (counts.get(type) ?? 0) > 0)];
-
-  return (
-    <Panel
-      title="Thread"
-      count={total}
-      action={<span className="text-xs text-muted-foreground">Agents bid, deliver and review here</span>}
-    >
-      {entries.length === 0 ? (
-        <Empty className="py-10">
-          <EmptyHeader>
-            <EmptyMedia className="size-12 rounded-full bg-accent text-primary-deep">
-              <MessageSquareIcon className="size-5" aria-hidden="true" />
-            </EmptyMedia>
-            <EmptyTitle>No activity yet</EmptyTitle>
-            <EmptyDescription>Bids from interested agents will show up here.</EmptyDescription>
-          </EmptyHeader>
-        </Empty>
-      ) : (
-        <Tabs value={filter} onValueChange={(value) => setFilter(value as Filter)} className="pt-1">
-          <TabsList className="max-w-full justify-start overflow-x-auto" aria-label="Filter the thread by comment type">
-            {filters.map((value) => (
-              <TabsTrigger key={value} value={value} className="flex-none">
-                {value === "all" ? "All" : COMMENT_TYPES[value].plural}{" "}
-                <span className="tabular-nums opacity-70">{value === "all" ? total : counts.get(value)}</span>
-              </TabsTrigger>
-            ))}
-          </TabsList>
-
-          {filters.map((value) => {
-            const visible =
-              value === "all" ? entries : entries.filter((entry) => entry.kind === "comment" && entry.type === value);
-            return (
-              <TabsContent key={value} value={value}>
-                {visible.length === 0 ? (
-                  <QuietEmpty>Nothing here yet.</QuietEmpty>
-                ) : (
-                  <ol className="m-0 flex list-none flex-col divide-y divide-border p-0">
-                    {visible.map((entry) => (
-                      <ThreadItem key={entry.id} entry={entry} />
-                    ))}
-                  </ol>
-                )}
-              </TabsContent>
-            );
-          })}
-        </Tabs>
-      )}
-
-      <NoteComposer taskId={task.id} onPost={(body) => addNote(task.id, body)} />
-    </Panel>
+/** What the agents themselves posted. Bids have their own tab; status events and human decisions aren't shown in the thread. */
+export function agentMessages(entries: ThreadEntry[]): ThreadComment[] {
+  return entries.filter(
+    (entry): entry is ThreadComment => entry.kind === "comment" && entry.author.kind === "agent" && entry.type !== "bid"
   );
 }
 
-function ThreadItem({ entry }: { entry: ThreadEntry }) {
-  if (entry.kind === "event") {
-    return (
-      <li className="flex items-center gap-2 py-2.5 text-xs text-muted-foreground">
-        <CircleDotIcon className="size-3.5 shrink-0" aria-hidden="true" />
-        <span className="min-w-0 flex-1">{entry.text}</span>
-        <EntryTime at={entry.at} />
-      </li>
-    );
-  }
-  return <CommentItem comment={entry} />;
-}
+/**
+ * One colour per message type, shared by the filter tabs and the message bubbles:
+ * deliveries carry the work so they get the brand tint, escalations ask for help in amber, the rest stay neutral.
+ */
+const MESSAGE_STYLES: Partial<Record<CommentType, ItemStyle & { bubble: string }>> = {
+  delivery: { icon: PackageCheckIcon, chip: "bg-accent text-primary-deep", bubble: "bg-accent" },
+  review: { icon: StarIcon, chip: "bg-info-muted text-info", bubble: "bg-muted" },
+  escalation: { icon: TriangleAlertIcon, chip: "bg-warning-muted text-warning", bubble: "bg-warning-muted" },
+  note: { icon: StickyNoteIcon, chip: "bg-muted text-muted-foreground", bubble: "bg-muted" },
+};
 
-function CommentItem({ comment }: { comment: ThreadComment }) {
-  const { agentFor, currentUser } = useGoals();
-  const author = describeAuthor(comment.author, agentFor, currentUser.name);
-  const type = COMMENT_TYPES[comment.type];
+const ALL_STYLE: ItemStyle = { icon: MessagesSquareIcon, chip: "bg-foreground text-background" };
+
+/** The agents' conversation about the task, newest last, filterable by message type. */
+export function TaskThread({ task }: { task: Task }) {
+  const { threadFor, agentFor } = useGoals();
+  const all = threadFor(task.id);
+  const messages = useMemo(() => agentMessages(all), [all]);
+  const [filter, setFilter] = useState<Filter>("all");
+
+  if (messages.length === 0) {
+    return <EmptyCard>No messages yet. Once an agent takes the task, its delivery, reviews and questions show up here.</EmptyCard>;
+  }
+
+  const counts = new Map<CommentType, number>();
+  for (const message of messages) counts.set(message.type, (counts.get(message.type) ?? 0) + 1);
+  const filters: Filter[] = ["all", ...THREAD_FILTERS.filter((type) => (counts.get(type) ?? 0) > 0)];
+  const visible = filter === "all" ? messages : messages.filter((message) => message.type === filter);
 
   return (
-    <li className="flex gap-3 py-4">
-      <span
-        className={cn(
-          "grid size-9 shrink-0 place-items-center rounded-full text-xs font-bold",
-          comment.author.kind === "agent" ? "bg-accent text-primary-deep" : "bg-secondary text-secondary-foreground"
+    <section className="flex flex-col gap-5 rounded-[22px] border border-border bg-card p-5 sm:p-6" aria-label="Thread">
+      <div className="flex flex-wrap items-center gap-3">
+        {filters.length > 2 && (
+          <Tabs value={filter} onValueChange={(value) => setFilter(value as Filter)} className="max-w-full">
+            <TabsList className="h-11! max-w-full justify-start overflow-x-auto p-1" aria-label="Filter the thread by message type">
+              {filters.map((value) => (
+                <ColorTab
+                  key={value}
+                  value={value}
+                  style={value === "all" ? ALL_STYLE : (MESSAGE_STYLES[value] ?? ALL_STYLE)}
+                  label={value === "all" ? "All" : COMMENT_TYPES[value].plural}
+                  count={value === "all" ? messages.length : (counts.get(value) ?? 0)}
+                  highlight={value === "escalation"}
+                />
+              ))}
+            </TabsList>
+          </Tabs>
         )}
+        <p className="m-0 ml-auto text-[13px] text-muted-foreground tabular-nums" aria-live="polite">
+          {filter === "all"
+            ? `${messages.length} ${messages.length === 1 ? "message" : "messages"}`
+            : `${visible.length} of ${messages.length} messages`}
+        </p>
+      </div>
+
+      <ol className="relative m-0 flex list-none flex-col gap-6 p-0 before:absolute before:top-5 before:bottom-5 before:left-5 before:w-px before:bg-border">
+        {visible.map((message) => (
+          <Message
+            key={message.id}
+            message={message}
+            agent={message.author.kind === "agent" ? agentFor(message.author.agentId) : undefined}
+          />
+        ))}
+      </ol>
+    </section>
+  );
+}
+
+function initials(name: string) {
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join("");
+}
+
+function Message({ message, agent }: { message: ThreadComment; agent?: Agent }) {
+  const type = COMMENT_TYPES[message.type];
+  const name = agent?.name ?? "Unknown agent";
+
+  return (
+    <li className="flex gap-3 sm:gap-4">
+      <span
+        className="relative flex size-10 shrink-0 items-center justify-center rounded-full bg-accent text-[13px] font-bold text-primary-deep ring-4 ring-card"
         aria-hidden="true"
       >
-        {author.initials}
+        {initials(name) || "?"}
       </span>
 
-      <article className="flex min-w-0 flex-1 flex-col gap-1.5" aria-label={`${type.label} from ${author.name}`}>
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-          <span className="text-sm font-semibold text-foreground">{author.name}</span>
-          <span className="text-xs text-muted-foreground">{author.detail}</span>
-          <Badge variant={type.badge}>{type.label}</Badge>
-          <span className="font-mono text-xs text-muted-foreground">#{comment.tag}</span>
-          <EntryTime at={comment.at} className="sm:ml-auto" />
-        </div>
-
-        <h3 className="m-0 flex flex-wrap items-baseline gap-x-2 text-sm leading-snug font-bold text-foreground">
-          {comment.title}
-          {comment.score !== undefined && (
-            <span className="text-xs font-semibold text-primary-deep tabular-nums">
-              Score {comment.score}/{REVIEW_SCALE}
+      <article className="flex min-w-0 flex-1 flex-col gap-2" aria-label={`${type.label} from ${name}`}>
+        <header className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 pt-2">
+          <span className="text-sm font-bold text-foreground">{name}</span>
+          {agent && (
+            <span className="text-xs text-muted-foreground">
+              {agent.speciality} · {agent.ownerName}
             </span>
           )}
-        </h3>
-        <p className="m-0 text-sm whitespace-pre-line text-foreground/80">{comment.body}</p>
-        {comment.attachment && <AttachmentBlock attachment={comment.attachment} />}
+          <time dateTime={message.at} className="ml-auto text-xs text-muted-foreground tabular-nums">
+            {shortDateTime.format(new Date(message.at))}
+          </time>
+        </header>
+
+        <div className={cn("flex flex-col gap-2.5 rounded-2xl rounded-tl-md px-4 py-3.5 sm:px-5 sm:py-4", MESSAGE_STYLES[message.type]?.bubble ?? "bg-muted")}>
+          <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5">
+            <Badge variant={type.badge}>{type.label}</Badge>
+            <h3 className="m-0 text-[15px] leading-snug font-bold text-foreground">{message.title}</h3>
+            {message.score !== undefined && <Score value={message.score} />}
+          </div>
+          <p className="m-0 max-w-[72ch] text-sm leading-relaxed whitespace-pre-line text-foreground/85">{message.body}</p>
+          {message.attachment && <AttachmentBlock attachment={message.attachment} />}
+        </div>
       </article>
     </li>
+  );
+}
+
+/** A review score as filled dots, with the number for screen readers and for reading at a glance. */
+function Score({ value }: { value: number }) {
+  return (
+    <span className="ml-auto flex items-center gap-2" aria-label={`Score ${value} of ${REVIEW_SCALE}`}>
+      <span className="flex gap-1" aria-hidden="true">
+        {Array.from({ length: REVIEW_SCALE }, (_, index) => (
+          <span key={index} className={cn("size-2 rounded-full", index < value ? "bg-primary" : "bg-chart-track")} />
+        ))}
+      </span>
+      <span className="text-xs font-bold text-primary-deep tabular-nums" aria-hidden="true">
+        {value}/{REVIEW_SCALE}
+      </span>
+    </span>
   );
 }
 
@@ -165,10 +190,10 @@ function AttachmentBlock({ attachment }: { attachment: Attachment }) {
   };
 
   return (
-    <div className="mt-1 flex flex-col gap-2 rounded-xl border border-border bg-muted/40 p-3">
-      <div className="flex items-center justify-between gap-2">
-        <span className="flex min-w-0 items-center gap-1.5 text-xs font-semibold text-foreground">
-          <Icon className="size-3.5 shrink-0" aria-hidden="true" />
+    <div className="mt-1 flex flex-col overflow-hidden rounded-xl border border-border bg-card">
+      <div className="flex items-center justify-between gap-2 border-b border-border py-1.5 pr-1.5 pl-3.5">
+        <span className="flex min-w-0 items-center gap-2 text-[13px] font-semibold text-foreground">
+          <Icon className="size-4 shrink-0 text-primary-deep" aria-hidden="true" />
           <span className="truncate">{attachment.label}</span>
         </span>
         <Button variant="ghost" size="xs" onClick={copy} aria-label={`Copy ${attachment.label}`}>
@@ -180,74 +205,9 @@ function AttachmentBlock({ attachment }: { attachment: Attachment }) {
           {copied ? "Copied" : "Copy"}
         </Button>
       </div>
-      <pre className="m-0 max-h-48 overflow-auto font-mono text-xs whitespace-pre-wrap text-foreground/80">
+      <pre className="m-0 max-h-64 overflow-auto px-3.5 py-3 font-mono text-xs leading-relaxed whitespace-pre-wrap text-foreground/85">
         {attachment.content}
       </pre>
     </div>
   );
-}
-
-function NoteComposer({ taskId, onPost }: { taskId: string; onPost: (body: string) => void }) {
-  const [body, setBody] = useState("");
-  const id = `note-${taskId}`;
-
-  const onSubmit = (event: FormEvent) => {
-    event.preventDefault();
-    if (!body.trim()) return;
-    onPost(body.trim());
-    setBody("");
-  };
-
-  return (
-    <form onSubmit={onSubmit} className="flex flex-col gap-2 border-t border-border pt-4">
-      <Field>
-        <FieldLabel htmlFor={id}>Add a note</FieldLabel>
-        <Textarea
-          id={id}
-          value={body}
-          onChange={(event) => setBody(event.target.value)}
-          placeholder="Answer an escalation or give the agents direction"
-          rows={2}
-          maxLength={2000}
-          className="min-h-16"
-        />
-        <FieldDescription>Agents read the thread before they work on the task.</FieldDescription>
-      </Field>
-      <Button type="submit" variant="outline" size="sm" className="self-end" disabled={!body.trim()}>
-        Post note
-      </Button>
-    </form>
-  );
-}
-
-function EntryTime({ at, className }: { at: string; className?: string }) {
-  return (
-    <time dateTime={at} className={cn("shrink-0 font-mono text-xs text-muted-foreground", className)}>
-      {shortDateTime.format(new Date(at))}
-    </time>
-  );
-}
-
-function describeAuthor(
-  author: Author,
-  agentFor: ReturnType<typeof useGoals>["agentFor"],
-  currentUserName: string
-): { name: string; initials: string; detail: string } {
-  if (author.kind === "human") {
-    const isYou = author.name === currentUserName;
-    return { name: isYou ? "You" : author.name, initials: initials(author.name), detail: "Human" };
-  }
-  const agent = agentFor(author.agentId);
-  return agent
-    ? { name: agent.name, initials: initials(agent.name), detail: `${agent.speciality} · ${agent.ownerName}` }
-    : { name: "Unknown agent", initials: "?", detail: "" };
-}
-
-function initials(name: string) {
-  return name
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase())
-    .join("");
 }

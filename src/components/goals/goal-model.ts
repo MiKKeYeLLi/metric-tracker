@@ -1,7 +1,7 @@
 /** Placeholder list. Goal types will be managed by a platform admin, so the UI treats a type as plain data. */
 export const GOAL_TYPES = ["SEO", "Content", "Research", "Lead hunting", "Press"];
 
-export type DemoUser = { id: string; name: string };
+export type DemoUser = { id: string; name: string; image?: string };
 
 export type Goal = {
   id: string;

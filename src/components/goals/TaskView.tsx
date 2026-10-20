@@ -1,14 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import { CheckIcon, ClockIcon, ListTodoIcon, RotateCcwIcon } from "lucide-react";
+import { ClockIcon, HandIcon, ListTodoIcon, MessageSquareIcon } from "lucide-react";
 import { PageContent, PageHeader } from "@/components/PageHeader";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList } from "@/components/ui/tabs";
+import { cn } from "@/lib/utils";
 import {
   ACTIVE_TASK_LIMIT,
-  MAX_REVIEWS,
-  MAX_REVISIONS,
+  TASK_STAGES,
   agentStats,
   shortDateTime,
   taskProgressLine,
@@ -16,16 +17,28 @@ import {
   type Bid,
   type Task,
 } from "./goal-model";
-import { BackLink, NotFoundState, Panel, QuietEmpty, RowList, TaskPoints } from "./GoalParts";
+import {
+  BackLink,
+  CardStack,
+  ColorTab,
+  EmptyCard,
+  ITEM_CARD,
+  NotFoundState,
+  STAGE_STYLES,
+  type ItemStyle,
+} from "./GoalParts";
 import { useGoals } from "./GoalsProvider";
 import { OfferDialog } from "./OfferDialog";
-import { TaskDecisionDialog, type Decision } from "./TaskDecisionDialog";
-import { TaskThread } from "./TaskThread";
-import { TASK_STATUS_LABELS, averageScore, currentRoundReviews, REVIEW_SCALE } from "./thread-model";
+import { TaskThread, agentMessages } from "./TaskThread";
 
-/** The task's home: bids and offers while it's open, its conversation thread, and the Review Coordinator's decision once it's delivered. */
+const TABS = {
+  bids: { icon: HandIcon, chip: "bg-accent text-primary-deep" },
+  thread: { icon: MessageSquareIcon, chip: "bg-muted text-foreground" },
+} satisfies Record<string, ItemStyle>;
+
+/** The task's home: bidding and offers in one tab, the agents' conversation in the other. */
 export function TaskView({ goalId, workstreamId, taskId }: { goalId: string; workstreamId: string; taskId: string }) {
-  const { goals, ideas, tasks, currentUser, agentFor, bidsFor, sendOffer, withdrawOffer, acceptOffer, expireOffer } =
+  const { goals, ideas, tasks, currentUser, agentFor, bidsFor, threadFor, sendOffer, withdrawOffer, acceptOffer, expireOffer } =
     useGoals();
   const [offering, setOffering] = useState<Agent | null>(null);
 
@@ -50,7 +63,12 @@ export function TaskView({ goalId, workstreamId, taskId }: { goalId: string; wor
   const bids = bidsFor(task.id);
   const worker = task.assignedAgentId ? agentFor(task.assignedAgentId) : undefined;
   const offeredTo = task.offer ? agentFor(task.offer.agentId) : undefined;
-  const takingBids = !task.offer && (task.status === "open" || task.status === "bidding");
+  const bidding = task.status === "open" || task.status === "bidding";
+  const takingBids = bidding && !task.offer;
+  const threadCount = agentMessages(threadFor(task.id)).length;
+  const stage = TASK_STAGES.find((option) => option.statuses.includes(task.status)) ?? TASK_STAGES[0];
+  const stageStyle = STAGE_STYLES[stage.value];
+  const StageIcon = stageStyle.icon;
 
   return (
     <>
@@ -58,51 +76,75 @@ export function TaskView({ goalId, workstreamId, taskId }: { goalId: string; wor
       <PageHeader title={task.title} description={task.description || undefined} className="pt-2" />
 
       <PageContent>
-        <p className="m-0 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-muted-foreground">
-          <TaskPoints task={task} />
-          <span>{taskProgressLine(task, { worker, offeredTo, bidCount: bids.length })}</span>
-        </p>
+        <div className="flex flex-wrap items-center justify-between gap-x-8 gap-y-4">
+          <p className="m-0 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-muted-foreground">
+            <span className={cn("flex size-6 items-center justify-center rounded-full", stageStyle.chip)}>
+              <StageIcon className="size-3.5" aria-hidden="true" />
+            </span>
+            <span className="font-semibold text-foreground">{stage.label}</span>·
+            <span>{taskProgressLine(task, { worker, offeredTo, bidCount: bids.length })}</span>
+          </p>
+          <p className="m-0 flex items-baseline gap-2">
+            <span className="text-2xl leading-none font-extrabold tracking-[-0.03em] text-primary-deep tabular-nums">
+              {task.points} pts
+            </span>
+            <span className="text-[13px] text-muted-foreground">{task.taskType}</span>
+          </p>
+        </div>
 
-        {task.offer && (
-          <OfferStatus
-            task={task}
-            agent={offeredTo}
-            canWithdraw={isOwner}
-            onWithdraw={() => withdrawOffer(task.id)}
-            onAccept={() => acceptOffer(task.id)}
-            onExpire={() => expireOffer(task.id)}
-          />
-        )}
+        <Tabs key={task.id} defaultValue={bidding ? "bids" : "thread"} className="gap-4">
+          <TabsList className="h-11! self-start p-1">
+            <ColorTab
+              value="bids"
+              style={TABS.bids}
+              label="Bids"
+              count={bids.length}
+              highlight={isOwner && takingBids && bids.length > 0}
+            />
+            <ColorTab value="thread" style={TABS.thread} label="Thread" count={threadCount} />
+          </TabsList>
 
-        {takingBids && (
-          <Panel
-            title="Bids"
-            count={bids.length}
-            action={!isOwner && <span className="text-xs text-muted-foreground">Only {goal.ownerName} can send offers</span>}
-          >
+          <TabsContent value="bids" className="flex flex-col gap-4">
+            {task.offer && (
+              <OfferStatus
+                task={task}
+                agent={offeredTo}
+                canWithdraw={isOwner}
+                onWithdraw={() => withdrawOffer(task.id)}
+                onAccept={() => acceptOffer(task.id)}
+                onExpire={() => expireOffer(task.id)}
+              />
+            )}
+            <p className="m-0 text-[13px] text-muted-foreground">
+              {!bidding
+                ? `Bidding is closed${worker ? `. ${worker.name} took this task` : ""}.`
+                : isOwner
+                  ? "Pick the agent you want and send them an offer. They have 24 hours to accept."
+                  : `Only ${goal.ownerName} can send offers.`}
+            </p>
             {bids.length === 0 ? (
-              <QuietEmpty>No bids yet. Agents bid from the thread, and their bids appear here.</QuietEmpty>
+              <EmptyCard>No bids yet. Agents who want this task bid on it, and their bids appear here.</EmptyCard>
             ) : (
-              <RowList>
+              <CardStack>
                 {bids.map((bid) => (
-                  <BidRow
+                  <BidCard
                     key={bid.id}
                     bid={bid}
                     agent={agentFor(bid.agentId)}
                     tasks={tasks}
-                    canOffer={isOwner}
+                    won={bid.agentId === task.assignedAgentId}
+                    canOffer={isOwner && takingBids}
                     onOffer={setOffering}
                   />
                 ))}
-              </RowList>
+              </CardStack>
             )}
-          </Panel>
-        )}
+          </TabsContent>
 
-        <div className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
-          <TaskThread task={task} />
-          <TaskStatusPanel task={task} worker={worker} offeredTo={offeredTo} />
-        </div>
+          <TabsContent value="thread">
+            <TaskThread task={task} />
+          </TabsContent>
+        </Tabs>
       </PageContent>
 
       <OfferDialog
@@ -115,42 +157,74 @@ export function TaskView({ goalId, workstreamId, taskId }: { goalId: string; wor
   );
 }
 
-function BidRow({
+function initials(name: string) {
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join("");
+}
+
+function BidCard({
   bid,
   agent,
   tasks,
+  won,
   canOffer,
   onOffer,
 }: {
   bid: Bid;
   agent?: Agent;
   tasks: Task[];
+  won: boolean;
   canOffer: boolean;
   onOffer: (agent: Agent) => void;
 }) {
   const stats = agentStats(bid.agentId, tasks);
   const atLimit = stats.activeTasks >= ACTIVE_TASK_LIMIT;
+  const name = agent?.name ?? "Unknown agent";
 
   return (
-    <li className="flex flex-col gap-3 py-4 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
-      <div className="flex min-w-0 flex-col gap-1">
-        <p className="m-0 text-sm text-muted-foreground">
-          <span className="text-[15px] font-bold text-foreground">{agent?.name ?? "Unknown agent"}</span>
-          {agent && ` (${agent.ownerName}) · ${agent.speciality}`}
-        </p>
-        <p className="m-0 max-w-[68ch] text-sm text-foreground">{bid.message}</p>
-        <p className="m-0 text-xs text-muted-foreground tabular-nums">
-          {stats.pointsThisWeek} pts this week · {stats.tasksGiven} {stats.tasksGiven === 1 ? "task" : "tasks"} given ·{" "}
-          {agent && `active ${shortDateTime.format(new Date(agent.lastActiveAt))}`}
-        </p>
-      </div>
-      {canOffer && agent && (
-        <div className="flex shrink-0 flex-col items-start gap-1 sm:items-end">
-          <Button variant="secondary" size="sm" disabled={atLimit} onClick={() => onOffer(agent)}>
-            Offer
-          </Button>
-          {atLimit && <span className="text-xs text-muted-foreground">At the {ACTIVE_TASK_LIMIT}-task limit</span>}
+    <li className={cn(ITEM_CARD, "flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between sm:gap-8")}>
+      <div className="flex min-w-0 flex-1 items-start gap-4">
+        <span
+          className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-accent text-sm font-bold text-primary-deep"
+          aria-hidden="true"
+        >
+          {initials(name) || "?"}
+        </span>
+        <div className="flex min-w-0 flex-col gap-1.5 pt-0.5">
+          <p className="m-0 flex flex-wrap items-baseline gap-x-2">
+            <span className="text-lg leading-snug font-bold tracking-[-0.02em] text-foreground">{name}</span>
+            {agent && (
+              <span className="text-[13px] text-muted-foreground">
+                {agent.speciality} · {agent.ownerName}
+              </span>
+            )}
+          </p>
+          <p className="m-0 max-w-[68ch] text-sm leading-relaxed text-foreground/85">{bid.message}</p>
+          <p className="m-0 text-xs text-muted-foreground tabular-nums">
+            {stats.pointsThisWeek} pts this week · {stats.tasksGiven} {stats.tasksGiven === 1 ? "task" : "tasks"} given
+            {agent && ` · active ${shortDateTime.format(new Date(agent.lastActiveAt))}`} · bid{" "}
+            {shortDateTime.format(new Date(bid.createdAt))}
+          </p>
         </div>
+      </div>
+      {won ? (
+        <Badge variant="success" className="self-start">
+          Took the task
+        </Badge>
+      ) : (
+        canOffer &&
+        agent && (
+          <div className="flex shrink-0 flex-col items-start gap-1.5 sm:items-end">
+            <Button variant="secondary" disabled={atLimit} onClick={() => onOffer(agent)}>
+              Send offer
+            </Button>
+            {atLimit && <span className="text-xs text-muted-foreground">At the {ACTIVE_TASK_LIMIT}-task limit</span>}
+          </div>
+        )
       )}
     </li>
   );
@@ -208,102 +282,4 @@ function OfferStatus({
       </div>
     </section>
   );
-}
-
-function TaskStatusPanel({ task, worker, offeredTo }: { task: Task; worker?: Agent; offeredTo?: Agent }) {
-  const { threadFor, approveTask, requestChanges } = useGoals();
-  const [decision, setDecision] = useState<Decision | null>(null);
-
-  const status = TASK_STATUS_LABELS[task.status];
-  const reviews = currentRoundReviews(threadFor(task.id));
-  const average = averageScore(reviews);
-  const awaitingDecision = task.status === "submitted" || task.status === "in_review";
-  const workerName = worker?.name ?? "The worker";
-  const ownerName = worker?.ownerName ?? "the worker's owner";
-
-  return (
-    <Panel title="Status" action={<Badge variant={status.badge}>{status.label}</Badge>}>
-      <dl className="m-0 grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-2.5 py-1 text-sm">
-        <Fact label="Points">
-          <span className="text-primary-deep">{task.points} pts</span>
-        </Fact>
-        <Fact label="Worker">{worker ? `${worker.name} (${worker.ownerName})` : "Not assigned"}</Fact>
-        <Fact label="Bids">{task.bidCount}</Fact>
-        <Fact label="Revisions">
-          {task.revisionCount} of {MAX_REVISIONS}
-        </Fact>
-        <Fact label="Reviews">
-          {reviews.length} of {MAX_REVIEWS}
-          {average !== undefined && (
-            <span className="font-normal text-muted-foreground">
-              {" "}
-              · avg {average}/{REVIEW_SCALE}
-            </span>
-          )}
-        </Fact>
-      </dl>
-
-      <div className="flex flex-col gap-2 border-t border-border pt-3">
-        {awaitingDecision ? (
-          <>
-            <p className="m-0 text-xs text-muted-foreground">
-              {reviews.length === 0
-                ? "Delivered, but no peer reviews yet. As Review Coordinator you can still decide."
-                : "Peer reviews are in. As Review Coordinator, you make the final call."}
-            </p>
-            <Button onClick={() => setDecision("approve")}>
-              <CheckIcon data-icon="inline-start" aria-hidden="true" />
-              Approve and release {task.points} pts
-            </Button>
-            <Button variant="outline" onClick={() => setDecision("changes")}>
-              <RotateCcwIcon data-icon="inline-start" aria-hidden="true" />
-              {task.revisionCount >= MAX_REVISIONS ? "Reopen for bids" : "Request changes"}
-            </Button>
-          </>
-        ) : (
-          <p className="m-0 text-xs text-muted-foreground">
-            {task.offer
-              ? `Offered to ${offeredTo?.name ?? "an agent"}. Waiting for them to accept.`
-              : statusHint(task, workerName, ownerName)}
-          </p>
-        )}
-      </div>
-
-      <TaskDecisionDialog
-        task={task}
-        decision={decision}
-        workerName={workerName}
-        ownerName={ownerName}
-        onOpenChange={(open) => !open && setDecision(null)}
-        onApprove={(note) => approveTask(task.id, note)}
-        onRequestChanges={(feedback) => requestChanges(task.id, feedback)}
-      />
-    </Panel>
-  );
-}
-
-function Fact({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <>
-      <dt className="text-muted-foreground">{label}</dt>
-      <dd className="m-0 truncate text-right font-semibold text-foreground tabular-nums">{children}</dd>
-    </>
-  );
-}
-
-function statusHint(task: Task, workerName: string, ownerName: string) {
-  switch (task.status) {
-    case "open":
-      return "Waiting for agents to bid.";
-    case "bidding":
-      return "Agents are bidding. A human offers the task to one bidder.";
-    case "in_progress":
-      return `${workerName} is working on it. Their delivery will appear in the thread.`;
-    case "changes_requested":
-      return `Waiting for ${workerName} to resubmit.`;
-    case "approved":
-      return `Approved. ${task.points} points released to ${ownerName}.`;
-    default:
-      return "";
-  }
 }
