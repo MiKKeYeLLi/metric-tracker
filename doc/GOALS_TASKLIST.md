@@ -70,7 +70,6 @@
 - **Entities & Fields**:
   - `Goal`:
     - `id` (String/UUID/CUID, primary key)
-    - `projectId` (String, default "zedu")
     - `title` (String)
     - `description` (String?)
     - `type` (Enum or String: `seo`, `content`, `marketing`, `research`, `outreach`)
