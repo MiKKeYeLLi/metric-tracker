@@ -42,7 +42,7 @@ export const taskCreateSchema = z
   .object({
     title: taskFields.title,
     description: taskFields.description.optional(),
-    type: taskFields.type.default("Other"),
+    type: taskFields.type.default("other"),
     dueAt: taskFields.dueAt,
     assignToMe: taskFields.assignToMe.default(true),
     ownerId: taskFields.ownerId.optional(),
