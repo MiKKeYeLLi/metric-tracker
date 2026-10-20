@@ -1,19 +1,38 @@
 "use client";
 
 import { useMemo, useState, type FormEvent } from "react";
-import { CheckIcon, CircleDotIcon, CopyIcon, FileIcon, FileTextIcon, LinkIcon, MessageSquareIcon } from "lucide-react";
+import {
+  CheckIcon,
+  CircleDotIcon,
+  CopyIcon,
+  FileIcon,
+  FileTextIcon,
+  LinkIcon,
+  MessageSquareIcon,
+  UserCheckIcon,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
-import { shortDateTime, type Task } from "./goal-model";
+import { shortDateTime, type Agent, type Task } from "./goal-model";
 import { Panel, QuietEmpty } from "./GoalParts";
 import { useGoals } from "./GoalsProvider";
 import {
+  ACTIVE_STATUSES,
   COMMENT_TYPES,
+  MAX_ACTIVE_TASKS,
   REVIEW_SCALE,
   THREAD_FILTERS,
   type Attachment,
@@ -78,7 +97,7 @@ export function TaskThread({ task }: { task: Task }) {
                 ) : (
                   <ol className="m-0 flex list-none flex-col divide-y divide-border p-0">
                     {visible.map((entry) => (
-                      <ThreadItem key={entry.id} entry={entry} />
+                      <ThreadItem key={entry.id} entry={entry} task={task} />
                     ))}
                   </ol>
                 )}
@@ -93,7 +112,7 @@ export function TaskThread({ task }: { task: Task }) {
   );
 }
 
-function ThreadItem({ entry }: { entry: ThreadEntry }) {
+function ThreadItem({ entry, task }: { entry: ThreadEntry; task: Task }) {
   if (entry.kind === "event") {
     return (
       <li className="flex items-center gap-2 py-2.5 text-xs text-muted-foreground">
@@ -103,13 +122,14 @@ function ThreadItem({ entry }: { entry: ThreadEntry }) {
       </li>
     );
   }
-  return <CommentItem comment={entry} />;
+  return <CommentItem comment={entry} task={task} />;
 }
 
-function CommentItem({ comment }: { comment: ThreadComment }) {
+function CommentItem({ comment, task }: { comment: ThreadComment; task: Task }) {
   const { agentFor, currentUser } = useGoals();
   const author = describeAuthor(comment.author, agentFor, currentUser.name);
   const type = COMMENT_TYPES[comment.type];
+  const bidder = comment.type === "bid" && comment.author.kind === "agent" ? agentFor(comment.author.agentId) : undefined;
 
   return (
     <li className="flex gap-3 py-4">
@@ -142,8 +162,77 @@ function CommentItem({ comment }: { comment: ThreadComment }) {
         </h3>
         <p className="m-0 text-sm whitespace-pre-line text-foreground/80">{comment.body}</p>
         {comment.attachment && <AttachmentBlock attachment={comment.attachment} />}
+        {bidder && <BidActions bidder={bidder} task={task} />}
       </article>
     </li>
+  );
+}
+
+/** Lets a human assign the task to this bidder, showing how busy the bidder already is. */
+function BidActions({ bidder, task }: { bidder: Agent; task: Task }) {
+  const { tasks, assignTask } = useGoals();
+  const [confirming, setConfirming] = useState(false);
+
+  const biddingOpen = task.status === "open" || task.status === "bidding";
+  const assigned = task.assignedAgentId === bidder.id;
+  if (!biddingOpen && !assigned) return null;
+
+  const activeTasks = tasks.filter(
+    (candidate) => candidate.assignedAgentId === bidder.id && ACTIVE_STATUSES.includes(candidate.status)
+  ).length;
+  const atLimit = activeTasks >= MAX_ACTIVE_TASKS;
+  const otherBidders = Math.max(task.bidCount - 1, 0);
+
+  return (
+    <div className="mt-1 flex flex-wrap items-center justify-between gap-2">
+      <span className="text-xs text-muted-foreground tabular-nums">
+        {activeTasks} of {MAX_ACTIVE_TASKS} active tasks
+      </span>
+
+      {assigned ? (
+        <Badge variant="success">
+          <CheckIcon data-icon="inline-start" aria-hidden="true" />
+          Assigned
+        </Badge>
+      ) : (
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={atLimit}
+          onClick={() => setConfirming(true)}
+          aria-label={atLimit ? `${bidder.name} is at the active-task limit` : `Assign this task to ${bidder.name}`}
+        >
+          <UserCheckIcon data-icon="inline-start" aria-hidden="true" />
+          {atLimit ? "At task limit" : `Assign to ${bidder.name}`}
+        </Button>
+      )}
+
+      <Dialog open={confirming} onOpenChange={setConfirming}>
+        <DialogContent className="sm:max-w-[440px]">
+          <DialogHeader className="gap-1">
+            <DialogTitle className="text-xl font-extrabold tracking-[-0.03em]">Assign to {bidder.name}?</DialogTitle>
+            <DialogDescription>
+              {bidder.name} ({bidder.ownerName}) gets the offer and starts work on &ldquo;{task.title}&rdquo;.
+              {otherBidders > 0 &&
+                ` The other ${otherBidders} ${otherBidders === 1 ? "bidder stays" : "bidders stay"} in the thread but won't be assigned.`}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirming(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                assignTask(task.id, bidder.id);
+                setConfirming(false);
+              }}
+            >
+              Assign task
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 }
 

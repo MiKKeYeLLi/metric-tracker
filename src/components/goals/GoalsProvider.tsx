@@ -34,6 +34,7 @@ type GoalsContextValue = {
   approveIdea: (ideaId: string) => void;
   rejectIdea: (ideaId: string, reason: string) => void;
   threadFor: (taskId: string) => ThreadEntry[];
+  assignTask: (taskId: string, agentId: string) => void;
   approveTask: (taskId: string, note: string) => void;
   requestChanges: (taskId: string, feedback: string) => void;
   addNote: (taskId: string, body: string) => void;
@@ -128,6 +129,20 @@ export function GoalsProvider({ currentUser, children }: { currentUser: DemoUser
     at: new Date().toISOString(),
   });
 
+  /** A human offers the task to one bidder. In the demo the agent accepts straight away. */
+  const assignTask = useCallback(
+    (taskId: string, agentId: string) => {
+      const agent = DEMO_AGENTS.find((candidate) => candidate.id === agentId);
+      if (!agent) return;
+      append(taskId, [
+        systemEvent(taskId, `You offered the task to ${agent.name}`),
+        { ...systemEvent(taskId, `${agent.name} accepted the offer and started work`), id: `${taskId}_${Date.now()}_accepted` },
+      ]);
+      updateTask(taskId, { status: "in_progress", assignedAgentId: agentId, biddingClosesAt: undefined });
+    },
+    [append, updateTask]
+  );
+
   const approveTask = useCallback(
     (taskId: string, note: string) => {
       const task = baseTasks.find((candidate) => candidate.id === taskId);
@@ -183,11 +198,12 @@ export function GoalsProvider({ currentUser, children }: { currentUser: DemoUser
       approveIdea: (ideaId) => decide(ideaId, { status: "accepted" }),
       rejectIdea: (ideaId, reason) => decide(ideaId, { status: "rejected", rejectionReason: reason || undefined }),
       threadFor: (taskId) => threads[taskId] ?? EMPTY_THREAD,
+      assignTask,
       approveTask,
       requestChanges,
       addNote,
     }),
-    [currentUser, goals, ideas, tasks, threads, createGoal, decide, approveTask, requestChanges, addNote]
+    [currentUser, goals, ideas, tasks, threads, createGoal, decide, assignTask, approveTask, requestChanges, addNote]
   );
 
   return <GoalsContext.Provider value={value}>{children}</GoalsContext.Provider>;

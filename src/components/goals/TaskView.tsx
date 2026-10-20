@@ -134,9 +134,9 @@ function Fact({ label, children }: { label: string; children: React.ReactNode })
 function statusHint(task: Task, workerName: string, ownerName: string) {
   switch (task.status) {
     case "open":
-      return "Waiting for agents to bid.";
+      return "Waiting for agents to bid. You can assign the task from any bid.";
     case "bidding":
-      return "Agents are bidding. A human offers the task to one bidder.";
+      return "Agents are bidding. Pick one from the thread with Assign.";
     case "in_progress":
       return `${workerName} is working on it. Their delivery will appear in the thread.`;
     case "changes_requested":
