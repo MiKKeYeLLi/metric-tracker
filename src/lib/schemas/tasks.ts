@@ -1,16 +1,17 @@
 import { z } from "@/lib/zod";
 
-export const legacyTaskTypeValues = [
+// --- Existing CRM Task Types (PascalCase) ---
+export const taskTypeValues = [
   "Call",
   "Email",
   "FollowUp",
   "Meeting",
   "Other",
 ] as const;
-export const legacyTaskTypeSchema = z.enum(legacyTaskTypeValues);
+export const taskTypeSchema = z.enum(taskTypeValues);
 
-// New task types required by the goals-workstreams backend spec
-export const taskTypeValues = [
+// --- New Goals & Workstreams Task Types (snake_case) ---
+export const goalTaskTypeValues = [
   "research",
   "lead_hunting",
   "content",
@@ -18,13 +19,15 @@ export const taskTypeValues = [
   "press",
   "other",
 ] as const;
-export const taskTypeSchema = z.enum(taskTypeValues);
+export const goalTaskTypeSchema = z.enum(goalTaskTypeValues);
 
 export const goalTaskCreateSchema = z
   .object({
     title: z.string().trim().min(1, "Title is required").max(200),
     description: z.string().trim().max(2000).nullable().optional(),
-    taskType: z.string().min(1, "Task type is required"),
+    taskType: goalTaskTypeSchema,
+    bountyUSD: z.number().min(0).optional(),
+    estimatedHours: z.number().min(0).optional(),
   })
   .openapi("GoalTaskCreate");
 
@@ -42,7 +45,7 @@ export const taskCreateSchema = z
   .object({
     title: taskFields.title,
     description: taskFields.description.optional(),
-    type: taskFields.type.default("other"),
+    type: taskFields.type.default("Other"),
     dueAt: taskFields.dueAt,
     assignToMe: taskFields.assignToMe.default(true),
     ownerId: taskFields.ownerId.optional(),
@@ -102,6 +105,7 @@ export const taskErrorSchema = z
   })
   .openapi("TaskError");
 
+// --- Offer & Assignment Schemas (CRM) ---
 export const offerCreateSchema = z
   .object({
     agentId: z.string().trim().min(1, "Agent ID is required"),
@@ -115,8 +119,8 @@ export const taskOfferedSchema = z
     id: z.string(),
     status: z.string(),
     offeredToAgentId: z.string().nullable(),
-    offeredAt: z.iso.datetime().nullable(),
-    offerExpiresAt: z.iso.datetime().nullable(),
+    offeredAt: z.string().nullable(),
+    offerExpiresAt: z.string().nullable(),
     assignedAgentId: z.string().nullable(),
   })
   .openapi("TaskOffered");

@@ -1,4 +1,7 @@
-import { OpenAPIRegistry, OpenApiGeneratorV31 } from "@asteasolutions/zod-to-openapi";
+import {
+  OpenAPIRegistry,
+  OpenApiGeneratorV31,
+} from "@asteasolutions/zod-to-openapi";
 import { z } from "@/lib/zod";
 import {
   agentCreateSchema,
@@ -37,7 +40,10 @@ import {
   outletUpdateSchema,
 } from "@/lib/schemas/media";
 import { agentInboxSchema, inboxErrorSchema } from "@/lib/schemas/inbox";
-import { overviewErrorSchema, overviewSummarySchema } from "@/lib/schemas/overview";
+import {
+  overviewErrorSchema,
+  overviewSummarySchema,
+} from "@/lib/schemas/overview";
 import {
   goalCreateSchema,
   goalDetailSchema,
@@ -69,27 +75,66 @@ import {
   ideaItemSchema,
 } from "@/lib/schemas/ideas";
 
+import { goalTaskCreateSchema } from "@/lib/schemas/tasks";
+
 // Register request/response schemas and paths here; they appear at /docs.
+
 export const registry = new OpenAPIRegistry();
+
+registry.registerPath({
+  method: "post",
+  path: "/api/workstreams/{id}/tasks",
+  summary: "Propose or create a task under a workstream",
+  tags: ["Workstreams"],
+  request: {
+    params: z.object({
+      id: z.string().openapi({ description: "Workstream ID" }),
+    }),
+    body: {
+      content: {
+        "application/json": {
+          schema: goalTaskCreateSchema,
+        },
+      },
+    },
+  },
+  responses: {
+    201: {
+      description: "Task created or proposed successfully",
+    },
+    400: {
+      description: "Bad Request or Workstream unaccepted",
+    },
+    404: {
+      description: "Workstream not found",
+    },
+    500: {
+      description: "Internal server error",
+    },
+  },
+});
 
 registry.registerComponent("securitySchemes", "agentKey", {
   type: "apiKey",
   in: "header",
   name: "X-Agent-Key",
-  description: "Agent API Key header (or Bearer token in Authorization header).",
+  description:
+    "Agent API Key header (or Bearer token in Authorization header).",
 });
 
 registry.registerComponent("securitySchemes", "sessionCookie", {
   type: "apiKey",
   in: "cookie",
   name: "next-auth.session-token",
-  description: "NextAuth session cookie — obtained after Google OAuth sign-in at `/api/auth/signin`.",
+  description:
+    "NextAuth session cookie — obtained after Google OAuth sign-in at `/api/auth/signin`.",
 });
 
 registry.registerComponent("securitySchemes", "agentKey", {
   type: "http",
   scheme: "bearer",
-  description: "Agent key (`zedu_ak_…`) issued when the agent is created. Send it as `Authorization: Bearer <key>`.",
+  description:
+    "Agent key (`zedu_ak_…`) issued when the agent is created. Send it as `Authorization: Bearer <key>`.",
 });
 
 registry.registerPath({
@@ -113,7 +158,9 @@ registry.registerPath({
   operationId: "createContent",
   tags: ["Content"],
   security: [{ sessionCookie: [] }],
-  request: { body: { content: { "application/json": { schema: contentCreateSchema } } } },
+  request: {
+    body: { content: { "application/json": { schema: contentCreateSchema } } },
+  },
   responses: {
     201: {
       description: "Content created",
@@ -326,7 +373,8 @@ registry.registerPath({
       },
     },
     400: {
-      description: "Bad request. Only published coverage can be featured, or limit reached.",
+      description:
+        "Bad request. Only published coverage can be featured, or limit reached.",
     },
     404: {
       description: "Media coverage record not found.",
@@ -451,7 +499,11 @@ registry.registerPath({
   tags: ["Directories"],
   summary: "Create a directory",
   security: [{ sessionCookie: [] }],
-  request: { body: { content: { "application/json": { schema: directoryCreateSchema } } } },
+  request: {
+    body: {
+      content: { "application/json": { schema: directoryCreateSchema } },
+    },
+  },
   responses: {
     201: {
       description: "Directory created",
@@ -496,7 +548,9 @@ registry.registerPath({
   security: [{ sessionCookie: [] }],
   request: {
     params: directoryIdParams,
-    body: { content: { "application/json": { schema: directoryUpdateSchema } } },
+    body: {
+      content: { "application/json": { schema: directoryUpdateSchema } },
+    },
   },
   responses: {
     200: {
@@ -554,7 +608,9 @@ registry.registerPath({
   security: [{ sessionCookie: [] }],
   request: {
     params: directoryIdParams,
-    body: { content: { "application/json": { schema: checklistItemCreateSchema } } },
+    body: {
+      content: { "application/json": { schema: checklistItemCreateSchema } },
+    },
   },
   responses: {
     201: {
@@ -584,7 +640,9 @@ registry.registerPath({
   security: [{ sessionCookie: [] }],
   request: {
     params: checklistItemParams,
-    body: { content: { "application/json": { schema: checklistItemUpdateSchema } } },
+    body: {
+      content: { "application/json": { schema: checklistItemUpdateSchema } },
+    },
   },
   responses: {
     200: {
@@ -625,7 +683,9 @@ registry.registerPath({
   responses: {
     200: {
       description: "Recent activity items",
-      content: { "application/json": { schema: directoryActivitySchema.array() } },
+      content: {
+        "application/json": { schema: directoryActivitySchema.array() },
+      },
     },
     401: { description: "Unauthorized" },
   },
@@ -654,7 +714,11 @@ registry.registerPath({
   tags: ["Directories"],
   summary: "Create saved copy item",
   security: [{ sessionCookie: [] }],
-  request: { body: { content: { "application/json": { schema: savedCopyCreateSchema } } } },
+  request: {
+    body: {
+      content: { "application/json": { schema: savedCopyCreateSchema } },
+    },
+  },
   responses: {
     201: {
       description: "Saved copy created",
@@ -681,7 +745,9 @@ registry.registerPath({
   security: [{ sessionCookie: [] }],
   request: {
     params: copyIdParams,
-    body: { content: { "application/json": { schema: savedCopyUpdateSchema } } },
+    body: {
+      content: { "application/json": { schema: savedCopyUpdateSchema } },
+    },
   },
   responses: {
     200: {
@@ -719,7 +785,8 @@ registry.registerPath({
   operationId: "getOverviewSummary",
   tags: ["Overview"],
   summary: "Overview dashboard summary",
-  description: "Aggregates KPIs, weekly content counts, upcoming items, and recent content for the overview dashboard.",
+  description:
+    "Aggregates KPIs, weekly content counts, upcoming items, and recent content for the overview dashboard.",
   security: [{ sessionCookie: [] }],
   responses: {
     200: {
@@ -739,9 +806,18 @@ const taskIdParams = z.object({
 });
 
 const taskListQuery = z.object({
-  status: z.enum(["open", "completed", "all"]).optional().openapi({ param: { name: "status", in: "query" } }),
-  type: z.enum(["Call", "Email", "FollowUp", "Meeting", "Other"]).optional().openapi({ param: { name: "type", in: "query" } }),
-  assignedToMe: z.enum(["true", "false"]).optional().openapi({ param: { name: "assignedToMe", in: "query" } }),
+  status: z
+    .enum(["open", "completed", "all"])
+    .optional()
+    .openapi({ param: { name: "status", in: "query" } }),
+  type: z
+    .enum(["Call", "Email", "FollowUp", "Meeting", "Other"])
+    .optional()
+    .openapi({ param: { name: "type", in: "query" } }),
+  assignedToMe: z
+    .enum(["true", "false"])
+    .optional()
+    .openapi({ param: { name: "assignedToMe", in: "query" } }),
 });
 
 registry.registerPath({
@@ -750,7 +826,8 @@ registry.registerPath({
   operationId: "listTasks",
   tags: ["Tasks"],
   summary: "List tasks",
-  description: "Retrieve tasks with optional status, type, and assignment filters.",
+  description:
+    "Retrieve tasks with optional status, type, and assignment filters.",
   security: [{ sessionCookie: [] }],
   request: { query: taskListQuery },
   responses: {
@@ -768,9 +845,12 @@ registry.registerPath({
   operationId: "createTask",
   tags: ["Tasks"],
   summary: "Create a new task",
-  description: "Create a task. If assignToMe is true, assigns the task to the current user.",
+  description:
+    "Create a task. If assignToMe is true, assigns the task to the current user.",
   security: [{ sessionCookie: [] }],
-  request: { body: { content: { "application/json": { schema: taskCreateSchema } } } },
+  request: {
+    body: { content: { "application/json": { schema: taskCreateSchema } } },
+  },
   responses: {
     201: {
       description: "Task created",
@@ -854,7 +934,8 @@ registry.registerPath({
   operationId: "listAgents",
   tags: ["Agents"],
   summary: "List my agents",
-  description: "Agents owned by the signed-in user, oldest first. Keys are never returned here.",
+  description:
+    "Agents owned by the signed-in user, oldest first. Keys are never returned here.",
   security: [{ sessionCookie: [] }],
   responses: {
     200: {
@@ -871,9 +952,12 @@ registry.registerPath({
   operationId: "createAgent",
   tags: ["Agents"],
   summary: "Create an agent",
-  description: "Creates an agent owned by the signed-in user. The response includes the plain key; it is not shown again.",
+  description:
+    "Creates an agent owned by the signed-in user. The response includes the plain key; it is not shown again.",
   security: [{ sessionCookie: [] }],
-  request: { body: { content: { "application/json": { schema: agentCreateSchema } } } },
+  request: {
+    body: { content: { "application/json": { schema: agentCreateSchema } } },
+  },
   responses: {
     201: {
       description: "Agent created",
@@ -936,7 +1020,8 @@ registry.registerPath({
   operationId: "regenerateAgentKey",
   tags: ["Agents"],
   summary: "Regenerate an agent's key",
-  description: "Issues a new key and revokes the old one immediately. The new plain key is returned only in this response.",
+  description:
+    "Issues a new key and revokes the old one immediately. The new plain key is returned only in this response.",
   security: [{ sessionCookie: [] }],
   request: { params: agentIdParams },
   responses: {
@@ -955,7 +1040,8 @@ registry.registerPath({
   operationId: "registerAgent",
   tags: ["Agent API"],
   summary: "Register (connect) the calling agent",
-  description: "The agent's first call. Marks it connected and returns its profile. Safe to call again.",
+  description:
+    "The agent's first call. Marks it connected and returns its profile. Safe to call again.",
   security: [{ agentKey: [] }],
   responses: {
     200: {
@@ -982,15 +1068,19 @@ registry.registerPath({
   },
 });
 
-const offerError = { content: { "application/json": { schema: taskErrorSchema } } };
+const offerError = {
+  content: { "application/json": { schema: taskErrorSchema } },
+};
 
 registry.registerPath({
   method: "post",
   path: "/api/tasks/{id}/offer",
   operationId: "offerTask",
   tags: ["Tasks"],
-  summary: "Offer an open or bidding task to an agent (human / Review Coordinator)",
-  description: "Sets offeredToAgentId, offeredAt and offerExpiresAt (now + 24h), and moves the task to bidding status.",
+  summary:
+    "Offer an open or bidding task to an agent (human / Review Coordinator)",
+  description:
+    "Sets offeredToAgentId, offeredAt and offerExpiresAt (now + 24h), and moves the task to bidding status.",
   security: [{ sessionCookie: [] }],
   request: {
     params: taskIdParams,
@@ -1001,7 +1091,10 @@ registry.registerPath({
       description: "Task offered",
       content: { "application/json": { schema: taskOfferedSchema } },
     },
-    400: { description: "Validation failed, or task is not open for offers", ...offerError },
+    400: {
+      description: "Validation failed, or task is not open for offers",
+      ...offerError,
+    },
     401: { description: "Unauthorized" },
     404: { description: "Not found" },
   },
@@ -1012,8 +1105,10 @@ registry.registerPath({
   path: "/api/tasks/{id}/accept-offer",
   operationId: "acceptTaskOffer",
   tags: ["Tasks"],
-  summary: "Accept an offered task (offered agent, authenticated via agent key)",
-  description: "Verifies the offer is unexpired and addressed to the calling agent, enforces the 2 active in-progress task limit, then assigns the agent and moves the task to in_progress.",
+  summary:
+    "Accept an offered task (offered agent, authenticated via agent key)",
+  description:
+    "Verifies the offer is unexpired and addressed to the calling agent, enforces the 2 active in-progress task limit, then assigns the agent and moves the task to in_progress.",
   security: [{ agentKey: [] }],
   request: {
     params: taskIdParams,
@@ -1024,7 +1119,10 @@ registry.registerPath({
       description: "Offer accepted, task assigned",
       content: { "application/json": { schema: taskOfferedSchema } },
     },
-    400: { description: "Validation failed, no offer, expired, or at task limit", ...offerError },
+    400: {
+      description: "Validation failed, no offer, expired, or at task limit",
+      ...offerError,
+    },
     401: { description: "Unauthorized / agent authentication required" },
     404: { description: "Not found" },
   },
@@ -1132,7 +1230,10 @@ const workstreamIdParams = z.object({
 });
 
 const workstreamListQuery = z.object({
-  goalId: z.string().optional().openapi({ param: { name: "goalId", in: "query" } }),
+  goalId: z
+    .string()
+    .optional()
+    .openapi({ param: { name: "goalId", in: "query" } }),
   status: workstreamStatusSchema
     .optional()
     .openapi({ param: { name: "status", in: "query" } }),
@@ -1144,7 +1245,8 @@ registry.registerPath({
   operationId: "listWorkstreams",
   tags: ["Workstreams"],
   summary: "List workstreams",
-  description: "List active/accepted workstreams across goals. Defaults to status=accepted.",
+  description:
+    "List active/accepted workstreams across goals. Defaults to status=accepted.",
   security: [{ sessionCookie: [] }],
   request: { query: workstreamListQuery },
   responses: {
@@ -1166,7 +1268,8 @@ registry.registerPath({
   operationId: "getWorkstream",
   tags: ["Workstreams"],
   summary: "Get workstream details",
-  description: "Retrieve workstream details including its tasks and auto-accept status.",
+  description:
+    "Retrieve workstream details including its tasks and auto-accept status.",
   security: [{ sessionCookie: [] }],
   request: { params: workstreamIdParams },
   responses: {
@@ -1185,16 +1288,21 @@ registry.registerPath({
   operationId: "toggleWorkstreamAutoAccept",
   tags: ["Workstreams"],
   summary: "Toggle auto-accept tasks on a workstream",
-  description: "Toggle or explicitly set the autoAcceptTasks boolean on a workstream.",
+  description:
+    "Toggle or explicitly set the autoAcceptTasks boolean on a workstream.",
   security: [{ sessionCookie: [] }],
   request: {
     params: workstreamIdParams,
-    body: { content: { "application/json": { schema: workstreamAutoAcceptSchema } } },
+    body: {
+      content: { "application/json": { schema: workstreamAutoAcceptSchema } },
+    },
   },
   responses: {
     200: {
       description: "Auto-accept updated",
-      content: { "application/json": { schema: workstreamAutoAcceptResponseSchema } },
+      content: {
+        "application/json": { schema: workstreamAutoAcceptResponseSchema },
+      },
     },
     400: {
       description: "Validation failed",
@@ -1209,8 +1317,12 @@ registry.registerPath({
 // ── Ideas (Goal → Idea → Workstream lifecycle) ──
 // An idea is a proposed `Workstream` row; accepting it promotes the same record to an
 // active workstream. Agents propose with an agent key; humans accept/reject via session.
-const ideaError = { content: { "application/json": { schema: ideaErrorSchema } } };
-const ideaIdParams = z.object({ id: z.string().openapi({ param: { name: "id", in: "path" } }) });
+const ideaError = {
+  content: { "application/json": { schema: ideaErrorSchema } },
+};
+const ideaIdParams = z.object({
+  id: z.string().openapi({ param: { name: "id", in: "path" } }),
+});
 
 registry.registerPath({
   method: "post",
@@ -1223,17 +1335,24 @@ registry.registerPath({
     "workstream) or rejects it. Duplicate titles under the same goal return 409, and an agent is " +
     "capped at 5 pending ideas per goal.",
   security: [{ agentKey: [] }],
-  request: { params: ideaIdParams, body: { content: { "application/json": { schema: ideaCreateSchema } } } },
+  request: {
+    params: ideaIdParams,
+    body: { content: { "application/json": { schema: ideaCreateSchema } } },
+  },
   responses: {
     201: {
       description: "Idea proposed",
       content: { "application/json": { schema: ideaItemSchema } },
     },
     400: {
-      description: "Validation failed, or the pending-idea cap (5 per agent per goal) is reached",
+      description:
+        "Validation failed, or the pending-idea cap (5 per agent per goal) is reached",
       ...ideaError,
     },
-    401: { description: "Unauthorized (missing or unknown agent key)", ...ideaError },
+    401: {
+      description: "Unauthorized (missing or unknown agent key)",
+      ...ideaError,
+    },
     404: { description: "Goal not found", ...ideaError },
     409: { description: "Duplicate title under this goal", ...ideaError },
   },
@@ -1245,7 +1364,8 @@ registry.registerPath({
   operationId: "acceptIdea",
   tags: ["Ideas"],
   summary: "Accept an idea, turning it into an active workstream",
-  description: "Humans only. The record's status moves from `proposed` to `accepted`; tasks can then be proposed in it.",
+  description:
+    "Humans only. The record's status moves from `proposed` to `accepted`; tasks can then be proposed in it.",
   security: [{ sessionCookie: [] }],
   request: { params: ideaIdParams },
   responses: {
@@ -1268,7 +1388,8 @@ registry.registerPath({
   operationId: "rejectIdea",
   tags: ["Ideas"],
   summary: "Reject an idea",
-  description: "Humans only. The record's status moves from `proposed` to `rejected` and stays visible as rejected.",
+  description:
+    "Humans only. The record's status moves from `proposed` to `rejected` and stays visible as rejected.",
   security: [{ sessionCookie: [] }],
   request: { params: ideaIdParams },
   responses: {
@@ -1313,8 +1434,14 @@ export function getOpenApiDocument() {
     info: {
       title: "Zedu Amp API",
       version: "1.0.0",
-      description: "REST API for Zedu Amp. Endpoints require an active NextAuth session unless noted.",
+      description:
+        "REST API for Zedu Amp. Endpoints require an active NextAuth session unless noted.",
     },
-    servers: [{ url: process.env.NEXTAUTH_URL ?? "http://localhost:3000", description: "Current environment" }],
+    servers: [
+      {
+        url: process.env.NEXTAUTH_URL ?? "http://localhost:3000",
+        description: "Current environment",
+      },
+    ],
   });
 }
