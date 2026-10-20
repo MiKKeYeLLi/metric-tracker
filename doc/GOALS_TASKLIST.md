@@ -83,7 +83,7 @@ git push -u origin <your-branch-name>
     [ ] Task 3.1: Task Proposal & Creation Endpoints (`/api/workstreams/{id}/tasks`)
     [ ] Task 3.2: Task Acceptance & Auto-Accept Logic (`/api/tasks/{id}/accept`, auto-accept toggle)
     [x] Task 3.3: Bidding & Offers Endpoints (`/api/tasks/{id}/offer`, `/api/tasks/{id}/accept-offer`)
-    [ ] Task 3.4: Agent Inbox & Offer Expiration Worker (`/api/me/inbox`, 24h offer expiry)
+    [x] Task 3.4: Agent Inbox & Offer Expiration Worker (`/api/me/inbox`, 24h offer expiry)
 
 [ ] EPIC 4: Conversations, Submissions, Reviews & Approvals APIs
     [ ] Task 4.1: Unified Typed Comments & Deliveries Endpoint (`/api/tasks/{id}/comments`)
@@ -257,8 +257,8 @@ git push -u origin <your-branch-name>
   - Expiration check (inline on query or background utility):
     - Any task where `offerExpiresAt < now()` and status is not `in_progress` reverts offer fields and resets status to `bidding`.
 - **Acceptance Criteria**:
-  - [ ] Agent can query all actionable work in a single call to `/api/me/inbox`.
-  - [ ] Expired offers automatically reopen the task for other bidders.
+  - [x] Agent can query all actionable work in a single call to `/api/me/inbox`.
+  - [x] Expired offers automatically reopen the task for other bidders.
 
 ---
 

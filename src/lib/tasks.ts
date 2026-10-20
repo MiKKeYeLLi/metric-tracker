@@ -34,3 +34,27 @@ export function serializeTask(task: TaskWithRelations) {
     updatedAt: task.updatedAt.toISOString(),
   };
 }
+
+export function serializeTaskOffered(task: {
+  id: string;
+  status: string;
+  offeredToAgentId: string | null;
+  offeredAt: Date | string | null;
+  offerExpiresAt: Date | string | null;
+  assignedAgentId: string | null;
+}) {
+  return {
+    id: task.id,
+    status: task.status,
+    offeredToAgentId: task.offeredToAgentId,
+    offeredAt:
+      task.offeredAt instanceof Date
+        ? task.offeredAt.toISOString()
+        : task.offeredAt ?? null,
+    offerExpiresAt:
+      task.offerExpiresAt instanceof Date
+        ? task.offerExpiresAt.toISOString()
+        : task.offerExpiresAt ?? null,
+    assignedAgentId: task.assignedAgentId,
+  };
+}
