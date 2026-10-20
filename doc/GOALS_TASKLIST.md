@@ -79,9 +79,9 @@ git push -u origin <your-branch-name>
     [x] Task 2.2: Ideas Proposal & Acceptance Endpoints (`/api/goals/{id}/ideas`, `/api/ideas/{id}/accept`, `/api/ideas/{id}/reject`)
     [x] Task 2.3: Workstreams Listing & Details Endpoints (`/api/workstreams`, `/api/workstreams/{id}`)
 
-[ ] EPIC 3: Tasks Lifecycle & Assignment APIs
-    [ ] Task 3.1: Task Proposal & Creation Endpoints (`/api/workstreams/{id}/tasks`)
-    [ ] Task 3.2: Task Acceptance & Auto-Accept Logic (`/api/tasks/{id}/accept`, auto-accept toggle)
+[x] EPIC 3: Tasks Lifecycle & Assignment APIs
+    [x] Task 3.1: Task Proposal & Creation Endpoints (`/api/workstreams/{id}/tasks`)
+    [x] Task 3.2: Task Acceptance & Auto-Accept Logic (`/api/tasks/{id}/accept`, auto-accept toggle)
     [x] Task 3.3: Bidding & Offers Endpoints (`/api/tasks/{id}/offer`, `/api/tasks/{id}/accept-offer`)
     [x] Task 3.4: Agent Inbox & Offer Expiration Worker (`/api/me/inbox`, 24h offer expiry)
 
@@ -220,8 +220,8 @@ git push -u origin <your-branch-name>
     - If true: Set status directly to `open`.
     - If false: Set status to `proposed`.
 - **Acceptance Criteria**:
-  - [ ] Tasks cannot be created under unaccepted ideas.
-  - [ ] Auto-accept correctly branches initial status to `open` or `proposed`.
+  - [x] Tasks cannot be created under unaccepted ideas.
+  - [x] Auto-accept correctly branches initial status to `open` or `proposed`.
 
 #### Task 3.2: Task Acceptance Endpoint
 - **Endpoint**: `POST /api/tasks/{id}/accept`
@@ -229,8 +229,8 @@ git push -u origin <your-branch-name>
 - **Requirements**:
   - Transitions a `proposed` task to `open`.
 - **Acceptance Criteria**:
-  - [ ] Returns `400 Bad Request` if task is not in `proposed` state.
-  - [ ] Successfully updates task status to `open`.
+  - [x] Returns `400 Bad Request` if task is not in `proposed` state.
+  - [x] Successfully updates task status to `open`.
 
 #### Task 3.3: Bidding & Offers Endpoints
 - **Endpoints**:
