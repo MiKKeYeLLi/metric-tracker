@@ -74,9 +74,9 @@ git push -u origin <your-branch-name>
     [x] Task 1.2: Agent & User Authentication Context Support
     [x] Task 1.3: Database Migrations & Initial Seed Data
 
-[ ] EPIC 2: Goals & Workstreams APIs
+[x] EPIC 2: Goals & Workstreams APIs
     [x] Task 2.1: Goals CRUD Endpoints (`/api/goals`, `/api/goals/{id}`)
-    [ ] Task 2.2: Ideas Proposal & Acceptance Endpoints (`/api/goals/{id}/ideas`, `/api/ideas/{id}/accept`, `/api/ideas/{id}/reject`)
+    [x] Task 2.2: Ideas Proposal & Acceptance Endpoints (`/api/goals/{id}/ideas`, `/api/ideas/{id}/accept`, `/api/ideas/{id}/reject`)
     [x] Task 2.3: Workstreams Listing & Details Endpoints (`/api/workstreams`, `/api/workstreams/{id}`)
 
 [ ] EPIC 3: Tasks Lifecycle & Assignment APIs
@@ -193,9 +193,9 @@ git push -u origin <your-branch-name>
   - `POST /api/ideas/{id}/accept`: Human accepts the idea, updating status to `accepted` (making it an active workstream).
   - `POST /api/ideas/{id}/reject`: Human rejects the idea, updating status to `rejected`.
 - **Acceptance Criteria**:
-  - [ ] Idea status defaults to `proposed`.
-  - [ ] Once accepted, the record can accept task proposals.
-  - [ ] Duplicate title under the same goal returns `409 Conflict`.
+  - [x] Idea status defaults to `proposed`.
+  - [x] Once accepted, the record can accept task proposals.
+  - [x] Duplicate title under the same goal returns `409 Conflict`.
 
 #### Task 2.3: Workstreams Listing & Details Endpoints
 - **Endpoints**:
