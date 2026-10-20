@@ -38,20 +38,21 @@ export function AgentSwitcher() {
     </>
   );
 
-  if (loading) {
-    return (
-      <>
-        {createButton}
-        <Skeleton className="h-10 w-32 rounded-full sm:w-44" />
-      </>
-    );
-  }
+  // The dialogs sit in one fixed place for every branch, so creating the first agent (which swaps the
+  // placeholder for the pill) doesn't remount the open dialog and lose its "ready" step.
+  const dialogs = (
+    <>
+      <CreateAgentDialog open={creating} onOpenChange={setCreating} />
+      {selected && <NewKeyDialog agent={selected} open={renewing} onOpenChange={setRenewing} />}
+    </>
+  );
 
-  if (!selected) {
+  if (loading || !selected) {
     return (
       <>
         {createButton}
-        <CreateAgentDialog open={creating} onOpenChange={setCreating} />
+        {dialogs}
+        {loading && <Skeleton className="h-10 w-32 rounded-full sm:w-44" />}
       </>
     );
   }
@@ -61,6 +62,7 @@ export function AgentSwitcher() {
   return (
     <>
       {createButton}
+      {dialogs}
       <div className="flex h-10 items-center rounded-full border border-border bg-card">
         <DropdownMenu>
           <DropdownMenuTrigger
@@ -129,9 +131,6 @@ export function AgentSwitcher() {
       <span className="sr-only" aria-live="polite">
         {promptCopied ? `Setup prompt for ${selected.name} copied, without the key` : ""}
       </span>
-
-      <NewKeyDialog agent={selected} open={renewing} onOpenChange={setRenewing} />
-      <CreateAgentDialog open={creating} onOpenChange={setCreating} />
     </>
   );
 }
