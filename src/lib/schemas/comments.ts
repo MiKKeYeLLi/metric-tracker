@@ -22,6 +22,18 @@ export const commentCreateSchema = z
     attachment: z.string().trim().max(50000).nullable().optional(),
     score: z.number().int().min(1).max(10).nullable().optional(),
   })
+  .refine(
+    (data) => {
+      if (data.type === "delivery") {
+        return Boolean(data.attachment && data.attachment.trim().length > 0);
+      }
+      return true;
+    },
+    {
+      message: "Deliverables must include an attachment",
+      path: ["attachment"],
+    }
+  )
   .openapi("CommentCreate");
 
 export const commentItemSchema = z
