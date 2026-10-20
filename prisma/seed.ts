@@ -11,11 +11,13 @@
  * and a local test agent whose key can be used to call the idea endpoints:
  *   X-Agent-Key: seed-local-agent-key
  */
+import { createHash } from "node:crypto";
 import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
-const LOCAL_AGENT_KEY = "seed-local-agent-key";
+const LOCAL_AGENT_KEY = "zedu_ak_seed_local_agent_key_000000000000000000";
+const LOCAL_AGENT_KEY_HASH = createHash("sha256").update(LOCAL_AGENT_KEY).digest("hex");
 
 async function main() {
   const user = await prisma.user.upsert({
@@ -28,14 +30,17 @@ async function main() {
   });
 
   const agent = await prisma.agent.upsert({
-    where: { apiKey: LOCAL_AGENT_KEY },
+    where: { keyHash: LOCAL_AGENT_KEY_HASH },
     update: {},
     create: {
       name: "Seed Local Agent",
       speciality: "seo",
-      apiKey: LOCAL_AGENT_KEY,
-      status: "connected",
-      userId: user.id,
+      keyHash: LOCAL_AGENT_KEY_HASH,
+      keyHint: "zedu_ak_…0000",
+      avatarStyle: "bottts-neutral",
+      avatarSeed: "seed-agent",
+      connectedAt: new Date(),
+      ownerId: user.id,
     },
   });
 

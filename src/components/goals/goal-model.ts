@@ -18,6 +18,7 @@ export type Agent = {
   name: string;
   speciality: string;
   ownerName: string;
+  lastActiveAt: string;
 };
 
 export type IdeaStatus = "proposed" | "accepted" | "rejected";
@@ -67,11 +68,43 @@ export type Task = {
   updatedAt: string;
   assignedAgentId?: string;
   bidCount: number;
+  /** A pending offer. The task stays in `bidding` until the agent accepts or the offer expires. */
+  offer?: TaskOffer;
   biddingClosesAt?: string;
   revisionCount: number;
   reviewCount: number;
   commentCount: number;
 };
+
+export type TaskOffer = { agentId: string; sentAt: string; expiresAt: string };
+
+/** A `bid` comment from the task thread, as the bids panel reads it. */
+export type Bid = {
+  id: string;
+  taskId: string;
+  agentId: string;
+  message: string;
+  createdAt: string;
+};
+
+export const OFFER_HOURS = 24;
+export const ACTIVE_TASK_LIMIT = 2;
+/** Demo total until the scoreboard exists: all points the signed-in user's agents have earned. */
+export const DEMO_POINTS_TOTAL = 1240;
+
+const ACTIVE_STATUSES: TaskStatus[] = ["in_progress", "changes_requested", "submitted", "in_review"];
+
+/** Fairness info shown on a bid, so whoever picks can see who is behind. */
+export function agentStats(agentId: string, tasks: Task[]) {
+  const given = tasks.filter((task) => task.assignedAgentId === agentId);
+  return {
+    activeTasks: given.filter((task) => ACTIVE_STATUSES.includes(task.status)).length,
+    tasksGiven: given.length,
+    pointsThisWeek: given
+      .filter((task) => task.status === "approved")
+      .reduce((total, task) => total + task.points, 0),
+  };
+}
 
 export type TaskStage = "open" | "in_progress" | "in_review" | "approved";
 
@@ -135,10 +168,34 @@ export function summarizeGoal(goalId: string, ideas: Idea[], tasks: Task[]): Goa
 }
 
 export const DEMO_AGENTS: Agent[] = [
-  { id: "agent_scout", name: "SEO Scout", speciality: "Technical SEO", ownerName: "Ada Okafor" },
-  { id: "agent_quill", name: "Quill", speciality: "Long-form content", ownerName: "Tunde Bello" },
-  { id: "agent_hunter", name: "Lead Hunter", speciality: "Lead research", ownerName: "Chioma Eze" },
-  { id: "agent_wire", name: "Newswire", speciality: "Press outreach", ownerName: "Ada Okafor" },
+  {
+    id: "agent_scout",
+    name: "SEO Scout",
+    speciality: "Technical SEO",
+    ownerName: "Ada Okafor",
+    lastActiveAt: "2026-10-20T08:40:00.000Z",
+  },
+  {
+    id: "agent_quill",
+    name: "Quill",
+    speciality: "Long-form content",
+    ownerName: "Tunde Bello",
+    lastActiveAt: "2026-10-20T09:05:00.000Z",
+  },
+  {
+    id: "agent_hunter",
+    name: "Lead Hunter",
+    speciality: "Lead research",
+    ownerName: "Chioma Eze",
+    lastActiveAt: "2026-10-19T17:30:00.000Z",
+  },
+  {
+    id: "agent_wire",
+    name: "Newswire",
+    speciality: "Press outreach",
+    ownerName: "Ada Okafor",
+    lastActiveAt: "2026-10-18T11:10:00.000Z",
+  },
 ];
 
 /** The first goal belongs to whoever is signed in, so the demo shows both the owner's and a viewer's view. */
@@ -283,9 +340,17 @@ export function demoIdeas(currentUser: DemoUser): Idea[] {
 type DemoTaskInput = Pick<Task, "id" | "workstreamId" | "title" | "description" | "taskType" | "status"> &
   Partial<Task> & { day: number };
 
+/** How many demo bids each bidding task starts with. */
+const DEMO_BID_COUNTS: Record<string, number> = {
+  task_alt_text: 3,
+  task_internal_links: 1,
+  task_canonical: 2,
+  task_flight_post: 2,
+};
+
 function demoTask({ day, ...task }: DemoTaskInput): Task {
   const at = `2026-10-${String(day).padStart(2, "0")}T09:00:00.000Z`;
-  const bidCount = task.bidCount ?? (task.assignedAgentId ? 2 : 0);
+  const bidCount = task.bidCount ?? DEMO_BID_COUNTS[task.id] ?? (task.assignedAgentId ? 2 : 0);
   const reviewCount = task.reviewCount ?? 0;
   const revisionCount = task.revisionCount ?? 0;
   return {
@@ -300,14 +365,20 @@ function demoTask({ day, ...task }: DemoTaskInput): Task {
   };
 }
 
-/** One line saying where a task stands: bids, who is working on it, revisions or reviews. */
-export function taskProgressLine(task: Task, worker?: Agent) {
+/** One line saying where a task stands: bids, the pending offer, who is working on it, revisions or reviews. */
+export function taskProgressLine(
+  task: Task,
+  { worker, offeredTo, bidCount }: { worker?: Agent; offeredTo?: Agent; bidCount: number }
+) {
   const name = worker?.name ?? "an agent";
+  if (task.offer) {
+    return `Offer sent to ${offeredTo?.name ?? "an agent"} · expires ${shortDateTime.format(new Date(task.offer.expiresAt))}`;
+  }
   switch (task.status) {
     case "open":
       return "Open for bids · no bids yet";
     case "bidding":
-      return `${task.bidCount} ${task.bidCount === 1 ? "bid" : "bids"}${
+      return `${bidCount} ${bidCount === 1 ? "bid" : "bids"}${
         task.biddingClosesAt ? ` · closes ${shortDateTime.format(new Date(task.biddingClosesAt))}` : ""
       }`;
     case "in_progress":
@@ -351,7 +422,6 @@ export function demoTasks(): Task[] {
       description: "Write descriptive alt text for the hero image on every landing page.",
       taskType: "SEO",
       status: "bidding",
-      bidCount: 3,
       biddingClosesAt: "2026-10-21T09:00:00.000Z",
       day: 19,
     }),
@@ -371,7 +441,6 @@ export function demoTasks(): Task[] {
       description: "Link each guide to at least two related guides.",
       taskType: "SEO",
       status: "bidding",
-      bidCount: 1,
       biddingClosesAt: "2026-10-21T15:00:00.000Z",
       day: 20,
     }),
@@ -441,7 +510,6 @@ export function demoTasks(): Task[] {
       description: "Stop duplicate content between /blog and /blog?page=1.",
       taskType: "SEO",
       status: "bidding",
-      bidCount: 2,
       biddingClosesAt: "2026-10-21T12:00:00.000Z",
       day: 19,
     }),
@@ -475,7 +543,6 @@ export function demoTasks(): Task[] {
       description: "A practical guide with five tips and sources.",
       taskType: "Content",
       status: "bidding",
-      bidCount: 2,
       biddingClosesAt: "2026-10-21T10:00:00.000Z",
       day: 19,
     }),

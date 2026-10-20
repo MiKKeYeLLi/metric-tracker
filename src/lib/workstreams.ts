@@ -33,12 +33,14 @@ export function extractAgentApiKey(request: Request): string | null {
   return null;
 }
 
+import { hashAgentKey } from "@/lib/agents";
+
 export async function authenticateAgentRequest(request: Request): Promise<Agent | null> {
   const apiKey = extractAgentApiKey(request);
   if (!apiKey) return null;
 
   const agent = await prisma.agent.findUnique({
-    where: { apiKey },
+    where: { keyHash: hashAgentKey(apiKey) },
   });
 
   if (!agent) return null;
@@ -47,7 +49,7 @@ export async function authenticateAgentRequest(request: Request): Promise<Agent 
     where: { id: agent.id },
     data: {
       lastActiveAt: new Date(),
-      status: "connected",
+      connectedAt: agent.connectedAt ?? new Date(),
     },
   });
 }

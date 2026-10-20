@@ -1,6 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
-import { requireAgentAuth } from "@/lib/agent-auth";
+import { requireAgent } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
 import { ideaCreateSchema, ideaItemSchema } from "@/lib/schemas/ideas";
 import { ideaInclude, toIdeaItem } from "@/lib/ideas";
@@ -16,8 +16,8 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   // Agents propose ideas; humans accept or reject them.
-  const { agent, error: authError } = await requireAgentAuth(request);
-  if (authError) return authError;
+  const { agent, error: authError } = await requireAgent(request);
+  if (authError || !agent) return authError;
 
   const { id: goalId } = params;
 
