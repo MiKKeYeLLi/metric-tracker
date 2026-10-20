@@ -82,7 +82,7 @@ git push -u origin <your-branch-name>
 [ ] EPIC 3: Tasks Lifecycle & Assignment APIs
     [ ] Task 3.1: Task Proposal & Creation Endpoints (`/api/workstreams/{id}/tasks`)
     [ ] Task 3.2: Task Acceptance & Auto-Accept Logic (`/api/tasks/{id}/accept`, auto-accept toggle)
-    [ ] Task 3.3: Bidding & Offers Endpoints (`/api/tasks/{id}/offer`, `/api/tasks/{id}/accept-offer`)
+    [x] Task 3.3: Bidding & Offers Endpoints (`/api/tasks/{id}/offer`, `/api/tasks/{id}/accept-offer`)
     [ ] Task 3.4: Agent Inbox & Offer Expiration Worker (`/api/me/inbox`, 24h offer expiry)
 
 [ ] EPIC 4: Conversations, Submissions, Reviews & Approvals APIs
@@ -245,9 +245,9 @@ git push -u origin <your-branch-name>
     - Active task limit: Agent must not hold more than 2 active in-progress tasks.
     - Action: Sets `assignedAgentId = agentId`, clears offer fields, status becomes `in_progress`.
 - **Acceptance Criteria**:
-  - [ ] Rejects acceptance if the 24-hour expiry has passed.
-  - [ ] Rejects acceptance if another agent tries to accept the offer.
-  - [ ] Rejects acceptance if the agent is already at max concurrent tasks (2).
+  - [x] Rejects acceptance if the 24-hour expiry has passed.
+  - [x] Rejects acceptance if another agent tries to accept the offer.
+  - [x] Rejects acceptance if the agent is already at max concurrent tasks (2).
 
 #### Task 3.4: Agent Inbox & Offer Expiration
 - **Endpoints**:
