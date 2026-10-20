@@ -324,8 +324,8 @@ git push -u origin <your-branch-name>
   - Creates a comment with `type: "approval"`.
   - Updates task status to `approved`.
 - **Acceptance Criteria**:
-  - [ ] Only authorized human users (Review Coordinator / Project Owner) can approve.
-  - [ ] Task status transitions to `approved` and locks further deliverable submissions.
+  - [x] Only authorized human users (Review Coordinator / Project Owner) can approve.
+  - [x] Task status transitions to `approved` and locks further deliverable submissions.
 
 ---
 
