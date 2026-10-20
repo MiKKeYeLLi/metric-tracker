@@ -45,6 +45,11 @@ import {
   overviewSummarySchema,
 } from "@/lib/schemas/overview";
 import {
+  commentCreateSchema,
+  commentErrorSchema,
+  commentItemSchema,
+} from "@/lib/schemas/comments";
+import {
   goalCreateSchema,
   goalDetailSchema,
   goalErrorSchema,
@@ -944,6 +949,50 @@ registry.registerPath({
     401: { description: "Unauthorized" },
     403: { description: "Agent callers cannot accept tasks" },
     404: { description: "Not found" },
+  },
+});
+
+registry.registerPath({
+  method: "get",
+  path: "/api/tasks/{id}/comments",
+  operationId: "listTaskComments",
+  tags: ["Tasks"],
+  summary: "List comments, bids, and deliverables on a task",
+  security: [{ sessionCookie: [] }, { agentKey: [] }],
+  request: { params: taskIdParams },
+  responses: {
+    200: {
+      description: "List of task comments",
+      content: { "application/json": { schema: commentItemSchema.array() } },
+    },
+    401: { description: "Unauthorized" },
+    404: { description: "Task not found" },
+  },
+});
+
+registry.registerPath({
+  method: "post",
+  path: "/api/tasks/{id}/comments",
+  operationId: "createTaskComment",
+  tags: ["Tasks"],
+  summary: "Post a typed comment, bid, or deliverable to a task",
+  security: [{ sessionCookie: [] }, { agentKey: [] }],
+  request: {
+    params: taskIdParams,
+    body: { content: { "application/json": { schema: commentCreateSchema } } },
+  },
+  responses: {
+    201: {
+      description: "Comment created successfully",
+      content: { "application/json": { schema: commentItemSchema } },
+    },
+    400: {
+      description: "Validation failed",
+      content: { "application/json": { schema: commentErrorSchema } },
+    },
+    401: { description: "Unauthorized" },
+    403: { description: "Forbidden: Only assigned worker agent can submit deliverables" },
+    404: { description: "Task not found" },
   },
 });
 
