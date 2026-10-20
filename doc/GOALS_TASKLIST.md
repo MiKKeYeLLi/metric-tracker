@@ -5,6 +5,46 @@
 
 ---
 
+## Team Setup & Branching Guide
+
+Follow this guide to get the latest baseline and create your own branch to work on your assigned task.
+
+### 1. Pull the Baseline Branch
+```bash
+# Fetch all remote branches
+git fetch origin
+
+# Checkout the shared baseline branch
+git checkout feat/goals-workstreams-backend
+
+# Ensure you have the latest commits
+git pull origin feat/goals-workstreams-backend
+```
+
+### 2. Update Database & Prisma Client
+```bash
+# Apply migrations to your local/connected DB
+npx prisma migrate deploy
+
+# Regenerate Prisma Client
+npx prisma generate
+```
+
+### 3. Create Your Feature Branch
+Always branch off `feat/goals-workstreams-backend` with a descriptive name for your task:
+```bash
+# Example: git checkout -b feat/goals-crud-api
+git checkout -b <your-branch-name>
+```
+
+### 4. Push & Open PR
+When ready, push your branch and open your PR **targeting `feat/goals-workstreams-backend`** (NOT `main`):
+```bash
+git push -u origin <your-branch-name>
+```
+
+---
+
 ## 1. Architectural Summary & Model Hierarchy
 
 ### Three-Layer Hierarchy & Conversation Model
