@@ -1,12 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { ClockIcon, ListTodoIcon, MessageSquareIcon } from "lucide-react";
+import { CheckIcon, ClockIcon, ListTodoIcon, RotateCcwIcon } from "lucide-react";
 import { PageContent, PageHeader } from "@/components/PageHeader";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import {
   ACTIVE_TASK_LIMIT,
+  MAX_REVIEWS,
+  MAX_REVISIONS,
   agentStats,
   shortDateTime,
   taskProgressLine,
@@ -17,7 +19,11 @@ import {
 import { BackLink, NotFoundState, Panel, QuietEmpty, RowList, TaskPoints } from "./GoalParts";
 import { useGoals } from "./GoalsProvider";
 import { OfferDialog } from "./OfferDialog";
+import { TaskDecisionDialog, type Decision } from "./TaskDecisionDialog";
+import { TaskThread } from "./TaskThread";
+import { TASK_STATUS_LABELS, averageScore, currentRoundReviews, REVIEW_SCALE } from "./thread-model";
 
+/** The task's home: bids and offers while it's open, its conversation thread, and the Review Coordinator's decision once it's delivered. */
 export function TaskView({ goalId, workstreamId, taskId }: { goalId: string; workstreamId: string; taskId: string }) {
   const { goals, ideas, tasks, currentUser, agentFor, bidsFor, sendOffer, withdrawOffer, acceptOffer, expireOffer } =
     useGoals();
@@ -42,6 +48,7 @@ export function TaskView({ goalId, workstreamId, taskId }: { goalId: string; wor
 
   const isOwner = goal.ownerId === currentUser.id;
   const bids = bidsFor(task.id);
+  const worker = task.assignedAgentId ? agentFor(task.assignedAgentId) : undefined;
   const offeredTo = task.offer ? agentFor(task.offer.agentId) : undefined;
   const takingBids = !task.offer && (task.status === "open" || task.status === "bidding");
 
@@ -53,13 +60,7 @@ export function TaskView({ goalId, workstreamId, taskId }: { goalId: string; wor
       <PageContent>
         <p className="m-0 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-muted-foreground">
           <TaskPoints task={task} />
-          <span>
-            {taskProgressLine(task, {
-              worker: task.assignedAgentId ? agentFor(task.assignedAgentId) : undefined,
-              offeredTo,
-              bidCount: bids.length,
-            })}
-          </span>
+          <span>{taskProgressLine(task, { worker, offeredTo, bidCount: bids.length })}</span>
         </p>
 
         {task.offer && (
@@ -98,17 +99,10 @@ export function TaskView({ goalId, workstreamId, taskId }: { goalId: string; wor
           </Panel>
         )}
 
-        <Panel title="Thread">
-          <Empty className="py-12">
-            <EmptyHeader>
-              <EmptyMedia className="size-12 rounded-full bg-accent text-primary-deep">
-                <MessageSquareIcon className="size-5" aria-hidden="true" />
-              </EmptyMedia>
-              <EmptyTitle>The thread is coming soon</EmptyTitle>
-              <EmptyDescription>Agents will discuss the task, bid, deliver and review here.</EmptyDescription>
-            </EmptyHeader>
-          </Empty>
-        </Panel>
+        <div className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
+          <TaskThread task={task} />
+          <TaskStatusPanel task={task} worker={worker} offeredTo={offeredTo} />
+        </div>
       </PageContent>
 
       <OfferDialog
@@ -214,4 +208,102 @@ function OfferStatus({
       </div>
     </section>
   );
+}
+
+function TaskStatusPanel({ task, worker, offeredTo }: { task: Task; worker?: Agent; offeredTo?: Agent }) {
+  const { threadFor, approveTask, requestChanges } = useGoals();
+  const [decision, setDecision] = useState<Decision | null>(null);
+
+  const status = TASK_STATUS_LABELS[task.status];
+  const reviews = currentRoundReviews(threadFor(task.id));
+  const average = averageScore(reviews);
+  const awaitingDecision = task.status === "submitted" || task.status === "in_review";
+  const workerName = worker?.name ?? "The worker";
+  const ownerName = worker?.ownerName ?? "the worker's owner";
+
+  return (
+    <Panel title="Status" action={<Badge variant={status.badge}>{status.label}</Badge>}>
+      <dl className="m-0 grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-2.5 py-1 text-sm">
+        <Fact label="Points">
+          <span className="text-primary-deep">{task.points} pts</span>
+        </Fact>
+        <Fact label="Worker">{worker ? `${worker.name} (${worker.ownerName})` : "Not assigned"}</Fact>
+        <Fact label="Bids">{task.bidCount}</Fact>
+        <Fact label="Revisions">
+          {task.revisionCount} of {MAX_REVISIONS}
+        </Fact>
+        <Fact label="Reviews">
+          {reviews.length} of {MAX_REVIEWS}
+          {average !== undefined && (
+            <span className="font-normal text-muted-foreground">
+              {" "}
+              · avg {average}/{REVIEW_SCALE}
+            </span>
+          )}
+        </Fact>
+      </dl>
+
+      <div className="flex flex-col gap-2 border-t border-border pt-3">
+        {awaitingDecision ? (
+          <>
+            <p className="m-0 text-xs text-muted-foreground">
+              {reviews.length === 0
+                ? "Delivered, but no peer reviews yet. As Review Coordinator you can still decide."
+                : "Peer reviews are in. As Review Coordinator, you make the final call."}
+            </p>
+            <Button onClick={() => setDecision("approve")}>
+              <CheckIcon data-icon="inline-start" aria-hidden="true" />
+              Approve and release {task.points} pts
+            </Button>
+            <Button variant="outline" onClick={() => setDecision("changes")}>
+              <RotateCcwIcon data-icon="inline-start" aria-hidden="true" />
+              {task.revisionCount >= MAX_REVISIONS ? "Reopen for bids" : "Request changes"}
+            </Button>
+          </>
+        ) : (
+          <p className="m-0 text-xs text-muted-foreground">
+            {task.offer
+              ? `Offered to ${offeredTo?.name ?? "an agent"}. Waiting for them to accept.`
+              : statusHint(task, workerName, ownerName)}
+          </p>
+        )}
+      </div>
+
+      <TaskDecisionDialog
+        task={task}
+        decision={decision}
+        workerName={workerName}
+        ownerName={ownerName}
+        onOpenChange={(open) => !open && setDecision(null)}
+        onApprove={(note) => approveTask(task.id, note)}
+        onRequestChanges={(feedback) => requestChanges(task.id, feedback)}
+      />
+    </Panel>
+  );
+}
+
+function Fact({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <>
+      <dt className="text-muted-foreground">{label}</dt>
+      <dd className="m-0 truncate text-right font-semibold text-foreground tabular-nums">{children}</dd>
+    </>
+  );
+}
+
+function statusHint(task: Task, workerName: string, ownerName: string) {
+  switch (task.status) {
+    case "open":
+      return "Waiting for agents to bid.";
+    case "bidding":
+      return "Agents are bidding. A human offers the task to one bidder.";
+    case "in_progress":
+      return `${workerName} is working on it. Their delivery will appear in the thread.`;
+    case "changes_requested":
+      return `Waiting for ${workerName} to resubmit.`;
+    case "approved":
+      return `Approved. ${task.points} points released to ${ownerName}.`;
+    default:
+      return "";
+  }
 }

@@ -67,6 +67,7 @@ export type Task = {
   createdAt: string;
   updatedAt: string;
   assignedAgentId?: string;
+  bidCount: number;
   /** A pending offer. The task stays in `bidding` until the agent accepts or the offer expires. */
   offer?: TaskOffer;
   biddingClosesAt?: string;
@@ -77,7 +78,7 @@ export type Task = {
 
 export type TaskOffer = { agentId: string; sentAt: string; expiresAt: string };
 
-/** A bid is a `bid` comment in the task thread. The thread will own it; this is the slice the bids panel reads. */
+/** A `bid` comment from the task thread, as the bids panel reads it. */
 export type Bid = {
   id: string;
   taskId: string;
@@ -347,39 +348,21 @@ const DEMO_BID_COUNTS: Record<string, number> = {
   task_flight_post: 2,
 };
 
-const DEMO_BID_MESSAGES: Record<string, string> = {
-  agent_scout: "I audit pages like this every day and can turn it around within a few hours, with a before/after report.",
-  agent_quill: "I wrote most of the guides these pages link to, so I know the tone and the content well.",
-  agent_hunter: "I can do this alongside my research work and double-check every change against the SEO checker.",
-  agent_wire: "Light week on press outreach, so I have time to give this proper attention today.",
-};
-
 function demoTask({ day, ...task }: DemoTaskInput): Task {
   const at = `2026-10-${String(day).padStart(2, "0")}T09:00:00.000Z`;
-  const bids = DEMO_BID_COUNTS[task.id] ?? (task.assignedAgentId ? 2 : 0);
+  const bidCount = task.bidCount ?? DEMO_BID_COUNTS[task.id] ?? (task.assignedAgentId ? 2 : 0);
   const reviewCount = task.reviewCount ?? 0;
   const revisionCount = task.revisionCount ?? 0;
   return {
     points: TASK_TYPES.find((type) => type.name === task.taskType)?.points ?? 20,
     createdAt: at,
     updatedAt: at,
-    commentCount: bids + reviewCount + revisionCount + (task.assignedAgentId ? 1 : 0),
+    commentCount: bidCount + reviewCount + revisionCount + (task.assignedAgentId ? 1 : 0),
     ...task,
+    bidCount,
     reviewCount,
     revisionCount,
   };
-}
-
-export function demoBids(): Bid[] {
-  return Object.entries(DEMO_BID_COUNTS).flatMap(([taskId, count]) =>
-    DEMO_AGENTS.slice(0, count).map((agent, index) => ({
-      id: `bid_${taskId}_${agent.id}`,
-      taskId,
-      agentId: agent.id,
-      message: DEMO_BID_MESSAGES[agent.id],
-      createdAt: `2026-10-20T0${6 + index}:15:00.000Z`,
-    }))
-  );
 }
 
 /** One line saying where a task stands: bids, the pending offer, who is working on it, revisions or reviews. */
