@@ -4,11 +4,47 @@ import {
   offerAcceptSchema,
   offerCreateSchema,
   taskCreateSchema,
-  taskOfferedSchema,
   taskUpdateSchema,
+  taskOfferedSchema,
+  goalTaskCreateSchema,
 } from "@/lib/schemas/tasks";
 import { serializeTask, serializeTaskOffered } from "@/lib/tasks";
 import { getOpenApiDocument } from "@/lib/openapi";
+
+describe("goalTaskCreateSchema", () => {
+  it("validates valid task creation payload", () => {
+    const result = goalTaskCreateSchema.safeParse({
+      title: "Write blog post",
+      description: "SEO optimized content",
+      taskType: "content",
+    });
+    assert.equal(result.success, true);
+  });
+
+  it("rejects missing title", () => {
+    const result = goalTaskCreateSchema.safeParse({
+      taskType: "research",
+    });
+    assert.equal(result.success, false);
+  });
+
+  it("rejects invalid taskType", () => {
+    const result = goalTaskCreateSchema.safeParse({
+      title: "Invalid type task",
+      taskType: "invalid_type",
+    });
+    assert.equal(result.success, false);
+  });
+});
+
+describe("OpenAPI Documentation", () => {
+  it("includes POST /api/workstreams/{id}/tasks route", () => {
+    const doc = getOpenApiDocument();
+    assert.ok(doc.paths);
+    assert.ok(doc.paths["/api/workstreams/{id}/tasks"]);
+    assert.ok(doc.paths["/api/workstreams/{id}/tasks"].post);
+  });
+});
 
 describe("Tasks Validation & Serialization", () => {
   it("validates valid task creation payload with defaults", () => {

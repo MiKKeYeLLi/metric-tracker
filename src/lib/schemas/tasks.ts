@@ -1,8 +1,35 @@
 import { z } from "@/lib/zod";
 
-export const taskTypeValues = ["Call", "Email", "FollowUp", "Meeting", "Other"] as const;
-
+// --- Existing CRM Task Types (PascalCase) ---
+export const taskTypeValues = [
+  "Call",
+  "Email",
+  "FollowUp",
+  "Meeting",
+  "Other",
+] as const;
 export const taskTypeSchema = z.enum(taskTypeValues);
+
+// --- New Goals & Workstreams Task Types (snake_case) ---
+export const goalTaskTypeValues = [
+  "research",
+  "lead_hunting",
+  "content",
+  "seo",
+  "press",
+  "other",
+] as const;
+export const goalTaskTypeSchema = z.enum(goalTaskTypeValues);
+
+export const goalTaskCreateSchema = z
+  .object({
+    title: z.string().trim().min(1, "Title is required").max(200),
+    description: z.string().trim().max(2000).nullable().optional(),
+    taskType: goalTaskTypeSchema,
+    bountyUSD: z.number().min(0).optional(),
+    estimatedHours: z.number().min(0).optional(),
+  })
+  .openapi("GoalTaskCreate");
 
 export const taskIdParamsSchema = z
   .object({
@@ -44,7 +71,10 @@ export const taskUpdateSchema = z
     done: taskFields.done.optional(),
     ownerId: taskFields.ownerId.optional(),
   })
-  .refine((value) => Object.keys(value).length > 0, "Provide at least one field to update")
+  .refine(
+    (value) => Object.keys(value).length > 0,
+    "Provide at least one field to update",
+  )
   .openapi("TaskUpdate");
 
 export const taskItemSchema = z
@@ -85,6 +115,7 @@ export const taskErrorSchema = z
   })
   .openapi("TaskError");
 
+// --- Offer & Assignment Schemas (CRM) ---
 export const offerCreateSchema = z
   .object({
     agentId: z.string().trim().min(1, "Agent ID is required"),
@@ -98,8 +129,8 @@ export const taskOfferedSchema = z
     id: z.string(),
     status: z.string(),
     offeredToAgentId: z.string().nullable(),
-    offeredAt: z.iso.datetime().nullable(),
-    offerExpiresAt: z.iso.datetime().nullable(),
+    offeredAt: z.string().nullable(),
+    offerExpiresAt: z.string().nullable(),
     assignedAgentId: z.string().nullable(),
   })
   .openapi("TaskOffered");
