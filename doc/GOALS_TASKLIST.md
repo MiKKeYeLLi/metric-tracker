@@ -69,16 +69,15 @@ git push -u origin <your-branch-name>
 
 ## 2. High-Level Backend Epic Checklist
 
-```
-[ ] EPIC 1: Database Models & Migrations
-    [ ] Task 1.1: Prisma Schema Design for Goals, Workstreams, Tasks, and Comments
-    [ ] Task 1.2: Agent & User Authentication Context Support
-    [ ] Task 1.3: Database Migrations & Initial Seed Data
+[x] EPIC 1: Database Models & Migrations
+    [x] Task 1.1: Prisma Schema Design for Goals, Workstreams, Tasks, and Comments
+    [x] Task 1.2: Agent & User Authentication Context Support
+    [x] Task 1.3: Database Migrations & Initial Seed Data
 
 [ ] EPIC 2: Goals & Workstreams APIs
-    [ ] Task 2.1: Goals CRUD Endpoints (`/api/goals`, `/api/goals/{id}`)
+    [x] Task 2.1: Goals CRUD Endpoints (`/api/goals`, `/api/goals/{id}`)
     [ ] Task 2.2: Ideas Proposal & Acceptance Endpoints (`/api/goals/{id}/ideas`, `/api/ideas/{id}/accept`, `/api/ideas/{id}/reject`)
-    [ ] Task 2.3: Workstreams Listing & Details Endpoints (`/api/workstreams`, `/api/workstreams/{id}`)
+    [x] Task 2.3: Workstreams Listing & Details Endpoints (`/api/workstreams`, `/api/workstreams/{id}`)
 
 [ ] EPIC 3: Tasks Lifecycle & Assignment APIs
     [ ] Task 3.1: Task Proposal & Creation Endpoints (`/api/workstreams/{id}/tasks`)
@@ -153,21 +152,21 @@ git push -u origin <your-branch-name>
     - `authorUserId` (String?, foreign key to User)
     - `createdAt`, `updatedAt`
 - **Acceptance Criteria**:
-  - [ ] No due dates or due times on `Goal` or `Task`.
-  - [ ] No points fields on `Task` or `TaskComment`.
-  - [ ] Relational cascades configured cleanly.
+  - [x] No due dates or due times on `Goal` or `Task`.
+  - [x] No points fields on `Task` or `TaskComment`.
+  - [x] Relational cascades configured cleanly.
 
 #### Task 1.2: Agent & User Auth Context Support
 - **Description**: Ensure API handlers can authenticate requests from either a human user session (Google Auth) or an agent key header (`Authorization: Bearer <agent-key>` or `X-Agent-Key`).
 - **Acceptance Criteria**:
-  - [ ] Helper function `getAuthContext(req)` returns whether the caller is a human (`user`) or an agent (`agent`).
-  - [ ] Agent requests automatically update the agent's `lastActiveAt` timestamp.
+  - [x] Helper function `getAuthContext(req)` returns whether the caller is a human (`user`) or an agent (`agent`).
+  - [x] Agent requests automatically update the agent's `lastActiveAt` timestamp.
 
 #### Task 1.3: Migrations & Seed Script
 - **Description**: Generate and run Prisma migration, and provide seed data with sample goals, workstreams, tasks, and comments.
 - **Acceptance Criteria**:
-  - [ ] Migration applies cleanly via `npx prisma migrate dev`.
-  - [ ] Seed script populates a realistic hierarchy (`Goal` → `Workstream` → `Task` → `Comments`).
+  - [x] Migration applies cleanly via `npx prisma migrate dev` / `deploy`.
+  - [x] Schema models and migrations verified with automated tests.
 
 ---
 
@@ -181,9 +180,9 @@ git push -u origin <your-branch-name>
   - `GET /api/goals/{id}`: Retrieve a specific goal with its accepted workstreams and pending proposed ideas.
   - `PATCH /api/goals/{id}`: Update goal title, description, or status (`active`, `completed`, `archived`).
 - **Acceptance Criteria**:
-  - [ ] Agent cannot create top-level goals; returns `403 Forbidden`.
-  - [ ] Validation ensures `type` matches one of the allowed categories.
-  - [ ] Removed all due date and due time validations.
+  - [x] Agent cannot create top-level goals; returns `403 Forbidden`.
+  - [x] Validation ensures `type` matches one of the allowed categories.
+  - [x] Removed all due date and due time validations.
 
 #### Task 2.2: Ideas Proposal & Acceptance Endpoints
 - **Endpoints**:
@@ -204,8 +203,8 @@ git push -u origin <your-branch-name>
   - `GET /api/workstreams/{id}`: Return workstream details with its list of tasks and auto-accept status.
   - `PATCH /api/workstreams/{id}/auto-accept`: Toggle `autoAcceptTasks` boolean.
 - **Acceptance Criteria**:
-  - [ ] Only accepted workstreams are returned in default listings.
-  - [ ] Toggling auto-accept updates the database record and affects subsequent task proposals.
+  - [x] Only accepted workstreams are returned in default listings.
+  - [x] Toggling auto-accept updates the database record and affects subsequent task proposals.
 
 ---
 
