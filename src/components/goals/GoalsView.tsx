@@ -52,10 +52,6 @@ export function GoalsView() {
               options={[{ value: "all", label: "All" }, ...GOAL_TYPES.map((type) => ({ value: type, label: type }))]}
             />
           </ToolbarGroup>
-          <Button onClick={() => setFormOpen(true)}>
-            <PlusIcon data-icon="inline-start" aria-hidden="true" />
-            New goal
-          </Button>
         </Toolbar>
 
         <Panel title="Goals" count={filtering ? filtered.length : goals.length}>

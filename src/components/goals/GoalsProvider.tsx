@@ -25,7 +25,7 @@ type GoalsContextValue = {
   tasks: Task[];
   bidsFor: (taskId: string) => Bid[];
   agentFor: (agentId: string) => Agent | undefined;
-  createGoal: (input: NewGoal) => void;
+  createGoal: (input: NewGoal) => Goal;
   approveIdea: (ideaId: string) => void;
   rejectIdea: (ideaId: string, reason: string) => void;
   sendOffer: (taskId: string, agentId: string) => void;
@@ -37,7 +37,7 @@ type GoalsContextValue = {
 
 const GoalsContext = createContext<GoalsContextValue | undefined>(undefined);
 
-/** Demo-only store for the Goals section. State lives in the browser until the backend is connected. */
+/** Demo-only store for the Goals section, mounted by the dashboard layout so the top bar can create goals. */
 export function GoalsProvider({ currentUser, children }: { currentUser: DemoUser; children: React.ReactNode }) {
   const [goals, setGoals] = useState(() => demoGoals(currentUser));
   const [ideas, setIdeas] = useState(() => demoIdeas(currentUser));
@@ -45,17 +45,17 @@ export function GoalsProvider({ currentUser, children }: { currentUser: DemoUser
   const [bids] = useState(demoBids);
 
   const createGoal = useCallback(
-    (input: NewGoal) =>
-      setGoals((previous) => [
-        {
-          ...input,
-          id: `goal_${Date.now()}`,
-          ownerId: currentUser.id,
-          ownerName: currentUser.name,
-          createdAt: new Date().toISOString(),
-        },
-        ...previous,
-      ]),
+    (input: NewGoal) => {
+      const goal: Goal = {
+        ...input,
+        id: `goal_${Date.now()}`,
+        ownerId: currentUser.id,
+        ownerName: currentUser.name,
+        createdAt: new Date().toISOString(),
+      };
+      setGoals((previous) => [goal, ...previous]);
+      return goal;
+    },
     [currentUser]
   );
 

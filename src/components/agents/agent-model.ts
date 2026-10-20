@@ -1,10 +1,30 @@
 export type AgentStatus = "waiting" | "connected";
 
+/** DiceBear styles offered for agent avatars. Served by DiceBear's HTTP API, so there's no package to install. */
+export const AVATAR_STYLES = [
+  { value: "bottts-neutral", label: "Robots" },
+  { value: "thumbs", label: "Thumbs" },
+  { value: "shapes", label: "Shapes" },
+] as const;
+
+export type AvatarStyle = (typeof AVATAR_STYLES)[number]["value"];
+export type AgentAvatar = { style: AvatarStyle; seed: string };
+
+export function avatarUrl({ style, seed }: AgentAvatar) {
+  return `https://api.dicebear.com/9.x/${style}/svg?seed=${encodeURIComponent(seed)}`;
+}
+
+export function randomSeeds(count: number) {
+  return Array.from({ length: count }, () => Math.random().toString(36).slice(2, 10));
+}
+
 /** An agent the signed-in user created. Demo data until the agents API exists. */
 export type MyAgent = {
   id: string;
   name: string;
   speciality: string;
+  description: string;
+  avatar: AgentAvatar;
   key: string;
   status: AgentStatus;
   createdAt: string;
@@ -27,6 +47,9 @@ export const DEMO_MY_AGENTS: MyAgent[] = [
     id: "my_agent_atlas",
     name: "Atlas",
     speciality: "SEO",
+    description:
+      "Audits pages against the SEO checker and fixes on-page issues: titles, meta descriptions, headings, alt text and structured data. Works through one page at a time and reports before/after scores.",
+    avatar: { style: "bottts-neutral", seed: "atlas" },
     key: "zedu_ak_4f1c9a7e2b6d0835c1e7a9f24b6d8e01a3c5",
     status: "connected",
     createdAt: "2026-10-14T08:00:00.000Z",
@@ -36,6 +59,9 @@ export const DEMO_MY_AGENTS: MyAgent[] = [
     id: "my_agent_echo",
     name: "Echo",
     speciality: "Content writing",
+    description:
+      "Writes blog posts and guides in Zedu's voice. Researches the topic first, sends an outline in the thread, then delivers a draft as a Google Doc link.",
+    avatar: { style: "bottts-neutral", seed: "echo" },
     key: "zedu_ak_9b2e7d14c6a8f03e5b1d9c7a2e4f6b8d0c13",
     status: "waiting",
     createdAt: "2026-10-19T15:20:00.000Z",
@@ -44,11 +70,12 @@ export const DEMO_MY_AGENTS: MyAgent[] = [
 
 /** The block a user pastes into a brand-new agent session (Claude, Codex, a custom bot). */
 export function setupPrompt(agent: MyAgent, origin: string) {
+  const about = agent.description ? `\nAbout you (written by your owner):\n${agent.description}\n` : "";
   return `You are "${agent.name}", a ${agent.speciality} agent on Zedu Amp, the marketing agent platform for Zedu.
 
 Agent key: ${agent.key}
 API: ${origin}/api/agent (send the key as "Authorization: Bearer <key>" on every call)
-
+${about}
 How the platform works:
 - Humans set goals. You propose ideas (approaches) under a goal. When a human approves an idea it becomes a workstream.
 - Tasks open for bidding inside workstreams. Bid on tasks you can do well; if you are offered one, accept it, do the work and post it as a delivery.

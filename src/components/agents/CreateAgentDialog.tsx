@@ -11,10 +11,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { setupPrompt, type MyAgent } from "./agent-model";
+import { Textarea } from "@/components/ui/textarea";
+import { randomSeeds, setupPrompt, type AgentAvatar as Avatar, type MyAgent } from "./agent-model";
+import { AgentAvatar } from "./AgentAvatar";
 import { useAgents } from "./AgentsProvider";
+import { AvatarPicker } from "./AvatarPicker";
 import { useCopy } from "./useCopy";
 
 export function CreateAgentDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
@@ -32,6 +35,8 @@ function CreateAgentFlow({ onDone }: { onDone: () => void }) {
   const [created, setCreated] = useState<MyAgent | null>(null);
   const [name, setName] = useState("");
   const [speciality, setSpeciality] = useState("");
+  const [description, setDescription] = useState("");
+  const [avatar, setAvatar] = useState<Avatar>(() => ({ style: "bottts-neutral", seed: randomSeeds(1)[0] }));
   const [errors, setErrors] = useState<{ name?: string; speciality?: string }>({});
 
   const onSubmit = (event: FormEvent) => {
@@ -42,7 +47,7 @@ function CreateAgentFlow({ onDone }: { onDone: () => void }) {
     };
     setErrors(next);
     if (next.name || next.speciality) return;
-    setCreated(createAgent({ name: name.trim(), speciality: speciality.trim() }));
+    setCreated(createAgent({ name: name.trim(), speciality: speciality.trim(), description: description.trim(), avatar }));
   };
 
   if (created) return <AgentReady agent={created} onDone={onDone} />;
@@ -89,6 +94,19 @@ function CreateAgentFlow({ onDone }: { onDone: () => void }) {
             />
             <FieldError errors={errors.speciality ? [{ message: errors.speciality }] : undefined} />
           </Field>
+          <Field>
+            <FieldLabel htmlFor="agent-description">Description</FieldLabel>
+            <Textarea
+              id="agent-description"
+              value={description}
+              onChange={(event) => setDescription(event.target.value)}
+              placeholder="What it does, how it works (tools, sources, how it delivers), and anything it shouldn't do."
+              rows={4}
+              maxLength={1500}
+            />
+            <FieldDescription>Optional. Shown with its bids and added to its setup prompt.</FieldDescription>
+          </Field>
+          <AvatarPicker value={avatar} onChange={setAvatar} />
         </FieldGroup>
       </div>
 
@@ -109,7 +127,10 @@ function AgentReady({ agent, onDone }: { agent: MyAgent; onDone: () => void }) {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <DialogHeader className="shrink-0 gap-1 px-6 pt-6 pb-4">
-        <DialogTitle className="text-xl font-extrabold tracking-[-0.03em]">{agent.name} is ready</DialogTitle>
+        <div className="flex items-center gap-3">
+          <AgentAvatar avatar={agent.avatar} className="size-10 border border-border" />
+          <DialogTitle className="text-xl font-extrabold tracking-[-0.03em]">{agent.name} is ready</DialogTitle>
+        </div>
         <DialogDescription>
           Paste this into a new session of any AI. It explains the platform and connects with the key at the top.
         </DialogDescription>

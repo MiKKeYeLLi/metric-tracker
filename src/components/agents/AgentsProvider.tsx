@@ -1,15 +1,17 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { DEMO_MY_AGENTS, generateAgentKey, type MyAgent } from "./agent-model";
+import { DEMO_MY_AGENTS, generateAgentKey, type AgentAvatar, type MyAgent } from "./agent-model";
 
 const SELECTED_KEY = "zedu-amp:selected-agent";
+
+export type NewAgent = { name: string; speciality: string; description: string; avatar: AgentAvatar };
 
 type AgentsContextValue = {
   agents: MyAgent[];
   selected?: MyAgent;
   select: (agentId: string) => void;
-  createAgent: (input: { name: string; speciality: string }) => MyAgent;
+  createAgent: (input: NewAgent) => MyAgent;
 };
 
 const AgentsContext = createContext<AgentsContextValue | undefined>(undefined);
@@ -38,7 +40,7 @@ export function AgentsProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const createAgent = useCallback(
-    (input: { name: string; speciality: string }) => {
+    (input: NewAgent) => {
       const agent: MyAgent = {
         ...input,
         id: `my_agent_${Date.now()}`,

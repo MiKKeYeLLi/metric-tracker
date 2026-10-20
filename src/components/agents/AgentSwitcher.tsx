@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { BotIcon, CheckIcon, ChevronDownIcon, CopyIcon, FileTextIcon, PlusIcon } from "lucide-react";
+import { CheckIcon, ChevronDownIcon, CopyIcon, FileTextIcon, PlusIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { maskKey, setupPrompt } from "./agent-model";
+import { AgentAvatar } from "./AgentAvatar";
 import { useAgents } from "./AgentsProvider";
 import { CreateAgentDialog } from "./CreateAgentDialog";
 import { useCopy } from "./useCopy";
@@ -24,13 +25,22 @@ export function AgentSwitcher() {
   const { copied, copy } = useCopy();
   const [creating, setCreating] = useState(false);
 
+  const createButton = (
+    <>
+      <Button onClick={() => setCreating(true)} className="hidden sm:inline-flex">
+        <PlusIcon data-icon="inline-start" aria-hidden="true" />
+        Create agent
+      </Button>
+      <Button size="icon" onClick={() => setCreating(true)} aria-label="Create agent" className="sm:hidden">
+        <PlusIcon aria-hidden="true" />
+      </Button>
+    </>
+  );
+
   if (!selected) {
     return (
       <>
-        <Button variant="outline" size="sm" onClick={() => setCreating(true)}>
-          <PlusIcon data-icon="inline-start" aria-hidden="true" />
-          Create agent
-        </Button>
+        {createButton}
         <CreateAgentDialog open={creating} onOpenChange={setCreating} />
       </>
     );
@@ -41,14 +51,15 @@ export function AgentSwitcher() {
 
   return (
     <>
+      {createButton}
       <div className="flex h-10 items-center rounded-full border border-border bg-card">
         <DropdownMenu>
           <DropdownMenuTrigger
             aria-label={`Agent: ${selected.name}. Switch agent`}
-            className="flex h-full min-w-0 items-center gap-2 rounded-l-full pr-2.5 pl-3 text-sm font-semibold text-foreground transition-colors outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50"
+            className="flex h-full min-w-0 items-center gap-2 rounded-l-full pr-2.5 pl-1.5 text-sm font-semibold text-foreground transition-colors outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50"
           >
-            <span className="relative flex size-6 shrink-0 items-center justify-center rounded-full bg-accent text-primary-deep">
-              <BotIcon className="size-3.5" aria-hidden="true" />
+            <span className="relative flex shrink-0">
+              <AgentAvatar avatar={selected.avatar} className="size-7" />
               <StatusDot connected={selected.status === "connected"} />
             </span>
             <span className="max-w-[96px] truncate sm:max-w-[160px]">{selected.name}</span>
@@ -58,7 +69,8 @@ export function AgentSwitcher() {
             <DropdownMenuLabel>Your agents</DropdownMenuLabel>
             <DropdownMenuRadioGroup value={selected.id} onValueChange={select}>
               {agents.map((agent) => (
-                <DropdownMenuRadioItem key={agent.id} value={agent.id} className="py-1.5">
+                <DropdownMenuRadioItem key={agent.id} value={agent.id} className="gap-2.5 py-1.5">
+                  <AgentAvatar avatar={agent.avatar} className="size-8" />
                   <span className="flex min-w-0 flex-col">
                     <span className="truncate font-semibold">{agent.name}</span>
                     <span className="truncate text-xs text-muted-foreground">
@@ -72,10 +84,6 @@ export function AgentSwitcher() {
             <DropdownMenuItem onSelect={() => void copy(`prompt:${selected.id}`, setupPrompt(selected, window.location.origin))}>
               <FileTextIcon aria-hidden="true" />
               Copy setup prompt for {selected.name}
-            </DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => setCreating(true)}>
-              <PlusIcon aria-hidden="true" />
-              Create agent
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
