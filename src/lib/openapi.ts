@@ -1,6 +1,14 @@
 import { OpenAPIRegistry, OpenApiGeneratorV31 } from "@asteasolutions/zod-to-openapi";
 import { z } from "@/lib/zod";
 import {
+  agentCreateSchema,
+  agentErrorSchema,
+  agentItemSchema,
+  agentProfileSchema,
+  agentUpdateSchema,
+  agentWithKeySchema,
+} from "@/lib/schemas/agents";
+import {
   contentCreateSchema,
   contentErrorSchema,
   contentItemSchema,
@@ -44,6 +52,12 @@ registry.registerComponent("securitySchemes", "sessionCookie", {
   in: "cookie",
   name: "next-auth.session-token",
   description: "NextAuth session cookie — obtained after Google OAuth sign-in at `/api/auth/signin`.",
+});
+
+registry.registerComponent("securitySchemes", "agentKey", {
+  type: "http",
+  scheme: "bearer",
+  description: "Agent key (`zedu_ak_…`) issued when the agent is created. Send it as `Authorization: Bearer <key>`.",
 });
 
 registry.registerPath({
@@ -575,6 +589,145 @@ registry.registerPath({
     204: { description: "Task deleted" },
     401: { description: "Unauthorized" },
     404: { description: "Not found" },
+  },
+});
+
+// ── Agents ──
+const agentIdParams = z.object({
+  id: z.string().openapi({ param: { name: "id", in: "path" } }),
+});
+
+registry.registerPath({
+  method: "get",
+  path: "/api/agents",
+  operationId: "listAgents",
+  tags: ["Agents"],
+  summary: "List my agents",
+  description: "Agents owned by the signed-in user, oldest first. Keys are never returned here.",
+  security: [{ sessionCookie: [] }],
+  responses: {
+    200: {
+      description: "List of agents",
+      content: { "application/json": { schema: agentItemSchema.array() } },
+    },
+    401: { description: "Unauthorized" },
+  },
+});
+
+registry.registerPath({
+  method: "post",
+  path: "/api/agents",
+  operationId: "createAgent",
+  tags: ["Agents"],
+  summary: "Create an agent",
+  description: "Creates an agent owned by the signed-in user. The response includes the plain key; it is not shown again.",
+  security: [{ sessionCookie: [] }],
+  request: { body: { content: { "application/json": { schema: agentCreateSchema } } } },
+  responses: {
+    201: {
+      description: "Agent created",
+      content: { "application/json": { schema: agentWithKeySchema } },
+    },
+    400: {
+      description: "Validation failed",
+      content: { "application/json": { schema: agentErrorSchema } },
+    },
+    401: { description: "Unauthorized" },
+  },
+});
+
+registry.registerPath({
+  method: "get",
+  path: "/api/agents/{id}",
+  operationId: "getAgent",
+  tags: ["Agents"],
+  summary: "Get one of my agents",
+  security: [{ sessionCookie: [] }],
+  request: { params: agentIdParams },
+  responses: {
+    200: {
+      description: "The agent",
+      content: { "application/json": { schema: agentItemSchema } },
+    },
+    401: { description: "Unauthorized" },
+    404: { description: "Not found, or owned by someone else" },
+  },
+});
+
+registry.registerPath({
+  method: "patch",
+  path: "/api/agents/{id}",
+  operationId: "updateAgent",
+  tags: ["Agents"],
+  summary: "Update one of my agents",
+  security: [{ sessionCookie: [] }],
+  request: {
+    params: agentIdParams,
+    body: { content: { "application/json": { schema: agentUpdateSchema } } },
+  },
+  responses: {
+    200: {
+      description: "Agent updated",
+      content: { "application/json": { schema: agentItemSchema } },
+    },
+    400: {
+      description: "Validation failed",
+      content: { "application/json": { schema: agentErrorSchema } },
+    },
+    401: { description: "Unauthorized" },
+    404: { description: "Not found, or owned by someone else" },
+  },
+});
+
+registry.registerPath({
+  method: "post",
+  path: "/api/agents/{id}/key",
+  operationId: "regenerateAgentKey",
+  tags: ["Agents"],
+  summary: "Regenerate an agent's key",
+  description: "Issues a new key and revokes the old one immediately. The new plain key is returned only in this response.",
+  security: [{ sessionCookie: [] }],
+  request: { params: agentIdParams },
+  responses: {
+    200: {
+      description: "New key issued",
+      content: { "application/json": { schema: agentWithKeySchema } },
+    },
+    401: { description: "Unauthorized" },
+    404: { description: "Not found, or owned by someone else" },
+  },
+});
+
+registry.registerPath({
+  method: "post",
+  path: "/api/agent/register",
+  operationId: "registerAgent",
+  tags: ["Agent API"],
+  summary: "Register (connect) the calling agent",
+  description: "The agent's first call. Marks it connected and returns its profile. Safe to call again.",
+  security: [{ agentKey: [] }],
+  responses: {
+    200: {
+      description: "The calling agent",
+      content: { "application/json": { schema: agentProfileSchema } },
+    },
+    401: { description: "Missing or invalid agent key" },
+  },
+});
+
+registry.registerPath({
+  method: "get",
+  path: "/api/agent/me",
+  operationId: "getCallingAgent",
+  tags: ["Agent API"],
+  summary: "Get the calling agent",
+  security: [{ agentKey: [] }],
+  responses: {
+    200: {
+      description: "The calling agent",
+      content: { "application/json": { schema: agentProfileSchema } },
+    },
+    401: { description: "Missing or invalid agent key" },
   },
 });
 

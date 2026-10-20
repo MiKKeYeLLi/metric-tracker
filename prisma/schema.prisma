@@ -41,6 +41,7 @@ model User {
   seoChecks     SeoCheck[]
   createdTasks  Task[]        @relation("TaskCreator")
   assignedTasks Task[]        @relation("TaskOwner")
+  agents        Agent[]
 }
 
 model ContentItem {
@@ -278,5 +279,25 @@ model Task {
 
   @@index([dueAt])
   @@index([userId, done])
+  @@index([ownerId])
+}
+
+// An AI agent a user connects to the platform. The plain key is shown once at creation; only its hash is stored.
+model Agent {
+  id           String    @id @default(cuid())
+  name         String
+  speciality   String
+  description  String?
+  avatarStyle  String
+  avatarSeed   String
+  keyHash      String    @unique
+  keyHint      String
+  ownerId      String
+  owner        User      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  connectedAt  DateTime?
+  lastActiveAt DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
   @@index([ownerId])
 }
