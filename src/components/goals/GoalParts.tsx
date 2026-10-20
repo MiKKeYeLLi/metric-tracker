@@ -2,10 +2,11 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowLeftIcon, ChevronDownIcon, MessageSquareIcon, type LucideIcon } from "lucide-react";
+import { ArrowLeftIcon, ChevronDownIcon, type LucideIcon } from "lucide-react";
 import { PageContent, PageHeader } from "@/components/PageHeader";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { TabsTrigger } from "@/components/ui/tabs";
 import {
   Empty,
   EmptyContent,
@@ -106,21 +107,6 @@ export function TaskPoints({ task }: { task: Task }) {
   );
 }
 
-export function ThreadButton({ href, task }: { href: string; task: Task }) {
-  return (
-    <Button variant="outline" size="sm" asChild>
-      <Link
-        href={href}
-        aria-label={`Open thread for ${task.title}, ${task.commentCount} ${task.commentCount === 1 ? "comment" : "comments"}`}
-      >
-        <MessageSquareIcon data-icon="inline-start" aria-hidden="true" />
-        Thread
-        {task.commentCount > 0 && <span className="text-muted-foreground tabular-nums">{task.commentCount}</span>}
-      </Link>
-    </Button>
-  );
-}
-
 export function QuietEmpty({ children }: { children: React.ReactNode }) {
   return <p className="m-0 py-3 text-sm text-muted-foreground">{children}</p>;
 }
@@ -203,5 +189,99 @@ export function NotFoundState({
         </section>
       </PageContent>
     </>
+  );
+}
+
+/** One look for every item kind's colour: an icon on a tinted chip, e.g. violet workstreams or green approved tasks. */
+export type ItemStyle = { icon: LucideIcon; chip: string };
+
+export const ITEM_CARD = "rounded-[22px] border border-border bg-card p-5 sm:p-6";
+export const ITEM_LINK =
+  "group/item text-inherit no-underline transition-colors duration-150 outline-none hover:border-border-strong focus-visible:ring-3 focus-visible:ring-ring/50";
+
+export function CardStack({ children }: { children: React.ReactNode }) {
+  return <ul className="m-0 flex list-none flex-col gap-3 p-0">{children}</ul>;
+}
+
+export function EmptyCard({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="m-0 rounded-[22px] border border-dashed border-border-strong px-6 py-10 text-center text-sm text-muted-foreground">
+      {children}
+    </p>
+  );
+}
+
+export function Description({ children }: { children: React.ReactNode }) {
+  return <p className="m-0 max-w-[68ch] text-sm leading-relaxed text-muted-foreground">{children}</p>;
+}
+
+/** The icon chip in the item's colour, then its title and supporting lines. */
+export function ItemHeading({
+  style,
+  title,
+  interactive = false,
+  muted = false,
+  children,
+}: {
+  style: ItemStyle;
+  title: string;
+  interactive?: boolean;
+  muted?: boolean;
+  children?: React.ReactNode;
+}) {
+  const Icon = style.icon;
+
+  return (
+    <div className="flex min-w-0 flex-1 items-start gap-4">
+      <span className={cn("flex size-11 shrink-0 items-center justify-center rounded-2xl", style.chip)}>
+        <Icon className="size-5" aria-hidden="true" />
+      </span>
+      <div className="flex min-w-0 flex-col gap-1.5 pt-0.5">
+        <h3
+          className={cn(
+            "m-0 text-lg leading-snug font-bold tracking-[-0.02em] text-balance",
+            muted ? "text-muted-foreground" : "text-foreground",
+            interactive && "transition-colors group-hover/item:text-primary-deep"
+          )}
+        >
+          {title}
+        </h3>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+/** A large tab with the colour chip of what it lists, so the tabs double as the page's colour key. */
+export function ColorTab({
+  value,
+  style,
+  label,
+  count,
+  highlight = false,
+}: {
+  value: string;
+  style: ItemStyle;
+  label: string;
+  count: number;
+  highlight?: boolean;
+}) {
+  const Icon = style.icon;
+
+  return (
+    <TabsTrigger value={value} className="flex-none gap-2 px-4 text-sm">
+      <span className={cn("flex size-6 items-center justify-center rounded-full", style.chip)}>
+        <Icon className="size-3.5" aria-hidden="true" />
+      </span>
+      {label}
+      <span
+        className={cn(
+          "tabular-nums",
+          highlight ? "rounded-full bg-warning-muted px-1.5 text-xs font-semibold text-warning" : "opacity-70"
+        )}
+      >
+        {count}
+      </span>
+    </TabsTrigger>
   );
 }

@@ -2,14 +2,29 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowRightIcon, CheckIcon, LayersIcon, LightbulbIcon, TargetIcon, XIcon, type LucideIcon } from "lucide-react";
+import { ArrowRightIcon, CheckIcon, LayersIcon, LightbulbIcon, TargetIcon, XIcon } from "lucide-react";
 import { PageContent, PageHeader } from "@/components/PageHeader";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { shortDate, summarizeGoal, summarizeTasks, type Agent, type Idea } from "./goal-model";
-import { BackLink, ByAgent, NotFoundState, OwnerAvatar, RejectedToggle, TaskProgress } from "./GoalParts";
+import {
+  BackLink,
+  ByAgent,
+  CardStack,
+  ColorTab,
+  Description,
+  EmptyCard,
+  ITEM_CARD,
+  ITEM_LINK,
+  ItemHeading,
+  NotFoundState,
+  OwnerAvatar,
+  RejectedToggle,
+  TaskProgress,
+  type ItemStyle,
+} from "./GoalParts";
 import { useGoals } from "./GoalsProvider";
 import { RejectDialog } from "./RejectDialog";
 
@@ -21,11 +36,7 @@ const KINDS = {
   workstream: { icon: LayersIcon, chip: "bg-accent text-primary-deep" },
   idea: { icon: LightbulbIcon, chip: "bg-warning-muted text-warning" },
   rejected: { icon: XIcon, chip: "bg-destructive-muted text-destructive" },
-} satisfies Record<string, { icon: LucideIcon; chip: string }>;
-
-type Kind = keyof typeof KINDS;
-
-const CARD = "rounded-[22px] border border-border bg-card p-5 sm:p-6";
+} satisfies Record<string, ItemStyle>;
 
 export function GoalDetailView({ goalId }: { goalId: string }) {
   const { goals, ideas, tasks, currentUser, agentFor, approveIdea, rejectIdea } = useGoals();
@@ -77,10 +88,10 @@ export function GoalDetailView({ goalId }: { goalId: string }) {
 
         <Tabs key={goal.id} defaultValue="workstreams" className="gap-4">
           <TabsList className="h-11! self-start p-1">
-            <TabTrigger value="workstreams" kind="workstream" label="Workstreams" count={workstreams.length} />
-            <TabTrigger
+            <ColorTab value="workstreams" style={KINDS.workstream} label="Workstreams" count={workstreams.length} />
+            <ColorTab
               value="ideas"
-              kind="idea"
+              style={KINDS.idea}
               label="Ideas"
               count={proposed.length}
               highlight={isOwner && proposed.length > 0}
@@ -98,12 +109,9 @@ export function GoalDetailView({ goalId }: { goalId: string }) {
                     <li key={workstream.id}>
                       <Link
                         href={`/dashboard/goals/${goal.id}/workstreams/${workstream.id}`}
-                        className={cn(
-                          CARD,
-                          "group/item flex flex-col gap-5 text-inherit no-underline transition-colors duration-150 outline-none hover:border-border-strong focus-visible:ring-3 focus-visible:ring-ring/50 lg:flex-row lg:items-center lg:gap-10"
-                        )}
+                        className={cn(ITEM_CARD, ITEM_LINK, "flex flex-col gap-5 lg:flex-row lg:items-center lg:gap-10")}
                       >
-                        <ItemHeading kind="workstream" title={workstream.title} interactive>
+                        <ItemHeading style={KINDS.workstream} title={workstream.title} interactive>
                           {workstream.description && <Description>{workstream.description}</Description>}
                           <p className="m-0 text-[13px] text-muted-foreground tabular-nums">
                             <span className="font-semibold text-foreground">{work.openTasks} open</span> ·{" "}
@@ -179,96 +187,12 @@ export function GoalDetailView({ goalId }: { goalId: string }) {
   );
 }
 
-function TabTrigger({
-  value,
-  kind,
-  label,
-  count,
-  highlight = false,
-}: {
-  value: string;
-  kind: Kind;
-  label: string;
-  count: number;
-  highlight?: boolean;
-}) {
-  const Icon = KINDS[kind].icon;
-
-  return (
-    <TabsTrigger value={value} className="gap-2 px-4 text-sm">
-      <span className={cn("flex size-6 items-center justify-center rounded-full", KINDS[kind].chip)}>
-        <Icon className="size-3.5" aria-hidden="true" />
-      </span>
-      {label}
-      <span
-        className={cn(
-          "tabular-nums",
-          highlight ? "rounded-full bg-warning-muted px-1.5 text-xs font-semibold text-warning" : "opacity-70"
-        )}
-      >
-        {count}
-      </span>
-    </TabsTrigger>
-  );
-}
-
-function CardStack({ children }: { children: React.ReactNode }) {
-  return <ul className="m-0 flex list-none flex-col gap-3 p-0">{children}</ul>;
-}
-
-function EmptyCard({ children }: { children: React.ReactNode }) {
-  return (
-    <p className="m-0 rounded-[22px] border border-dashed border-border-strong px-6 py-10 text-center text-sm text-muted-foreground">
-      {children}
-    </p>
-  );
-}
-
-function Description({ children }: { children: React.ReactNode }) {
-  return <p className="m-0 max-w-[68ch] text-sm leading-relaxed text-muted-foreground">{children}</p>;
-}
-
-/** The icon chip in the item's colour, then its title and supporting lines. */
-function ItemHeading({
-  kind,
-  title,
-  interactive = false,
-  children,
-}: {
-  kind: Kind;
-  title: string;
-  interactive?: boolean;
-  children?: React.ReactNode;
-}) {
-  const Icon = KINDS[kind].icon;
-
-  return (
-    <div className="flex min-w-0 flex-1 items-start gap-4">
-      <span className={cn("flex size-11 shrink-0 items-center justify-center rounded-2xl", KINDS[kind].chip)}>
-        <Icon className="size-5" aria-hidden="true" />
-      </span>
-      <div className="flex min-w-0 flex-col gap-1.5 pt-0.5">
-        <h3
-          className={cn(
-            "m-0 text-lg leading-snug font-bold tracking-[-0.02em] text-balance",
-            kind === "rejected" ? "text-muted-foreground" : "text-foreground",
-            interactive && "transition-colors group-hover/item:text-primary-deep"
-          )}
-        >
-          {title}
-        </h3>
-        {children}
-      </div>
-    </div>
-  );
-}
-
 function IdeaCard({ idea, agent, children }: { idea: Idea; agent?: Agent; children?: React.ReactNode }) {
   const rejected = idea.status === "rejected";
 
   return (
-    <li className={cn(CARD, "flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between sm:gap-8")}>
-      <ItemHeading kind={rejected ? "rejected" : "idea"} title={idea.title}>
+    <li className={cn(ITEM_CARD, "flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between sm:gap-8")}>
+      <ItemHeading style={rejected ? KINDS.rejected : KINDS.idea} title={idea.title} muted={rejected}>
         {idea.description && <Description>{idea.description}</Description>}
         <ByAgent agent={agent} at={idea.proposedAt} />
         {rejected && (
