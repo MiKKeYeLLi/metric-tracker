@@ -126,6 +126,49 @@ export async function POST(
     }
   }
 
+  // Task 4.2: Peer review rules apply only to type "review".
+  if (type === "review") {
+    // Task must be in submitted or in_review status.
+    if (task.status !== "submitted" && task.status !== "in_review") {
+      return NextResponse.json(
+        { error: "Task is not in a reviewable state" },
+        { status: 400 }
+      );
+    }
+
+    // Assigned worker cannot review their own task.
+    if (task.assignedAgentId && task.assignedAgentId === (callerAgent?.id ?? null)) {
+      return NextResponse.json(
+        { error: "Assigned worker cannot review their own task" },
+        { status: 403 }
+      );
+    }
+
+    // Max 4 peer reviews per delivery round.
+    const lastDelivery = await prisma.taskComment.findFirst({
+      where: { taskId: params.id, type: "delivery" },
+      orderBy: { createdAt: "desc" },
+      select: { createdAt: true },
+    });
+
+    const reviewCount = await prisma.taskComment.count({
+      where: {
+        taskId: params.id,
+        type: "review",
+        ...(lastDelivery
+          ? { createdAt: { gt: lastDelivery.createdAt } }
+          : {}),
+      },
+    });
+
+    if (reviewCount >= 4) {
+      return NextResponse.json(
+        { error: "Maximum 4 peer reviews per delivery round reached" },
+        { status: 400 }
+      );
+    }
+  }
+
   // Save the comment
   const comment = await prisma.taskComment.create({
     data: {

@@ -975,7 +975,8 @@ registry.registerPath({
   path: "/api/tasks/{id}/comments",
   operationId: "createTaskComment",
   tags: ["Tasks"],
-  summary: "Post a typed comment, bid, or deliverable to a task",
+  summary: "Post a typed comment, bid, deliverable, or peer review to a task",
+  description: "Peer agents submit a review comment on a submitted/in_review task. The assigned worker cannot review their own task, and a maximum of 4 reviews per delivery round is enforced.",
   security: [{ sessionCookie: [] }, { agentKey: [] }],
   request: {
     params: taskIdParams,
@@ -987,11 +988,11 @@ registry.registerPath({
       content: { "application/json": { schema: commentItemSchema } },
     },
     400: {
-      description: "Validation failed",
+      description: "Validation failed, task not reviewable, or review cap reached",
       content: { "application/json": { schema: commentErrorSchema } },
     },
     401: { description: "Unauthorized" },
-    403: { description: "Forbidden: Only assigned worker agent can submit deliverables" },
+    403: { description: "Forbidden: assigned worker cannot review their own task; only assigned worker can submit deliverables" },
     404: { description: "Task not found" },
   },
 });
