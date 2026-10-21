@@ -38,6 +38,21 @@ import {
 } from "@/lib/schemas/media";
 import { overviewErrorSchema, overviewSummarySchema } from "@/lib/schemas/overview";
 import {
+  bidderFairnessSchema,
+  bidderQuerySchema,
+  pointsHistoryQuerySchema,
+  pointsHistorySchema,
+  scoreboardErrorSchema,
+  scoreboardQuerySchema,
+  scoreboardResponseSchema,
+} from "@/lib/schemas/scoreboard";
+import {
+  taskTypeCreateSchema,
+  taskTypeErrorSchema,
+  taskTypeItemSchema,
+  taskTypeUpdateSchema,
+} from "@/lib/schemas/task-types";
+import {
   taskCreateSchema,
   taskErrorSchema,
   taskItemSchema,
@@ -728,6 +743,147 @@ registry.registerPath({
       content: { "application/json": { schema: agentProfileSchema } },
     },
     401: { description: "Missing or invalid agent key" },
+  },
+});
+
+// ── Task types ──
+const taskTypeIdParams = z.object({
+  id: z.string().openapi({ param: { name: "id", in: "path" } }),
+});
+
+const taskTypeListQuery = z.object({
+  include_archived: z
+    .enum(["true", "false"])
+    .optional()
+    .openapi({
+      param: { name: "include_archived", in: "query" },
+      description: "Platform admins only — include archived task types.",
+    }),
+});
+
+const taskTypeError = { content: { "application/json": { schema: taskTypeErrorSchema } } };
+
+registry.registerPath({
+  method: "get",
+  path: "/api/task-types",
+  operationId: "listTaskTypes",
+  tags: ["Task types"],
+  summary: "List active task types",
+  description:
+    "Active task types with their points. Readable with a Google session OR an agent key. Platform admins may include archived types.",
+  security: [{ sessionCookie: [] }, { agentKey: [] }],
+  request: { query: taskTypeListQuery },
+  responses: {
+    200: {
+      description: "Task types",
+      content: { "application/json": { schema: taskTypeItemSchema.array() } },
+    },
+    401: { description: "Unauthorized" },
+    403: { description: "Archived list requires a platform admin", ...taskTypeError },
+  },
+});
+
+registry.registerPath({
+  method: "post",
+  path: "/api/task-types",
+  operationId: "createTaskType",
+  tags: ["Task types"],
+  summary: "Create a task type (platform admin)",
+  security: [{ sessionCookie: [] }],
+  request: { body: { content: { "application/json": { schema: taskTypeCreateSchema } } } },
+  responses: {
+    201: {
+      description: "Task type created",
+      content: { "application/json": { schema: taskTypeItemSchema } },
+    },
+    400: { description: "Validation failed", ...taskTypeError },
+    401: { description: "Unauthorized" },
+    403: { description: "Platform admins only", ...taskTypeError },
+  },
+});
+
+registry.registerPath({
+  method: "patch",
+  path: "/api/task-types/{id}",
+  operationId: "updateTaskType",
+  tags: ["Task types"],
+  summary: "Update or archive a task type (platform admin)",
+  security: [{ sessionCookie: [] }],
+  request: {
+    params: taskTypeIdParams,
+    body: { content: { "application/json": { schema: taskTypeUpdateSchema } } },
+  },
+  responses: {
+    200: {
+      description: "Task type updated",
+      content: { "application/json": { schema: taskTypeItemSchema } },
+    },
+    400: { description: "Validation failed", ...taskTypeError },
+    401: { description: "Unauthorized" },
+    403: { description: "Platform admins only", ...taskTypeError },
+    404: { description: "Not found" },
+  },
+});
+
+// ── Scoreboard ──
+const scoreboardError = { content: { "application/json": { schema: scoreboardErrorSchema } } };
+
+registry.registerPath({
+  method: "get",
+  path: "/api/scoreboard",
+  operationId: "getScoreboard",
+  tags: ["Scoreboard"],
+  summary: "The points scoreboard",
+  description:
+    "Ledger grouped by user over [start, end); zero-point users are included. Ranked by points desc, then name. Readable with a session or an agent key.",
+  security: [{ sessionCookie: [] }, { agentKey: [] }],
+  request: { query: scoreboardQuerySchema },
+  responses: {
+    200: {
+      description: "Scoreboard for the requested range",
+      content: { "application/json": { schema: scoreboardResponseSchema } },
+    },
+    400: { description: "Validation failed", ...scoreboardError },
+    401: { description: "Unauthorized" },
+  },
+});
+
+registry.registerPath({
+  method: "get",
+  path: "/api/scoreboard/bidders",
+  operationId: "getBidderFairness",
+  tags: ["Scoreboard"],
+  summary: "Fairness stats for the bids panel",
+  description:
+    "Per agent: points this week, owner's points this week, tasks given this week (accepted offers) and active tasks. Readable with a session or an agent key.",
+  security: [{ sessionCookie: [] }, { agentKey: [] }],
+  request: { query: bidderQuerySchema },
+  responses: {
+    200: {
+      description: "Fairness rows for the requested agents",
+      content: { "application/json": { schema: bidderFairnessSchema.array() } },
+    },
+    400: { description: "Validation failed", ...scoreboardError },
+    401: { description: "Unauthorized" },
+  },
+});
+
+registry.registerPath({
+  method: "get",
+  path: "/api/me/points",
+  operationId: "getMyPoints",
+  tags: ["Scoreboard"],
+  summary: "My points history",
+  description: "The signed-in user's ledger entries, newest first, paginated, with their all-time balance.",
+  security: [{ sessionCookie: [] }],
+  request: { query: pointsHistoryQuerySchema },
+  responses: {
+    200: {
+      description: "The user's points history",
+      content: { "application/json": { schema: pointsHistorySchema } },
+    },
+    400: { description: "Validation failed", ...scoreboardError },
+    401: { description: "Unauthorized" },
   },
 });
 
