@@ -1,23 +1,29 @@
 /**
- * Seed for the points domain: task types, point rules, users, agents, three
- * weeks of ledger entries and a few tasks.
+ * Seed for the shared dev database.
  *
- * Idempotent — every section skips rows that already exist (fixed ids and
- * unique keys), so `npx prisma db seed` is safe to re-run.
+ * Points domain (PR 5): task types, point rules, users, agents, three weeks of
+ * ledger entries and a few tasks.
  *
- * Requires the schema from `doc/points-schema-TEMP.sql` (task_types,
- * point_rules, points_ledger, User.is_platform_admin). The `tasks` section is
- * guarded behind `to_regclass('tasks')` because that table belongs to unit 3;
- * it is seeded when the table exists and skipped with a warning otherwise.
+ * Ideas demo (task 2.2): one goal with a proposed, an accepted and a rejected
+ * workstream, plus a local test agent whose key can call the idea endpoints:
+ *   X-Agent-Key: zedu_ak_seed_local_agent_key_000000000000000000
+ *
+ * Idempotent — every section skips rows that already exist (fixed ids, unique
+ * keys and upserts), so `npx prisma db seed` is safe to re-run.
+ *
+ * Requires the points schema (task_types, point_rules, points_ledger,
+ * User.is_platform_admin). The `tasks` section is guarded behind the
+ * `assignedAgentId` column and the ideas section behind the Goal/Workstream
+ * tables, because they belong to unit 3: each is seeded when present and
+ * skipped with a warning otherwise.
  *
  * Weeks are Africa/Lagos, Monday to Sunday, anchored to the week of
  * Mon 2026-10-19 ("this week"). The boundary entries land one minute apart:
  * Lagos Sun 23:59 (22:59 UTC, week of 10-12) and Lagos Mon 00:00 (23:00 UTC,
  * week of 10-19).
  */
-import { randomBytes, randomUUID } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { prisma } from "@/lib/prisma";
-
 const PROJECT_ID = "project_zedu";
 
 const TASK_TYPES = [
@@ -158,6 +164,66 @@ const TASKS = [
   { id: "t_hunter_bootcamps", title: "Build bootcamp list", status: "in_progress", taskType: "lead_hunting", agentId: "a_hunter", offeredAt: "2026-10-20T08:00:00Z" },
 ] as const;
 
+const IDEAS_AGENT_KEY = "zedu_ak_seed_local_agent_key_000000000000000000";
+const IDEAS_AGENT_KEY_HASH = createHash("sha256").update(IDEAS_AGENT_KEY).digest("hex");
+
+// Demo data for the ideas endpoints (task 2.2). Needs the Goal and Workstream
+// tables from unit 3's foundation; skipped until they exist.
+async function seedIdeas() {
+  const user = await prisma.user.upsert({
+    where: { email: "ideas-seed@zedu.local" },
+    update: {},
+    create: { email: "ideas-seed@zedu.local", name: "Ideas Seed User" },
+  });
+
+  const agent = await prisma.agent.upsert({
+    where: { keyHash: IDEAS_AGENT_KEY_HASH },
+    update: {},
+    create: {
+      name: "Seed Local Agent",
+      speciality: "seo",
+      keyHash: IDEAS_AGENT_KEY_HASH,
+      keyHint: "zedu_ak_…0000",
+      avatarStyle: "bottts-neutral",
+      avatarSeed: "seed-agent",
+      connectedAt: new Date(),
+      ownerId: user.id,
+    },
+  });
+
+  const existingGoal = await prisma.goal.findFirst({
+    where: { title: "Make Zedu SEO compliant" },
+    select: { id: true, title: true },
+  });
+  const goal =
+    existingGoal ??
+    (await prisma.goal.create({
+      data: {
+        title: "Make Zedu SEO compliant",
+        description: "Fix the site's on-page SEO so search engines index it cleanly.",
+        type: "seo",
+        status: "active",
+        createdById: user.id,
+      },
+      select: { id: true, title: true },
+    }));
+
+  const ideas: Array<[string, "proposed" | "accepted" | "rejected"]> = [
+    ["On-page SEO audit pass", "proposed"],
+    ["Fix meta and OG tags across pages", "accepted"],
+    ["Rewrite page titles for target keywords", "rejected"],
+  ];
+  for (const [title, status] of ideas) {
+    await prisma.workstream.upsert({
+      where: { goalId_title: { goalId: goal.id, title } },
+      update: { status, proposedByAgentId: agent.id, acceptedById: status === "proposed" ? null : user.id },
+      create: { goalId: goal.id, title, status, proposedByAgentId: agent.id, acceptedById: status === "proposed" ? null : user.id },
+    });
+  }
+
+  console.log(`Ideas seed complete: goal "${goal.title}", 3 workstreams, agent key ${IDEAS_AGENT_KEY}`);
+}
+
 async function main() {
   const counts = { taskTypes: 0, rules: 0, users: 0, agents: 0, ledger: 0, tasks: 0 };
 
@@ -230,6 +296,14 @@ async function main() {
     }
   } else {
     console.log("Skipped task seeding — the agent-task columns on \"Task\" (unit 3's foundation) do not exist yet.");
+  }
+
+  const ideasTables = await prisma.$queryRaw<{ exists: boolean }[]>`
+    SELECT (to_regclass('"Goal"') IS NOT NULL AND to_regclass('"Workstream"') IS NOT NULL) AS exists`;
+  if (ideasTables[0]?.exists) {
+    await seedIdeas();
+  } else {
+    console.log("Skipped ideas seeding — the \"Goal\"/\"Workstream\" tables (unit 3's foundation) do not exist yet.");
   }
 
   console.log(

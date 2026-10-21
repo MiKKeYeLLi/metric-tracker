@@ -283,6 +283,7 @@ All buttons are pills.
 - **Item:** `h-11 rounded-full px-4 gap-3 text-[15px] font-medium text-sidebar-muted-foreground` with a 20px icon. Hover is `bg-sidebar-accent text-sidebar-foreground`.
 - **Active:** **a solid `bg-sidebar-primary` pill with white semibold text** and a soft shadow, exactly like FinSet's active item. Set it with `aria-current="page"`.
 - **Count badge:** `ml-auto rounded-full bg-white/12 px-2 text-xs font-semibold`.
+- **Groups:** related items sit under one parent (today: **Marketing** holds Content, Directories, SEO checker and Press & Media). On the full desktop sidebar the parent expands in place, with its children indented behind a hairline `border-sidebar-border` guide; it opens automatically on a child's page, and shows the active pill itself only when closed. On the mobile bar and the collapsed rail it opens a dropdown menu instead.
 
 ### 4.13 Forms & dialogs *(exist; restyle)*
 
