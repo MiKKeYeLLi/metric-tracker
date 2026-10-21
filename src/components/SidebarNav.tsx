@@ -8,6 +8,7 @@ import {
   NewspaperIcon,
   ScanSearchIcon,
   TargetIcon,
+  TrophyIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -54,6 +55,7 @@ const CHANNELS = [
   { href: "/dashboard/seo", label: "SEO checker", icon: ScanSearchIcon },
   { href: "/dashboard/media", label: "Press & Media", icon: NewspaperIcon },
   { href: "/dashboard/goals", label: "Goals", icon: TargetIcon },
+  { href: "/dashboard/scoreboard", label: "Scoreboard", icon: TrophyIcon }, // PR 5 (doc/points-schema-requests.md)
 ];
 
 export function DashboardSidebarNav({ collapsed = false }: { collapsed?: boolean }) {
