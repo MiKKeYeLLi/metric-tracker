@@ -11,7 +11,8 @@ export function serializeTask(task: TaskWithRelations) {
     title: task.title,
     description: task.description,
     type: task.type,
-    dueAt: task.dueAt ? task.dueAt.toISOString() : new Date().toISOString(),
+    // Goals-platform tasks carry no due date; null means "no due date" — never invent one.
+    dueAt: task.dueAt ? task.dueAt.toISOString() : null,
     done: task.done,
     completedAt: task.completedAt?.toISOString() ?? null,
     ownerId: task.ownerId,

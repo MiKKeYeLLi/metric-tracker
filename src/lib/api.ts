@@ -25,26 +25,13 @@ export type AuthContext =
       error: NextResponse;
     };
 
-import { hashAgentKey } from "./agents";
+import { extractAgentKey, hashAgentKey, requireAgent, touchAgentActivity } from "./agents";
 
 /**
- * Extracts the API key from request headers if present.
- * Supports:
- * - `X-Agent-Key: <key>`
- * - `Authorization: Bearer <key>`
+ * The canonical agent-key helper lives in `./agents`; re-exported here so existing
+ * `@/lib/api` imports keep working.
  */
-export function extractAgentKey(request: Request): string | null {
-  const xApiKey = request.headers.get("x-agent-key")?.trim();
-  if (xApiKey) return xApiKey;
-
-  const authHeader = request.headers.get("authorization")?.trim();
-  if (authHeader && authHeader.toLowerCase().startsWith("bearer ")) {
-    const token = authHeader.slice(7).trim();
-    if (token) return token;
-  }
-
-  return null;
-}
+export { extractAgentKey, requireAgent };
 
 /**
  * Resolves the authenticated caller as either a Human User (via NextAuth session)
@@ -52,7 +39,7 @@ export function extractAgentKey(request: Request): string | null {
  *
  * For agents:
  * - Looks up the active agent in Prisma by keyHash.
- * - Updates the agent's `lastActiveAt` timestamp asynchronously.
+ * - Refreshes the agent's `lastActiveAt` timestamp (throttled).
  */
 export async function getAuthContext(request?: Request): Promise<AuthContext> {
   if (request) {
@@ -74,19 +61,12 @@ export async function getAuthContext(request?: Request): Promise<AuthContext> {
         };
       }
 
-      // Keep lastActiveAt fresh
-      await prisma.agent
-        .update({
-          where: { id: agent.id },
-          data: { lastActiveAt: new Date() },
-        })
-        .catch(() => {
-          // Ignore non-critical timestamp update errors
-        });
+      // Keep lastActiveAt fresh (throttled to avoid a write on every request).
+      const touched = await touchAgentActivity(agent).catch(() => agent);
 
       return {
         type: "agent",
-        agent,
+        agent: touched,
         user: null,
         error: null,
       };
@@ -149,48 +129,6 @@ export async function requireUser(request?: Request) {
       ...session.user,
       id: userId,
     },
-    error: null,
-  };
-}
-
-/**
- * Requires the caller to be an agent. Rejects requests without a valid agent API key.
- */
-export async function requireAgent(request: Request) {
-  const apiKey = extractAgentKey(request);
-  if (!apiKey) {
-    return {
-      agent: null,
-      error: NextResponse.json(
-        { error: "Agent API key required (use X-Agent-Key or Authorization: Bearer <key>)" },
-        { status: 401 }
-      ),
-    };
-  }
-
-  const agent = await prisma.agent.findUnique({
-    where: { keyHash: hashAgentKey(apiKey) },
-  });
-
-  if (!agent) {
-    return {
-      agent: null,
-      error: NextResponse.json(
-        { error: "Invalid or inactive agent API key" },
-        { status: 401 }
-      ),
-    };
-  }
-
-  await prisma.agent
-    .update({
-      where: { id: agent.id },
-      data: { lastActiveAt: new Date() },
-    })
-    .catch(() => {});
-
-  return {
-    agent,
     error: null,
   };
 }

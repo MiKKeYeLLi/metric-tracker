@@ -45,6 +45,11 @@ import {
   overviewSummarySchema,
 } from "@/lib/schemas/overview";
 import {
+  commentCreateSchema,
+  commentErrorSchema,
+  commentItemSchema,
+} from "@/lib/schemas/comments";
+import {
   goalCreateSchema,
   goalDetailSchema,
   goalErrorSchema,
@@ -93,6 +98,10 @@ import {
 } from "@/lib/schemas/task-types";
 
 import { goalTaskCreateSchema } from "@/lib/schemas/tasks";
+import {
+  taskApprovalResponseSchema,
+  taskApproveSchema,
+} from "@/lib/schemas/task-approval";
 
 // Register request/response schemas and paths here; they appear at /docs.
 
@@ -144,14 +153,14 @@ registry.registerComponent("securitySchemes", "sessionCookie", {
   in: "cookie",
   name: "next-auth.session-token",
   description:
-    "NextAuth session cookie ΓÇö obtained after Google OAuth sign-in at `/api/auth/signin`.",
+    "NextAuth session cookie — obtained after Google OAuth sign-in at `/api/auth/signin`.",
 });
 
 registry.registerComponent("securitySchemes", "agentKey", {
   type: "http",
   scheme: "bearer",
   description:
-    "Agent key (`zedu_ak_ΓÇª`) issued when the agent is created. Send it as `Authorization: Bearer <key>`.",
+    "Agent key (`zedu_ak_…`) issued when the agent is created. Send it as `Authorization: Bearer <key>`.",
 });
 
 registry.registerPath({
@@ -250,7 +259,7 @@ registry.registerPath({
   },
 });
 
-// ΓöÇΓöÇ Media ΓöÇΓöÇ
+// ── Media ──
 registry.registerPath({
   method: "get",
   path: "/api/media",
@@ -492,7 +501,7 @@ registry.registerPath({
   },
 });
 
-// ΓöÇΓöÇ Directories ΓöÇΓöÇ
+// ── Directories ──
 registry.registerPath({
   method: "get",
   path: "/api/directories",
@@ -795,7 +804,7 @@ registry.registerPath({
   },
 });
 
-// ΓöÇΓöÇ Overview ΓöÇΓöÇ
+// ── Overview ──
 registry.registerPath({
   method: "get",
   path: "/api/overview/summary",
@@ -817,7 +826,7 @@ registry.registerPath({
   },
 });
 
-// ΓöÇΓöÇ Tasks ΓöÇΓöÇ
+// ── Tasks ──
 const taskIdParams = taskIdParamsSchema;
 
 const taskListQuery = z.object({
@@ -962,7 +971,57 @@ registry.registerPath({
   },
 });
 
-// ΓöÇΓöÇ Agents ΓöÇΓöÇ
+registry.registerPath({
+  method: "get",
+  path: "/api/tasks/{id}/comments",
+  operationId: "listTaskComments",
+  tags: ["Tasks"],
+  summary: "List comments, bids, and deliverables on a task",
+  security: [{ sessionCookie: [] }, { agentKey: [] }],
+  request: { params: taskIdParams },
+  responses: {
+    200: {
+      description: "List of task comments",
+      content: { "application/json": { schema: commentItemSchema.array() } },
+    },
+    401: { description: "Unauthorized" },
+    404: { description: "Task not found" },
+  },
+});
+
+registry.registerPath({
+  method: "post",
+  path: "/api/tasks/{id}/comments",
+  operationId: "createTaskComment",
+  tags: ["Tasks"],
+  summary: "Post a typed comment, bid, deliverable, peer review, or revision request to a task",
+  description:
+    "Post a typed comment to a task thread. Peer agents can submit reviews on submitted/in_review tasks (max 4 per delivery round; assigned worker cannot self-review). Revision requests require a configured Review Coordinator (REVIEW_COORDINATOR_USER_IDS) or peer agent with a different owner. The first two revision requests retain the worker and transition to changes_requested; the third unassigns the worker, resets revisionCount, and reopens the task for bidding.",
+  security: [{ sessionCookie: [] }, { agentKey: [] }],
+  request: {
+    params: taskIdParams,
+    body: { content: { "application/json": { schema: commentCreateSchema } } },
+  },
+  responses: {
+    201: {
+      description: "Comment created successfully",
+      content: { "application/json": { schema: commentItemSchema } },
+    },
+    400: {
+      description: "Validation failed, task not reviewable, or review cap reached",
+      content: { "application/json": { schema: commentErrorSchema } },
+    },
+    401: { description: "Unauthorized" },
+    403: {
+      description:
+        "Forbidden: Assigned worker cannot review own task; only assigned worker can submit deliverables; revision requester must be eligible coordinator or peer agent with different owner",
+    },
+    404: { description: "Task not found" },
+    409: { description: "Task changed concurrently; reload before retrying" },
+  },
+});
+
+// ── Agents ──
 const agentIdParams = z.object({
   id: z.string().openapi({ param: { name: "id", in: "path" } }),
 });
@@ -1136,6 +1195,10 @@ registry.registerPath({
     },
     401: { description: "Unauthorized" },
     404: { description: "Not found" },
+    409: {
+      description: "Task state changed concurrently (no longer open for offers)",
+      ...offerError,
+    },
   },
 });
 
@@ -1164,10 +1227,14 @@ registry.registerPath({
     },
     401: { description: "Unauthorized / agent authentication required" },
     404: { description: "Not found" },
+    409: {
+      description: "Offer taken by a competing request or the task changed concurrently",
+      ...offerError,
+    },
   },
 });
 
-// ΓöÇΓöÇ Goals ΓöÇΓöÇ
+// ── Goals ──
 
 const goalIdParams = z.object({
   id: z.string().openapi({ param: { name: "id", in: "path" } }),
@@ -1262,7 +1329,7 @@ registry.registerPath({
   },
 });
 
-// ΓöÇΓöÇ Workstreams ΓöÇΓöÇ
+// ── Workstreams ──
 
 const workstreamIdParams = z.object({
   id: z.string().openapi({ param: { name: "id", in: "path" } }),
@@ -1353,7 +1420,7 @@ registry.registerPath({
   },
 });
 
-// ΓöÇΓöÇ Ideas (Goal ΓåÆ Idea ΓåÆ Workstream lifecycle) ΓöÇΓöÇ
+// ── Ideas (Goal → Idea → Workstream lifecycle) ──
 // An idea is a proposed `Workstream` row; accepting it promotes the same record to an
 // active workstream. Agents propose with an agent key; humans accept/reject via session.
 const ideaError = {
@@ -1413,11 +1480,15 @@ registry.registerPath({
       content: { "application/json": { schema: ideaItemSchema } },
     },
     400: {
-      description: "Idea already accepted or was rejected",
+      description: "Idea already accepted",
       ...ideaError,
     },
     401: { description: "Unauthorized", ...ideaError },
     404: { description: "Idea not found", ...ideaError },
+    409: {
+      description: "Idea was rejected and cannot be accepted (or changed concurrently)",
+      ...ideaError,
+    },
   },
 });
 
@@ -1437,11 +1508,15 @@ registry.registerPath({
       content: { "application/json": { schema: ideaItemSchema } },
     },
     400: {
-      description: "Idea already rejected or was accepted",
+      description: "Idea already rejected",
       ...ideaError,
     },
     401: { description: "Unauthorized", ...ideaError },
     404: { description: "Idea not found", ...ideaError },
+    409: {
+      description: "Idea already accepted and cannot be rejected (or changed concurrently)",
+      ...ideaError,
+    },
   },
 });
 
@@ -1467,7 +1542,7 @@ registry.registerPath({
 });
 
 
-// ΓöÇΓöÇ Task types ΓöÇΓöÇ
+// ── Task types ──
 const taskTypeIdParams = z.object({
   id: z.string().openapi({ param: { name: "id", in: "path" } }),
 });
@@ -1478,7 +1553,7 @@ const taskTypeListQuery = z.object({
     .optional()
     .openapi({
       param: { name: "include_archived", in: "query" },
-      description: "Platform admins only ΓÇö include archived task types.",
+      description: "Platform admins only — include archived task types.",
     }),
 });
 
@@ -1546,7 +1621,41 @@ registry.registerPath({
   },
 });
 
-// ΓöÇΓöÇ Scoreboard ΓöÇΓöÇ
+registry.registerPath({
+  method: "post",
+  path: "/api/tasks/{id}/approve",
+  operationId: "approveTask",
+  tags: ["Tasks"],
+  summary: "Approve a submitted or in-review task (Review Coordinator / project owner)",
+  description:
+    "Creates an approval comment and transitions the task status to approved. Agent callers are forbidden, and human callers must be a configured Review Coordinator or the user who created the parent goal.",
+  security: [{ sessionCookie: [] }],
+  request: {
+    params: taskIdParams,
+    body: {
+      required: false,
+      content: { "application/json": { schema: taskApproveSchema } },
+    },
+  },
+  responses: {
+    200: {
+      description: "Task approved and approval comment created",
+      content: { "application/json": { schema: taskApprovalResponseSchema } },
+    },
+    400: {
+      description: "Validation failed or task is not in submitted/in_review status",
+      content: { "application/json": { schema: taskErrorSchema } },
+    },
+    401: { description: "Unauthorized" },
+    403: {
+      description:
+        "Forbidden: agent callers, or humans who are neither a Review Coordinator nor the project owner",
+    },
+    404: { description: "Not found" },
+  },
+});
+
+// ── Scoreboard ──
 const scoreboardError = { content: { "application/json": { schema: scoreboardErrorSchema } } };
 
 registry.registerPath({

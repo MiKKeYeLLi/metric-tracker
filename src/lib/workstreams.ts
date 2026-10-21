@@ -20,20 +20,11 @@ export type WorkstreamWithDetailRelations = Workstream & {
   };
 };
 
+import { extractAgentKey, hashAgentKey, touchAgentActivity } from "@/lib/agents";
+
 export function extractAgentApiKey(request: Request): string | null {
-  const headerKey = request.headers.get("x-agent-key")?.trim();
-  if (headerKey) return headerKey;
-
-  const authHeader = request.headers.get("authorization")?.trim();
-  if (authHeader?.toLowerCase().startsWith("bearer ")) {
-    const token = authHeader.slice(7).trim();
-    if (token) return token;
-  }
-
-  return null;
+  return extractAgentKey(request);
 }
-
-import { hashAgentKey } from "@/lib/agents";
 
 export async function authenticateAgentRequest(request: Request): Promise<Agent | null> {
   const apiKey = extractAgentApiKey(request);
@@ -45,12 +36,13 @@ export async function authenticateAgentRequest(request: Request): Promise<Agent 
 
   if (!agent) return null;
 
+  // lastActiveAt is refreshed at most once a minute; connectedAt is set on first contact.
+  const touched = await touchAgentActivity(agent);
+  if (agent.connectedAt) return touched;
+
   return prisma.agent.update({
     where: { id: agent.id },
-    data: {
-      lastActiveAt: new Date(),
-      connectedAt: agent.connectedAt ?? new Date(),
-    },
+    data: { connectedAt: new Date() },
   });
 }
 

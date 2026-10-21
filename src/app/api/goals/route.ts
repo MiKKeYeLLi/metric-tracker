@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import type { Prisma } from "@prisma/client";
-import { requireAuth } from "@/lib/api";
+import { requireAuth, requireUser } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
 import { goalCreateSchema, goalFilterSchema, goalTypeValues, goalStatusValues } from "@/lib/schemas/goals";
 
@@ -83,22 +83,11 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  // Reject agents attempting to create top-level goals
-  const hasAgentHeader =
-    Boolean(request.headers.get("x-agent-key")) ||
-    Boolean(request.headers.get("authorization")?.toLowerCase().startsWith("bearer "));
-
-  if (hasAgentHeader) {
-    return NextResponse.json(
-      { error: "Agents are not allowed to create top-level goals" },
-      { status: 403 }
-    );
-  }
-
-  const { session, error } = await requireAuth();
+  // Only humans create top-level goals; requireUser blocks agent keys with 403.
+  const { user, error } = await requireUser(request);
   if (error) return error;
 
-  const userId = (session.user as { id?: string }).id;
+  const userId = user?.id;
   if (!userId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

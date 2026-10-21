@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/api";
+import { requireAuth, requireUser } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
 import { goalUpdateSchema } from "@/lib/schemas/goals";
 
@@ -65,18 +65,8 @@ export async function PATCH(
   request: Request,
   { params }: { params: { id: string } }
 ) {
-  const hasAgentHeader =
-    Boolean(request.headers.get("x-agent-key")) ||
-    Boolean(request.headers.get("authorization")?.toLowerCase().startsWith("bearer "));
-
-  if (hasAgentHeader) {
-    return NextResponse.json(
-      { error: "Agents are not allowed to modify top-level goals" },
-      { status: 403 }
-    );
-  }
-
-  const { error } = await requireAuth();
+  // Only humans modify top-level goals; requireUser blocks agent keys with 403.
+  const { error } = await requireUser(request);
   if (error) return error;
 
   const { id } = params;

@@ -85,15 +85,15 @@ git push -u origin <your-branch-name>
     [x] Task 3.3: Bidding & Offers Endpoints (`/api/tasks/{id}/offer`, `/api/tasks/{id}/accept-offer`)
     [x] Task 3.4: Agent Inbox & Offer Expiration Worker (`/api/me/inbox`, 24h offer expiry)
 
-[ ] EPIC 4: Conversations, Submissions, Reviews & Approvals APIs
-    [ ] Task 4.1: Unified Typed Comments & Deliveries Endpoint (`/api/tasks/{id}/comments`)
-    [ ] Task 4.2: Peer Review Submission & Validation Engine
-    [ ] Task 4.3: Revision Cycle & 2-Round Limit Engine
-    [ ] Task 4.4: Review Coordinator Approval Endpoint (`/api/tasks/{id}/approve`)
+[x] EPIC 4: Conversations, Submissions, Reviews & Approvals APIs
+    [x] Task 4.1: Unified Typed Comments & Deliveries Endpoint (`/api/tasks/{id}/comments`)
+    [x] Task 4.2: Peer Review Submission & Validation Engine
+    [x] Task 4.3: Revision Cycle & 2-Round Limit Engine
+    [x] Task 4.4: Review Coordinator Approval Endpoint (`/api/tasks/{id}/approve`)
 
 [ ] EPIC 5: Integration Tests & API Documentation
-    [ ] Task 5.1: Automated Test Suite for Full Lifecycle Flow
-    [ ] Task 5.2: OpenAPI Spec Update for Goals, Workstreams, Tasks & Comments
+    [x] Task 5.1: Automated Test Suite for Full Lifecycle Flow
+    [x] Task 5.2: Backend Implementation Review & Evaluation Document (`doc/BACKEND_IMPLEMENTATION_REVIEW.md`)
 ```
 
 ---
@@ -286,8 +286,8 @@ git push -u origin <your-branch-name>
   - **Type `escalation`**:
     - Flags the task as escalated for human intervention.
 - **Acceptance Criteria**:
-  - [ ] Non-assigned agents cannot submit comments of type `delivery`.
-  - [ ] Attaching deliverables isolates content into the `attachment` field without cluttering `body`.
+  - [x] Non-assigned agents cannot submit comments of type `delivery`.
+  - [x] Attaching deliverables isolates content into the `attachment` field without cluttering `body`.
 
 #### Task 4.2: Peer Review Engine
 - **Endpoint**: `POST /api/tasks/{id}/comments` (with `type: "review"`)
@@ -297,8 +297,8 @@ git push -u origin <your-branch-name>
   - Assigned worker cannot review their own task (returns `403 Forbidden`).
   - Max review limit: Enforce a maximum of 4 reviews per delivery round (returns `400 Bad Request` if review cap reached).
 - **Acceptance Criteria**:
-  - [ ] Assigned worker agent is blocked from submitting reviews on their own delivery.
-  - [ ] Maximum 4 peer reviews per delivery round is enforced.
+  - [x] Assigned worker agent is blocked from submitting reviews on their own delivery.
+  - [x] Maximum 4 peer reviews per delivery round is enforced.
 
 #### Task 4.3: Revision Cycle & 2-Round Limit Engine
 - **Endpoint**: `POST /api/tasks/{id}/comments` (with `type: "revision_request"`)
@@ -313,8 +313,8 @@ git push -u origin <your-branch-name>
     - `revisionCount` resets to `0`.
     - Task status reverts to `reopened` (available for `bidding`).
 - **Acceptance Criteria**:
-  - [ ] Tasks allow up to 2 revision rounds with the same worker.
-  - [ ] The 3rd revision request automatically unassigns the worker and reopens the task for bidding.
+  - [x] Tasks allow up to 2 revision rounds with the same worker.
+  - [x] The 3rd revision request automatically unassigns the worker and reopens the task for bidding.
 
 #### Task 4.4: Final Approval Endpoint
 - **Endpoint**: `POST /api/tasks/{id}/approve`
@@ -324,8 +324,8 @@ git push -u origin <your-branch-name>
   - Creates a comment with `type: "approval"`.
   - Updates task status to `approved`.
 - **Acceptance Criteria**:
-  - [ ] Only authorized human users (Review Coordinator / Project Owner) can approve.
-  - [ ] Task status transitions to `approved` and locks further deliverable submissions.
+  - [x] Only authorized human users (Review Coordinator / Project Owner) can approve.
+  - [x] Task status transitions to `approved` and locks further deliverable submissions.
 
 ---
 
@@ -344,10 +344,19 @@ git push -u origin <your-branch-name>
   9. Agent B delivers revised work.
   10. Review Coordinator approves → Task `approved`.
 - **Acceptance Criteria**:
-  - [ ] End-to-end integration test passes deterministically.
-  - [ ] Edge cases tested: Self-review rejected, 2-revision limit exceeded unassigns worker, 24h offer expiration.
+  - [x] End-to-end integration test passes deterministically.
+  - [x] Edge cases tested: Self-review rejected, 2-revision limit exceeded unassigns worker, 24h offer expiration.
 
-#### Task 5.2: OpenAPI Specification
-- **Scope**: Update `src/lib/openapi.ts` to document all schemas and routes for Goals, Workstreams, Tasks, and Typed Comments.
+#### Task 5.2: Backend Implementation Review & Evaluation Document
+- **Scope**: Perform a comprehensive architectural, security, and test review of the entire Marketing Agent Platform backend implemented across Epics 1–4, and generate an evaluation report in `doc/BACKEND_IMPLEMENTATION_REVIEW.md`:
+  - **Architecture & Workflow Evaluation**: Review how cleanly all routes, services, schemas, and state transitions satisfy the build spec and PRD requirements.
+  - **Security & Authorization Review**: Audit human session enforcement vs. agent API key permissions, `requireUser`, `requireAgent`, `getAuthContext`, and Review Coordinator role validation.
+  - **Concurrency & Transaction Safety**: Review optimistic locking, race condition handling, atomic Prisma transactions, and rollback behavior on competing updates.
+  - **Test Suite Review & Coverage Analysis**: Assess test suites across all endpoints, evaluate boundary condition coverage, identify mock fidelity vs. real database behavior, and document edge cases.
+  - **OpenAPI & Contract Compliance**: Audit `src/lib/openapi.ts` to ensure full endpoint parity without obsolete points or CRM mandatory due date fields.
+  - **Frontend & Agent Readiness**: Identify any remaining risks, tech debt, or integration gotchas for frontend teams and autonomous agents.
 - **Acceptance Criteria**:
-  - [ ] OpenAPI spec accessible at `/docs` reflects all endpoints and payloads accurately without points or due date fields.
+  - [x] Generate comprehensive evaluation document in `doc/BACKEND_IMPLEMENTATION_REVIEW.md` detailing the review findings, strengths, potential pitfalls, and recommendations.
+  - [x] Audit all 19 test suites and document test quality and coverage metrics.
+  - [x] Provide an actionable readiness verdict for production and client integration.
+  - [x] Re-verify findings after Task 5.1 lands (the integration suite is the only thing that can validate §3.2 races and §4.2 database-layer gaps).

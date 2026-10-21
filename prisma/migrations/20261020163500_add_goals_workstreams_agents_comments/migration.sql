@@ -26,20 +26,6 @@ ADD COLUMN "maxRevisions" INTEGER NOT NULL DEFAULT 2,
 ALTER COLUMN "dueAt" DROP NOT NULL,
 ALTER COLUMN "userId" DROP NOT NULL;
 
--- CreateTable
-CREATE TABLE "Agent" (
-    "id" TEXT NOT NULL,
-    "name" TEXT NOT NULL,
-    "speciality" TEXT NOT NULL,
-    "apiKey" TEXT NOT NULL,
-    "status" TEXT NOT NULL DEFAULT 'waiting',
-    "lastActiveAt" TIMESTAMP(3),
-    "userId" TEXT NOT NULL,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-
-    CONSTRAINT "Agent_pkey" PRIMARY KEY ("id")
-);
 
 -- CreateTable
 CREATE TABLE "Goal" (
@@ -89,14 +75,6 @@ CREATE TABLE "TaskComment" (
     CONSTRAINT "TaskComment_pkey" PRIMARY KEY ("id")
 );
 
--- CreateIndex
-CREATE UNIQUE INDEX "Agent_apiKey_key" ON "Agent"("apiKey");
-
--- CreateIndex
-CREATE INDEX "Agent_userId_idx" ON "Agent"("userId");
-
--- CreateIndex
-CREATE INDEX "Agent_apiKey_idx" ON "Agent"("apiKey");
 
 -- CreateIndex
 CREATE INDEX "Goal_type_idx" ON "Goal"("type");
@@ -134,8 +112,6 @@ CREATE INDEX "TaskComment_authorAgentId_idx" ON "TaskComment"("authorAgentId");
 -- CreateIndex
 CREATE INDEX "TaskComment_authorUserId_idx" ON "TaskComment"("authorUserId");
 
--- AddForeignKey
-ALTER TABLE "Agent" ADD CONSTRAINT "Agent_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Goal" ADD CONSTRAINT "Goal_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;

@@ -53,8 +53,10 @@ export async function POST(_request: Request, { params }: { params: { id: string
   const now = new Date();
   const offerExpiresAt = new Date(now.getTime() + 24 * 60 * 60 * 1000);
 
-  const updated = await prisma.task.update({
-    where: { id: params.id },
+  // The WHERE clause re-tests the status, so a concurrent accept-offer or a second
+  // offer cannot be overwritten by this write.
+  const offerResult = await prisma.task.updateMany({
+    where: { id: params.id, status: { in: ["open", "bidding"] } },
     data: {
       offeredToAgentId: agent.id,
       offeredAt: now,
@@ -62,6 +64,18 @@ export async function POST(_request: Request, { params }: { params: { id: string
       status: "bidding",
     },
   });
+
+  if (offerResult.count === 0) {
+    return NextResponse.json(
+      { error: "Task is no longer open for offers" },
+      { status: 409 }
+    );
+  }
+
+  const updated = await prisma.task.findUnique({ where: { id: params.id } });
+  if (!updated) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
 
   return NextResponse.json(taskOfferedSchema.parse(serializeTaskOffered(updated)));
 }
