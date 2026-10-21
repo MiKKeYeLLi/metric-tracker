@@ -93,7 +93,7 @@ git push -u origin <your-branch-name>
 
 [ ] EPIC 5: Integration Tests & API Documentation
     [x] Task 5.1: Automated Test Suite for Full Lifecycle Flow
-    [ ] Task 5.2: OpenAPI Spec Update for Goals, Workstreams, Tasks & Comments
+    [x] Task 5.2: Backend Implementation Review & Evaluation Document (`doc/BACKEND_IMPLEMENTATION_REVIEW.md`)
 ```
 
 ---
@@ -356,6 +356,7 @@ git push -u origin <your-branch-name>
   - **OpenAPI & Contract Compliance**: Audit `src/lib/openapi.ts` to ensure full endpoint parity without obsolete points or CRM mandatory due date fields.
   - **Frontend & Agent Readiness**: Identify any remaining risks, tech debt, or integration gotchas for frontend teams and autonomous agents.
 - **Acceptance Criteria**:
-  - [ ] Generate comprehensive evaluation document in `doc/BACKEND_IMPLEMENTATION_REVIEW.md` detailing the review findings, strengths, potential pitfalls, and recommendations.
-  - [ ] Audit all 19 test suites and document test quality and coverage metrics.
-  - [ ] Provide an actionable readiness verdict for production and client integration.
+  - [x] Generate comprehensive evaluation document in `doc/BACKEND_IMPLEMENTATION_REVIEW.md` detailing the review findings, strengths, potential pitfalls, and recommendations.
+  - [x] Audit all 19 test suites and document test quality and coverage metrics.
+  - [x] Provide an actionable readiness verdict for production and client integration.
+  - [x] Re-verify findings after Task 5.1 lands (the integration suite is the only thing that can validate §3.2 races and §4.2 database-layer gaps).

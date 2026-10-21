@@ -1180,6 +1180,10 @@ registry.registerPath({
     },
     401: { description: "Unauthorized" },
     404: { description: "Not found" },
+    409: {
+      description: "Task state changed concurrently (no longer open for offers)",
+      ...offerError,
+    },
   },
 });
 
@@ -1208,6 +1212,10 @@ registry.registerPath({
     },
     401: { description: "Unauthorized / agent authentication required" },
     404: { description: "Not found" },
+    409: {
+      description: "Offer taken by a competing request or the task changed concurrently",
+      ...offerError,
+    },
   },
 });
 
@@ -1457,11 +1465,15 @@ registry.registerPath({
       content: { "application/json": { schema: ideaItemSchema } },
     },
     400: {
-      description: "Idea already accepted or was rejected",
+      description: "Idea already accepted",
       ...ideaError,
     },
     401: { description: "Unauthorized", ...ideaError },
     404: { description: "Idea not found", ...ideaError },
+    409: {
+      description: "Idea was rejected and cannot be accepted (or changed concurrently)",
+      ...ideaError,
+    },
   },
 });
 
@@ -1481,11 +1493,15 @@ registry.registerPath({
       content: { "application/json": { schema: ideaItemSchema } },
     },
     400: {
-      description: "Idea already rejected or was accepted",
+      description: "Idea already rejected",
       ...ideaError,
     },
     401: { description: "Unauthorized", ...ideaError },
     404: { description: "Idea not found", ...ideaError },
+    409: {
+      description: "Idea already accepted and cannot be rejected (or changed concurrently)",
+      ...ideaError,
+    },
   },
 });
 
@@ -1515,9 +1531,9 @@ registry.registerPath({
   path: "/api/tasks/{id}/approve",
   operationId: "approveTask",
   tags: ["Tasks"],
-  summary: "Approve a submitted or in-review task (Review Coordinator / human owner)",
+  summary: "Approve a submitted or in-review task (Review Coordinator / project owner)",
   description:
-    "Creates an approval comment and transitions the task status to approved. Agent callers are forbidden.",
+    "Creates an approval comment and transitions the task status to approved. Agent callers are forbidden, and human callers must be a configured Review Coordinator or the user who created the parent goal.",
   security: [{ sessionCookie: [] }],
   request: {
     params: taskIdParams,
@@ -1536,7 +1552,10 @@ registry.registerPath({
       content: { "application/json": { schema: taskErrorSchema } },
     },
     401: { description: "Unauthorized" },
-    403: { description: "Forbidden: Agent callers cannot approve tasks" },
+    403: {
+      description:
+        "Forbidden: agent callers, or humans who are neither a Review Coordinator nor the project owner",
+    },
     404: { description: "Not found" },
   },
 });

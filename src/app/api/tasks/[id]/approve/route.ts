@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/api";
 import { createTaskApprovalHandler } from "@/lib/task-approval";
+import { isReviewCoordinator } from "@/lib/task-comments";
 
 export const dynamic = "force-dynamic";
 
@@ -9,8 +10,24 @@ const approveTask = createTaskApprovalHandler({
   findTask: (id) =>
     prisma.task.findUnique({
       where: { id },
-      select: { id: true, status: true },
-    }),
+      select: {
+        id: true,
+        status: true,
+        // The goal's creator counts as the project owner for approval rights.
+        workstream: { select: { goal: { select: { createdById: true } } } },
+      },
+    }).then((task) =>
+      task
+        ? {
+            id: task.id,
+            status: task.status,
+            ownerIds: task.workstream ? [task.workstream.goal.createdById] : [],
+          }
+        : null
+    ),
+  // Task 4.4: a configured Review Coordinator, or the human who created the parent goal.
+  canApprove: (userId, task) =>
+    isReviewCoordinator(userId) || (task.ownerIds ?? []).includes(userId),
   approveTaskWithComment: async ({ taskId, userId, title, body, tag }) => {
     const completedAt = new Date();
 
@@ -60,4 +77,3 @@ const approveTask = createTaskApprovalHandler({
 export async function POST(request: Request, { params }: { params: { id: string } }) {
   return approveTask(request, params);
 }
-

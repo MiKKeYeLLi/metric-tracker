@@ -38,6 +38,36 @@ export function serializeAgentProfile(agent: Agent & { owner: Pick<User, "id" | 
   return { ...serializeAgent(agent), owner: { id: agent.owner.id, name: agent.owner.name } };
 }
 
+/**
+ * Extracts the API key from request headers if present. This is the single
+ * header-parsing helper for agent auth; `X-Agent-Key` and `Authorization: Bearer` are both accepted.
+ */
+export function extractAgentKey(request: Request): string | null {
+  const xApiKey = request.headers.get("x-agent-key")?.trim();
+  if (xApiKey) return xApiKey;
+
+  const authHeader = request.headers.get("authorization")?.trim();
+  if (authHeader?.toLowerCase().startsWith("bearer ")) {
+    const token = authHeader.slice(7).trim();
+    if (token) return token;
+  }
+
+  return null;
+}
+
+/**
+ * Refreshes `lastActiveAt`, but at most once per ACTIVITY_WRITE_INTERVAL_MS so busy
+ * agents don't write on every request. Returns the agent with the timestamp updated in memory.
+ */
+export async function touchAgentActivity<T extends Agent>(agent: T, now = new Date()): Promise<T> {
+  if (agent.lastActiveAt && now.getTime() - agent.lastActiveAt.getTime() <= ACTIVITY_WRITE_INTERVAL_MS) {
+    return agent;
+  }
+
+  await prisma.agent.update({ where: { id: agent.id }, data: { lastActiveAt: now } });
+  return { ...agent, lastActiveAt: now };
+}
+
 function unauthorized() {
   return NextResponse.json(
     { error: "Unauthorized" },
@@ -45,9 +75,12 @@ function unauthorized() {
   );
 }
 
-/** The agent-side counterpart of requireAuth: resolves the agent from an `Authorization: Bearer <key>` header. */
+/**
+ * The agent-side counterpart of requireAuth: resolves the agent from an
+ * `X-Agent-Key` or `Authorization: Bearer <key>` header. Every agent-authenticated route uses this.
+ */
 export async function requireAgent(request: Request) {
-  const key = request.headers.get("authorization")?.match(/^Bearer\s+(\S+)$/i)?.[1];
+  const key = extractAgentKey(request);
   if (!key?.startsWith(KEY_PREFIX)) return { agent: null, error: unauthorized() };
 
   const agent = await prisma.agent.findUnique({
@@ -56,11 +89,5 @@ export async function requireAgent(request: Request) {
   });
   if (!agent) return { agent: null, error: unauthorized() };
 
-  const now = new Date();
-  if (!agent.lastActiveAt || now.getTime() - agent.lastActiveAt.getTime() > ACTIVITY_WRITE_INTERVAL_MS) {
-    await prisma.agent.update({ where: { id: agent.id }, data: { lastActiveAt: now } });
-    agent.lastActiveAt = now;
-  }
-
-  return { agent, error: null };
+  return { agent: await touchAgentActivity(agent), error: null };
 }

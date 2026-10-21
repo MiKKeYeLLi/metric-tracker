@@ -27,6 +27,16 @@ export const workstreamQuerySchema = z.object({
   status: workstreamStatusSchema.optional().default("accepted"),
 });
 
+export const workstreamIdParamsSchema = z
+  .object({
+    id: z
+      .string()
+      .trim()
+      .min(1, "Workstream ID is required")
+      .openapi({ param: { name: "id", in: "path" }, description: "Workstream ID" }),
+  })
+  .openapi("WorkstreamIdParams");
+
 export const workstreamAutoAcceptSchema = z
   .object({
     autoAcceptTasks: z.boolean().optional(),

@@ -27,6 +27,7 @@ function createHarness(
     userId?: string;
     userName?: string;
     userEmail?: string;
+    canApprove?: boolean;
   }
 ) {
   let task = initialTask ? { ...initialTask } : null;
@@ -60,6 +61,7 @@ function createHarness(
       };
     },
     findTask: async (id) => (task?.id === id ? { id: task.id, status: task.status } : null),
+    canApprove: () => options?.canApprove ?? true,
     approveTaskWithComment: async ({ taskId, userId: authorId, title, body, tag }) => {
       approvalCalls += 1;
       if (!task || task.id !== taskId || !isApprovableStatus(task.status)) {
@@ -257,6 +259,7 @@ describe("Task 4.4 — POST /api/tasks/{id}/approve", () => {
         id,
         status: lookupCount++ === 0 ? "submitted" : "changes_requested",
       }),
+      canApprove: () => true,
       approveTaskWithComment: async () => null,
     });
 
@@ -298,6 +301,34 @@ describe("Task 4.4 — POST /api/tasks/{id}/approve", () => {
     assert.equal(response.status, 403);
     assert.equal(harness.approvalCalls, 0);
     assert.equal(harness.task?.status, "submitted");
+  });
+
+  it("rejects a human who is neither a Review Coordinator nor the project owner", async () => {
+    const harness = createHarness(
+      { id: "task-1", status: "submitted", done: false, completedAt: null },
+      { userId: "random-human", userName: "Random Human", canApprove: false }
+    );
+
+    const response = await postApprove(harness.handler);
+    assert.equal(response.status, 403);
+    assert.deepEqual(await response.json(), {
+      error: "Only a Review Coordinator or the project owner can approve tasks",
+    });
+    assert.equal(harness.approvalCalls, 0);
+    assert.equal(harness.comments.length, 0);
+    assert.equal(harness.task?.status, "submitted");
+  });
+
+  it("checks authorization only after the status guard passes", async () => {
+    const harness = createHarness(
+      { id: "task-1", status: "approved", done: true, completedAt: null },
+      { canApprove: false }
+    );
+
+    const response = await postApprove(harness.handler);
+    // Status guard runs first: an unauthorized user still gets the status error, not 403.
+    assert.equal(response.status, 400);
+    assert.equal(harness.approvalCalls, 0);
   });
 
   it("rejects malformed JSON and invalid body fields with 400", async () => {
