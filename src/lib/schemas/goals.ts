@@ -1,4 +1,5 @@
 import { z } from "@/lib/zod";
+import { workstreamStatusSchema } from "@/lib/schemas/workstreams";
 
 export const goalTypeValues = ["seo", "content", "marketing", "research", "outreach"] as const;
 export const goalTypeSchema = z.enum(goalTypeValues);
@@ -58,6 +59,42 @@ export const goalItemSchema = z
   })
   .openapi("GoalItem");
 
+/** A workstream (or pending idea) as embedded in the goal detail response. */
+export const goalWorkstreamSchema = z
+  .object({
+    id: z.string(),
+    goalId: z.string(),
+    title: z.string(),
+    description: z.string().nullable(),
+    status: workstreamStatusSchema,
+    autoAcceptTasks: z.boolean(),
+    proposedByAgentId: z.string().nullable(),
+    proposedByAgent: z
+      .object({ id: z.string(), name: z.string(), speciality: z.string() })
+      .nullable()
+      .optional(),
+    acceptedById: z.string().nullable(),
+    acceptedBy: z
+      .object({ id: z.string(), name: z.string().nullable(), email: z.string().nullable() })
+      .nullable()
+      .optional(),
+    tasks: z
+      .array(
+        z.object({
+          id: z.string(),
+          title: z.string(),
+          taskType: z.string().nullable(),
+          status: z.string(),
+          assignedAgentId: z.string().nullable(),
+          createdAt: z.iso.datetime(),
+        })
+      )
+      .optional(),
+    createdAt: z.iso.datetime(),
+    updatedAt: z.iso.datetime(),
+  })
+  .openapi("GoalWorkstream");
+
 export const goalDetailSchema = z
   .object({
     id: z.string(),
@@ -73,8 +110,8 @@ export const goalDetailSchema = z
         email: z.string().nullable(),
       })
       .optional(),
-    acceptedWorkstreams: z.array(z.any()),
-    pendingIdeas: z.array(z.any()),
+    acceptedWorkstreams: z.array(goalWorkstreamSchema),
+    pendingIdeas: z.array(goalWorkstreamSchema),
     createdAt: z.iso.datetime(),
     updatedAt: z.iso.datetime(),
   })

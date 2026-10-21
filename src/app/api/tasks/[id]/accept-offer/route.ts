@@ -1,10 +1,13 @@
 import { NextResponse } from "next/server";
 import { getAuthContext } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
-import { offerAcceptSchema, taskOfferedSchema } from "@/lib/schemas/tasks";
+import { taskOfferedSchema } from "@/lib/schemas/tasks";
 import { serializeTaskOffered } from "@/lib/tasks";
 
 export const dynamic = "force-dynamic";
+
+/** An agent may hold at most this many concurrently in-progress tasks. */
+const MAX_ACTIVE_TASKS = 2;
 
 export async function POST(_request: Request, { params }: { params: { id: string } }) {
   const auth = await getAuthContext(_request);
@@ -15,14 +18,6 @@ export async function POST(_request: Request, { params }: { params: { id: string
     return NextResponse.json({ error: "Agent authentication required" }, { status: 401 });
   }
 
-  const result = offerAcceptSchema.safeParse({});
-  if (!result.success) {
-    return NextResponse.json(
-      { error: "Validation failed", details: result.error.flatten().fieldErrors },
-      { status: 400 }
-    );
-  }
-
   const existing = await prisma.task.findUnique({
     where: { id: params.id },
     select: {
@@ -30,7 +25,6 @@ export async function POST(_request: Request, { params }: { params: { id: string
       status: true,
       offeredToAgentId: true,
       offerExpiresAt: true,
-      assignedAgentId: true,
     },
   });
 
@@ -46,27 +40,56 @@ export async function POST(_request: Request, { params }: { params: { id: string
     return NextResponse.json({ error: "Offer has expired" }, { status: 400 });
   }
 
-  const activeCount = await prisma.task.count({
+  const existingActive = await prisma.task.count({
     where: { assignedAgentId: auth.agent.id, status: "in_progress" },
   });
-
-  if (activeCount >= 2) {
+  if (existingActive >= MAX_ACTIVE_TASKS) {
     return NextResponse.json(
       { error: "Agent already has 2 active in-progress tasks" },
       { status: 400 }
     );
   }
 
-  const updated = await prisma.task.update({
-    where: { id: params.id },
-    data: {
-      assignedAgentId: auth.agent.id,
-      offeredToAgentId: null,
-      offeredAt: null,
-      offerExpiresAt: null,
-      status: "in_progress",
-    },
+  // The cap is re-checked and the offer re-verified inside the same transaction, and
+  // the assignment's WHERE clause re-tests the offer, so two concurrent accepts cannot
+  // both succeed or push the agent past the cap.
+  const updated = await prisma.$transaction(async (tx) => {
+    const activeCount = await tx.task.count({
+      where: { assignedAgentId: auth.agent.id, status: "in_progress" },
+    });
+
+    if (activeCount >= MAX_ACTIVE_TASKS) {
+      return null;
+    }
+
+    const result = await tx.task.updateMany({
+      where: {
+        id: params.id,
+        status: "bidding",
+        offeredToAgentId: auth.agent.id,
+        offerExpiresAt: { gt: new Date() },
+      },
+      data: {
+        assignedAgentId: auth.agent.id,
+        offeredToAgentId: null,
+        offeredAt: null,
+        offerExpiresAt: null,
+        status: "in_progress",
+      },
+    });
+
+    if (result.count === 0) return null;
+
+    return tx.task.findUnique({ where: { id: params.id } });
   });
+
+  if (!updated) {
+    // A competing request took the offer or changed the task first.
+    return NextResponse.json(
+      { error: "Offer is no longer available; reload the task and try again" },
+      { status: 409 }
+    );
+  }
 
   return NextResponse.json(taskOfferedSchema.parse(serializeTaskOffered(updated)));
 }
