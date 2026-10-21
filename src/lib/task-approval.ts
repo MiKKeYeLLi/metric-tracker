@@ -5,6 +5,8 @@ import { approvableTaskStatuses, taskApproveSchema } from "@/lib/schemas/task-ap
 export type TaskStatusRecord = {
   id: string;
   status: string;
+  /** Human users allowed to approve this task besides coordinators (the goal creator). */
+  ownerIds?: string[];
 };
 
 export type ApprovalCommentRecord = {
@@ -53,6 +55,14 @@ export type TaskApprovalDependencies = {
     error: NextResponse | null;
   }>;
   findTask: (id: string) => Promise<TaskStatusRecord | null>;
+  /**
+   * Decides whether this human may approve this task (Review Coordinator or project owner).
+   * Required: approval is a privileged action, so every consumer must state its policy.
+   */
+  canApprove: (
+    userId: string,
+    task: TaskStatusRecord
+  ) => Promise<boolean> | boolean;
   approveTaskWithComment: (input: ApproveTaskInput) => Promise<ApproveTaskResult | null>;
 };
 
@@ -130,6 +140,15 @@ export function createTaskApprovalHandler(dependencies: TaskApprovalDependencies
       return NextResponse.json(
         { error: "Task must be in 'submitted' or 'in_review' status to be approved" },
         { status: 400 }
+      );
+    }
+
+    // Task 4.4: only a Review Coordinator or the project owner may approve.
+    const allowed = await dependencies.canApprove(user.id, task);
+    if (!allowed) {
+      return NextResponse.json(
+        { error: "Only a Review Coordinator or the project owner can approve tasks" },
+        { status: 403 }
       );
     }
 

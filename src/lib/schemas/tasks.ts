@@ -83,7 +83,7 @@ export const taskItemSchema = z
     title: z.string(),
     description: z.string().nullable(),
     type: taskTypeSchema,
-    dueAt: z.iso.datetime(),
+    dueAt: z.iso.datetime().nullable(),
     done: z.boolean(),
     completedAt: z.iso.datetime().nullable(),
     ownerId: z.string().nullable(),
