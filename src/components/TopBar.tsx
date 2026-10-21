@@ -1,10 +1,12 @@
 "use client";
 
+import Link from "next/link";
 import { signOut } from "next-auth/react";
-import { LogOutIcon } from "lucide-react";
+import { LogOutIcon, UserRoundIcon } from "lucide-react";
 import { AgentSwitcher } from "@/components/agents/AgentSwitcher";
 import { NewGoalButton } from "@/components/goals/NewGoalButton";
 import { PointsTotal } from "@/components/goals/PointsTotal";
+import { NotificationBell } from "@/components/profile/NotificationBell";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -30,6 +32,7 @@ export function TopBar({
       <PointsTotal />
       <NewGoalButton />
       <AgentSwitcher />
+      <NotificationBell />
       <DropdownMenu>
         <DropdownMenuTrigger
           aria-label={`Account menu for ${name}`}
@@ -47,6 +50,12 @@ export function TopBar({
             {email && email !== name && <span className="truncate text-xs font-normal text-muted-foreground">{email}</span>}
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
+          <DropdownMenuItem asChild>
+            <Link href="/dashboard/profile">
+              <UserRoundIcon aria-hidden="true" />
+              Profile
+            </Link>
+          </DropdownMenuItem>
           <DropdownMenuItem onSelect={() => void signOut()}>
             <LogOutIcon aria-hidden="true" />
             Sign out
